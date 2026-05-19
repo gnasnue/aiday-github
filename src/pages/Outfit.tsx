@@ -2,8 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Info } from "lucide-react";
 import Logo from "@/components/Logo";
-import ootdLookGirl from "@/assets/ootd-look-girl.jpg";
-import ootdLookBoy from "@/assets/ootd-look-boy.jpg";
+import ootdLook from "@/assets/ootd-look.jpg";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withTopicParticle } from "@/lib/korean";
@@ -303,24 +302,30 @@ const Outfit = () => {
           {/* Today's Look board */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold tracking-tight">AI 추천 코디 미리보기</h2>
-              <span className="rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                AI 추천
-              </span>
+              <h2 className="text-[15px] font-bold tracking-tight">오늘의 룩</h2>
+              <span className="text-[11px] text-muted-foreground">제품 + 가상 코디</span>
             </div>
             <div className="mt-3 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft">
+              <div className="flex items-center justify-between px-4 pt-4">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+                  Today's OOTD Board
+                </p>
+                <span className="rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  AI 코디 미리보기
+                </span>
+              </div>
               <img
-                src={cur?.gender === "male" ? ootdLookBoy : ootdLookGirl}
+                src={ootdLook}
                 alt={`${cur?.name ?? "우리 아이"}의 오늘 코디 미리보기`}
                 width={1024}
                 height={1024}
                 loading="lazy"
-                className="block w-full object-cover"
+                className="mt-2 block w-full object-cover"
               />
+              <p className="px-4 pb-4 pt-3 text-[12px] leading-relaxed text-muted-foreground break-keep">
+                추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
+              </p>
             </div>
-            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground break-keep">
-              추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
-            </p>
           </section>
 
 
