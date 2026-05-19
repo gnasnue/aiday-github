@@ -301,28 +301,25 @@ const Outfit = () => {
 
           {/* Today's Look board */}
           <section className="mt-7">
-            <div className="flex items-baseline justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="text-[15px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
+              <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
+                AI코디 추천
+              </span>
             </div>
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground break-keep">
               추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
             </p>
             <div className="mt-3 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft">
-              <div className="flex items-center justify-between px-4 pt-4">
-                <span className="rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
-                  AI코디 추천
-                </span>
-              </div>
               <img
                 src={ootdLook}
                 alt={`${cur?.name ?? "우리 아이"}의 오늘 코디 미리보기`}
-                width={1024}
-                height={1024}
                 loading="lazy"
-                className="mt-2 block w-full object-cover"
+                className="block w-full object-cover"
               />
             </div>
           </section>
+
 
 
           {/* Avoid */}
