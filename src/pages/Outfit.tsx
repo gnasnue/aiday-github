@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Info } from "lucide-react";
 import Logo from "@/components/Logo";
+import ootdLook from "@/assets/ootd-look.jpg";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withTopicParticle } from "@/lib/korean";
