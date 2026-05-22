@@ -140,7 +140,7 @@ const Index = () => {
             </h2>
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
-                <div key={i} className="rounded-2xl bg-background p-6 shadow-soft flex flex-col">
+                <div key={i} className="rounded-2xl bg-background p-6 shadow-soft flex flex-col py-[14px]">
                   {/* 1. 따옴표 왼쪽 정렬 */}
                   <div className="text-2xl text-primary font-serif self-start mb-1">"</div>
                   
