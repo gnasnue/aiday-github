@@ -17,7 +17,7 @@ const pains = [
 ];
 
 const diffs = [
-  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 “육아 번역기”처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 “육아 번역기”처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
   { icon: "👶", title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
   { icon: "⏰", title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
   { icon: "📲", title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
@@ -107,7 +107,7 @@ const Index = () => {
                 <div key={d.title} className="rounded-2xl bg-background p-6 shadow-soft text-center flex flex-col items-center">
                   <div className="text-2xl">{d.icon}</div>
                   <h3 className="mt-3 text-base font-semibold break-keep">{d.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep">{d.desc}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
                 </div>
               ))}
             </div>
