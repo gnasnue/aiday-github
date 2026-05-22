@@ -163,7 +163,7 @@ const Index = () => {
         <section className="bg-primary">
           <div className="container-mobile py-12 text-center">
             <h2 className="text-xl font-bold tracking-tight text-primary-foreground break-keep">
-              오늘부터 아이웨더가<br />대신 챙겨드릴게요
+              오늘부터 아이데이가<br />대신 챙겨드릴게요
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-primary-foreground/90 break-keep">
               매일 아침 바쁜 엄마 아빠 곁에서,<br />
