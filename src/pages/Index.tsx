@@ -13,18 +13,18 @@ const pains = [
   { emoji: "😵‍💫", text: "날씨 앱, 미세먼지 앱, 꽃가루, 자외선 정보… 따로따로 확인하기 너무 번거로워요" },
   { emoji: "🤔", text: "일교차가 심한 날 아이 옷차림을 어떻게 해야 할지 매번 헷갈려요" },
   { emoji: "🤯", text: "바쁜 아침에 이것저것 고민하고 챙길 시간이 없어요" },
-  { emoji: "🤒", text: "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 꼼꼼한 케어 가이드가 필요해요" },
+  { emoji: "🤒", text: "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 세심한 케어 가이드 없을까요?" },
 ];
 
 const diffs = [
-  { icon: "👶", title: "내 아이만을 위한 맞춤 정보", desc: "아이 체질과 건강 정보를 기반으로 꼭 필요한 정보만 골라드려요" },
-  { icon: "⏰", title: "시간대별 날씨 정보", desc: "등원, 야외활동, 하원, 저녁 산책까지 시간대별로 미리 확인하세요" },
-  { icon: "🤖", title: "엄마 아빠를 위한 AI 비서", desc: "흩어진 정보를 대신 모아 분석까지, AI가 알아서 다 알려드려요" },
-  { icon: "🔬", title: "전문 학회 데이터 기반", desc: "대한소아과학회 등 전문 기관 자료를 근거로 해요" },
+  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 “육아 번역기”처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: "👶", title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
+  { icon: "⏰", title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
+  { icon: "📲", title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
-  { text: "매일 아침 날씨 앱 3개를 확인했는데, 이제 아이웨더 하나로 끝나요.", who: "7세 딸 엄마, 워킹맘" },
+  { text: "매일 아침 날씨 앱 3개를 확인했는데, 이제 아이데이 하나로 끝나요.", who: "7세 딸 엄마, 워킹맘" },
   { text: "등원 준비할 때 아침 날씨만 보고 입혔는데, 낮에 땀 흘릴 수 있다고 미리 알려줘서 좋았어요.", who: "6세 아들 엄마" },
   { text: "오후에 바람이 많이 분다고 알려줘서 감기 잘 걸리는 아이 목수건을 챙길 수 있었어요.", who: "5세 아들 엄마, 맞벌이" },
 ];
@@ -57,12 +57,14 @@ const Index = () => {
               ✨ 바쁜 엄마아빠를 위한 AI 육아 비서
             </span>
             <h1 className="mt-5 text-2xl font-bold leading-tight tracking-tight text-foreground break-keep">
-              오늘 우리 아이에게<br />뭘 입혀야 할지,<br />
-              <span className="text-accent">AI가 알려드려요</span>
+              오늘 우리 아이,<br />뭘 입히고 뭘 챙겨야 할지<br />
+              <span className="text-accent">AI가 먼저 알려드려요</span>
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground break-keep">
-              날씨, 미세먼지, 꽃가루, 자외선까지.<br />
-              아이 체질에 맞게 매일 아침 리포트를 보내드려요.
+              미세먼지, 꽃가루, 자외선, 일교차까지.<br />
+              오늘 날씨와 우리 아이 체질을 함께 분석해서,<br />
+              등원룩·마스크·겉옷·준비물까지<br />
+              더 쉽게 결정할 수 있게 도와드려요.
             </p>
             <div className="mt-7 flex flex-col items-center gap-3">
               <Link to="/signup" className="w-full">
@@ -97,8 +99,8 @@ const Index = () => {
         {/* Differentiators */}
         <section className="bg-soft py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight">
-              아이웨더는<br />이렇게 다릅니다
+            <h2 className="text-center text-xl font-bold tracking-tight break-keep">
+              아이데이는 환경 정보를<br />“우리 아이 기준”으로 해석합니다.
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
@@ -116,7 +118,7 @@ const Index = () => {
         <section className="py-12">
           <div className="container-mobile">
             <h2 className="text-center text-xl font-bold tracking-tight">
-              아이웨더가<br />대신 챙겨드릴게요
+              아이데이가<br />대신 챙겨드릴게요
             </h2>
             <div className="mt-6 grid grid-cols-2 gap-3">
               {features.map((f) => (
@@ -161,7 +163,7 @@ const Index = () => {
         <section className="bg-primary">
           <div className="container-mobile py-12 text-center">
             <h2 className="text-xl font-bold tracking-tight text-primary-foreground break-keep">
-              오늘부터 아이웨더가<br />대신 챙겨드릴게요
+              오늘부터 아이데이가<br />대신 챙겨드릴게요
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-primary-foreground/90 break-keep">
               매일 아침 바쁜 엄마 아빠 곁에서,<br />
@@ -184,7 +186,7 @@ const Index = () => {
               <a href="#" className="hover:text-foreground">개인정보처리방침</a>
               <a href="mailto:hello@aiweather.app" className="hover:text-foreground">hello@aiweather.app</a>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이웨더. All rights reserved.</p>
+            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이데이. All rights reserved.</p>
           </div>
         </footer>
       </div>
