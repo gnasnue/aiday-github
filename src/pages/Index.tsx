@@ -24,9 +24,9 @@ const diffs = [
 ];
 
 const reviews = [
-  { text: "매일 아침 날씨 앱 3개를 확인했는데, 이제 아이데이 하나로 끝나요.", who: "7세 딸 엄마, 워킹맘" },
-  { text: "등원 준비할 때 아침 날씨만 보고 입혔는데, 낮에 땀 흘릴 수 있다고 미리 알려줘서 좋았어요.", who: "6세 아들 엄마" },
-  { text: "오후에 바람이 많이 분다고 알려줘서 감기 잘 걸리는 아이 목수건을 챙길 수 있었어요.", who: "5세 아들 엄마, 맞벌이" },
+  { text: "미세먼지 수치만 봐서는 감이 안 왔는데,\n우리 아이 기준으로 알려주니까\n오늘 어떻게 준비해야 할지 훨씬 쉬워졌어요.", who: "6세 아들 엄마 · 비염 아이" },
+  { text: "아침엔 괜찮아 보여서 얇게 입혔다가\n하원 때 추워했던 적이 많았는데,\n이제 겉옷 챙기는 걸 놓치지 않게 됐어요.", who: "7세 딸 엄마 · 열 많은 아이" },
+  { text: "등원 준비만으로 정신없는데,\n오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까\n마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
 ];
 
 const Index = () => {
@@ -145,7 +145,7 @@ const Index = () => {
                   <div className="text-2xl text-primary font-serif self-start mb-1">"</div>
                   
                   {/* 2. 본문 가운데 정렬 + 의미 단위 줄바꿈 */}
-                  <p className="text-sm leading-relaxed text-foreground text-center break-keep px-2">
+                  <p className="text-sm leading-relaxed text-foreground text-center break-keep whitespace-pre-line px-2">
                     {r.text}
                   </p>
                   
@@ -184,9 +184,9 @@ const Index = () => {
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <a href="#" className="hover:text-foreground">이용약관</a>
               <a href="#" className="hover:text-foreground">개인정보처리방침</a>
-              <a href="mailto:hello@aiweather.app" className="hover:text-foreground">hello@aiweather.app</a>
+              <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이데이. All rights reserved.</p>
+            <p className="mt-4 text-xs text-muted-foreground">© 2026 아이데이. All rights reserved.</p>
           </div>
         </footer>
       </div>
