@@ -114,23 +114,6 @@ const Index = () => {
           </div>
         </section>
 
-        {/* Features */}
-        <section className="py-12">
-          <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight">
-              아이데이가<br />대신 챙겨드릴게요
-            </h2>
-            <div className="mt-6 grid grid-cols-2 gap-3">
-              {features.map((f) => (
-                <div key={f.title} className="rounded-2xl border border-border bg-card p-4 text-center flex flex-col items-center justify-center">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary text-2xl mb-3">{f.icon}</div>
-                  <h3 className="text-sm font-semibold leading-snug break-keep">{f.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground break-keep">{f.desc}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
         {/* Reviews - 정렬 레이아웃 대폭 수정 */}
         <section className="bg-secondary py-12">
