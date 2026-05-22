@@ -99,8 +99,8 @@ const Index = () => {
         {/* Differentiators */}
         <section className="bg-soft py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight">
-              아이웨더는<br />이렇게 다릅니다
+            <h2 className="text-center text-xl font-bold tracking-tight break-keep">
+              아이데이는 환경 정보를<br />“우리 아이 기준”으로 해석합니다.
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
