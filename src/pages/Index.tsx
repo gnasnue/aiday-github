@@ -186,7 +186,7 @@ const Index = () => {
               <a href="#" className="hover:text-foreground">개인정보처리방침</a>
               <a href="mailto:hello@aiweather.app" className="hover:text-foreground">hello@aiweather.app</a>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이웨더. All rights reserved.</p>
+            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이데이. All rights reserved.</p>
           </div>
         </footer>
       </div>
