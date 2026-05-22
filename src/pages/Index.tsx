@@ -118,7 +118,7 @@ const Index = () => {
         <section className="py-12">
           <div className="container-mobile">
             <h2 className="text-center text-xl font-bold tracking-tight">
-              아이웨더가<br />대신 챙겨드릴게요
+              아이데이가<br />대신 챙겨드릴게요
             </h2>
             <div className="mt-6 grid grid-cols-2 gap-3">
               {features.map((f) => (
