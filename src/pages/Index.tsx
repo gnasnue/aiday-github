@@ -145,7 +145,7 @@ const Index = () => {
                   <div className="text-2xl text-primary font-serif self-start mb-1">"</div>
                   
                   {/* 2. 본문 가운데 정렬 + 의미 단위 줄바꿈 */}
-                  <p className="text-sm leading-relaxed text-foreground text-center break-keep px-2">
+                  <p className="text-sm leading-relaxed text-foreground text-center break-keep whitespace-pre-line px-2">
                     {r.text}
                   </p>
                   
@@ -184,9 +184,9 @@ const Index = () => {
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <a href="#" className="hover:text-foreground">이용약관</a>
               <a href="#" className="hover:text-foreground">개인정보처리방침</a>
-              <a href="mailto:hello@aiweather.app" className="hover:text-foreground">hello@aiweather.app</a>
+              <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">© 2025 아이데이. All rights reserved.</p>
+            <p className="mt-4 text-xs text-muted-foreground">© 2026 아이데이. All rights reserved.</p>
           </div>
         </footer>
       </div>
