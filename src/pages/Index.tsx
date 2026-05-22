@@ -57,12 +57,14 @@ const Index = () => {
               ✨ 바쁜 엄마아빠를 위한 AI 육아 비서
             </span>
             <h1 className="mt-5 text-2xl font-bold leading-tight tracking-tight text-foreground break-keep">
-              오늘 우리 아이에게<br />뭘 입혀야 할지,<br />
-              <span className="text-accent">AI가 알려드려요</span>
+              오늘 우리 아이,<br />뭘 입히고 뭘 챙겨야 할지<br />
+              <span className="text-accent">AI가 먼저 알려드려요</span>
             </h1>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground break-keep">
-              날씨, 미세먼지, 꽃가루, 자외선까지.<br />
-              아이 체질에 맞게 매일 아침 리포트를 보내드려요.
+              미세먼지, 꽃가루, 자외선, 일교차까지.<br />
+              오늘 날씨와 우리 아이 체질을 함께 분석해서,<br />
+              등원룩·마스크·겉옷·준비물까지<br />
+              더 쉽게 결정할 수 있게 도와드려요.
             </p>
             <div className="mt-7 flex flex-col items-center gap-3">
               <Link to="/signup" className="w-full">
