@@ -13,6 +13,7 @@ import Tips from "./pages/Tips.tsx";
 import Outfit from "./pages/Outfit.tsx";
 import My from "./pages/My.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import BottomNav from "./components/BottomNav";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,13 @@ const ScrollToTop = () => {
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+};
+
+const navRoutes = ["/home", "/env", "/outfit", "/tips", "/me"];
+const PersistentBottomNav = () => {
+  const { pathname } = useLocation();
+  if (!navRoutes.includes(pathname)) return null;
+  return <BottomNav />;
 };
 
 const App = () => (
