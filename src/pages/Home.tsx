@@ -43,13 +43,6 @@ const renderRich = (text: string) => {
   });
 };
 
-const navItems = [
-  { icon: "🏠", label: "홈", to: "/home" },
-  { icon: "📊", label: "환경정보", to: "/env" },
-  { icon: "👕", label: "옷차림", to: "/outfit" },
-  { icon: "💊", label: "건강팁", to: "/tips" },
-  { icon: "👤", label: "마이", to: "/me" },
-];
 
 const Home = () => {
   const navigate = useNavigate();

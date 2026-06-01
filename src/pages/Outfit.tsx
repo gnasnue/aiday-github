@@ -8,13 +8,6 @@ import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withTopicParticle } from "@/lib/korean";
 import { mockWeather } from "@/lib/weather-mock";
 
-const navItems = [
-  { icon: "🏠", label: "홈", to: "/home" },
-  { icon: "📊", label: "환경정보", to: "/env" },
-  { icon: "👕", label: "옷차림", to: "/outfit" },
-  { icon: "💊", label: "건강팁", to: "/tips" },
-  { icon: "👤", label: "마이", to: "/me" },
-];
 
 type Category = "아우터" | "이너" | "하의" | "악세사리";
 
