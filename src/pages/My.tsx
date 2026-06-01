@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Settings, Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";

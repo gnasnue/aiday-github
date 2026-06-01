@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Settings, MapPin, ChevronDown, Check } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
