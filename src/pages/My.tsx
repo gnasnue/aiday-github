@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Bell, Settings, Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,6 @@ import {
   removeProfile,
 } from "@/lib/profile";
 
-const navItems = [
-  { icon: "🏠", label: "홈", to: "/home" },
-  { icon: "📊", label: "환경정보", to: "/env" },
-  { icon: "👕", label: "옷차림", to: "/outfit" },
-  { icon: "💊", label: "건강팁", to: "/tips" },
-  { icon: "👤", label: "마이", to: "/me" },
-];
 
 const sensitivityLabel: Record<string, string> = {
   "very-much": "매우 많이 탐",
@@ -251,36 +244,6 @@ const My = () => {
             </div>
           </section>
         </main>
-
-        <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border bg-background/95 backdrop-blur-md">
-          <div className="container-mobile">
-            <ul className="grid grid-cols-5">
-              {navItems.map((n) => {
-                const isActive = location.pathname === n.to;
-                const handleClick = (e: React.MouseEvent) => {
-                  if (n.to !== "/home" && n.to !== "/me") {
-                    e.preventDefault();
-                    toast(`${n.label} 페이지는 준비 중이에요`);
-                  }
-                };
-                return (
-                  <li key={n.label}>
-                    <Link
-                      to={n.to}
-                      onClick={handleClick}
-                      className={`flex flex-col items-center gap-0.5 py-2.5 text-xs transition-smooth ${
-                        isActive ? "font-semibold text-accent" : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <span className="text-lg">{n.icon}</span>
-                      {n.label}
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </nav>
       </div>
     </div>
   );
