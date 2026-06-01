@@ -189,7 +189,7 @@ const Home = () => {
                   🌤️
                 </div>
                 <div className="flex-1 pt-0.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
+                  <p className="text-[11px] uppercase tracking-wider text-accent font-bold">
                     AI 리포트 · 오늘 아침
                   </p>
                   <p className="mt-1.5 text-[15px] leading-relaxed text-foreground break-keep">
