@@ -2,31 +2,53 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation"; ;
+import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
 
 const Signup = () => {
   const router = useRouter();
   const [agree, setAgree] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!agree) {
       toast.error("이용약관에 동의해주세요.");
+      return;
+    }
+    const form = e.currentTarget;
+    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
+    const pw = (form.elements.namedItem("pw") as HTMLInputElement).value;
+    const pw2 = (form.elements.namedItem("pw2") as HTMLInputElement).value;
+    if (pw !== pw2) {
+      toast.error("비밀번호가 일치하지 않아요.");
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.signUp({ email, password: pw });
+    setLoading(false);
+    if (error) {
+      toast.error(error.message);
       return;
     }
     toast.success("가입이 완료되었어요! 온보딩을 시작합니다.");
     router.push("/onboarding");
   };
 
-  const social = (provider: string) => {
-    toast.success(`${provider} 가입 완료! 온보딩을 시작합니다.`);
-    setTimeout(() => router.push("/onboarding"), 400);
+  const signInWithGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${location.origin}/auth/callback?next=/onboarding`,
+      },
+    });
+    if (error) toast.error(error.message);
   };
 
   return (
@@ -50,7 +72,7 @@ const Signup = () => {
           <div className="mt-7">
             <button
               type="button"
-              onClick={() => social("구글")}
+              onClick={signInWithGoogle}
               className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-smooth hover:bg-muted"
             >
               <span>G</span> 구글로 시작하기
@@ -63,7 +85,7 @@ const Signup = () => {
             <div className="h-px flex-1 bg-border" />
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             <div className="space-y-1.5">
               <Label htmlFor="email">이메일</Label>
               <Input id="email" type="email" placeholder="parent@example.com" required className="h-12" />
@@ -95,9 +117,10 @@ const Signup = () => {
             <Button
               type="submit"
               size="lg"
+              disabled={loading}
               className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
-              가입하기
+              {loading ? "처리 중..." : "가입하기"}
             </Button>
           </form>
 
