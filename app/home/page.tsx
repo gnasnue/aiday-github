@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, MapPin, ChevronDown, Check } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,8 +47,8 @@ const renderRich = (text: string) => {
 
 
 const Home = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
   const [active, setActive] = useState<string>(() => {
     try {
@@ -65,7 +67,7 @@ const Home = () => {
     if (!list.find((p) => p.id === active)) {
       setActive(list[0].id);
     }
-  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist active profile
   useEffect(() => {
@@ -140,7 +142,7 @@ const Home = () => {
               </button>
             ))}
             <button
-              onClick={() => navigate("/onboarding")}
+              onClick={() => router.push("/onboarding")}
               className="shrink-0 rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
             >
               + 추가

@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -117,8 +119,8 @@ const ProfileCard = ({
 };
 
 const My = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
   const [active, setActive] = useState<string>(() => {
     try {
@@ -134,7 +136,7 @@ const My = () => {
 
   useEffect(() => {
     setProfiles(loadProfiles());
-  }, [location.key]);
+  }, [pathname]);
 
   const select = (id: string) => {
     setActive(id);
@@ -211,7 +213,7 @@ const My = () => {
               )}
 
               <Button
-                onClick={() => navigate("/onboarding")}
+                onClick={() => router.push("/onboarding")}
                 variant="outline"
                 size="lg"
                 className="h-12 w-full border-2 border-dashed border-border text-foreground hover:border-primary hover:bg-secondary"

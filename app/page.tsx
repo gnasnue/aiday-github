@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import Link from "next/link";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 
@@ -17,8 +17,8 @@ const pains = [
 ];
 
 const diffs = [
-  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 “육아 번역기”처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: “👶”, title: “우리 아이 맞춤 해석”, desc: “비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요” },
+  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 '육아 번역기'처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: "👶", title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요" },
   { icon: "⏰", title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
   { icon: "📲", title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
@@ -29,7 +29,7 @@ const reviews = [
   { text: "등원 준비만으로 정신없는데,\n오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까\n마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
 ];
 
-const Index = () => {
+export default function IndexPage() {
   return (
     <div className="page-shell">
       <div className="page-frame animate-fade-in">
@@ -38,10 +38,10 @@ const Index = () => {
           <div className="container-mobile flex h-14 items-center justify-between">
             <Logo />
             <div className="flex items-center gap-1">
-              <Link to="/signup">
+              <Link href="/signup">
                 <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-foreground">로그인</Button>
               </Link>
-              <Link to="/signup">
+              <Link href="/signup">
                 <Button size="sm" className="h-8 bg-primary px-3 text-xs text-primary-foreground hover:bg-primary-hover shadow-soft">
                   무료 시작
                 </Button>
@@ -67,12 +67,12 @@ const Index = () => {
               더 쉽게 결정할 수 있게 도와드려요.
             </p>
             <div className="mt-7 flex flex-col items-center gap-3">
-              <Link to="/signup" className="w-full">
+              <Link href="/signup" className="w-full">
                 <Button size="lg" className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-glow">
                   무료로 시작하기
                 </Button>
               </Link>
-              <Link to="/home" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+              <Link href="/home" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
                 먼저 둘러볼게요 →
               </Link>
             </div>
@@ -100,7 +100,7 @@ const Index = () => {
         <section className="bg-soft py-12">
           <div className="container-mobile">
             <h2 className="text-center text-2xl font-bold tracking-tight break-keep">
-              아이데이는 환경 정보를<br />“우리 아이 기준”으로 해석합니다.
+              아이데이는 환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다.
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
@@ -114,8 +114,7 @@ const Index = () => {
           </div>
         </section>
 
-
-        {/* Reviews - 정렬 레이아웃 대폭 수정 */}
+        {/* Reviews */}
         <section className="bg-secondary py-12">
           <div className="container-mobile">
             <h2 className="text-center text-2xl font-bold tracking-tight">
@@ -124,15 +123,10 @@ const Index = () => {
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
                 <div key={i} className="rounded-2xl bg-background p-6 shadow-soft flex flex-col py-[14px]">
-                  {/* 1. 따옴표 왼쪽 정렬 */}
-                  <div className="text-2xl text-primary font-serif self-start mb-1">"</div>
-                  
-                  {/* 2. 본문 가운데 정렬 + 의미 단위 줄바꿈 */}
+                  <div className="text-2xl text-primary font-serif self-start mb-1">&ldquo;</div>
                   <p className="text-sm leading-relaxed text-foreground text-center break-keep whitespace-pre-line px-2">
                     {r.text}
                   </p>
-                  
-                  {/* 3. 작성자 오른쪽 정렬 */}
                   <p className="mt-4 text-xs text-muted-foreground self-end">
                     — {r.who}
                   </p>
@@ -157,6 +151,4 @@ const Index = () => {
       </div>
     </div>
   );
-};
-
-export default Index;
+}

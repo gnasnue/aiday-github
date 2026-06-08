@@ -1,5 +1,8 @@
+"use client";
+
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation"; ;
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const Signup = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [agree, setAgree] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -18,12 +21,12 @@ const Signup = () => {
       return;
     }
     toast.success("가입이 완료되었어요! 온보딩을 시작합니다.");
-    navigate("/onboarding");
+    router.push("/onboarding");
   };
 
   const social = (provider: string) => {
     toast.success(`${provider} 가입 완료! 온보딩을 시작합니다.`);
-    setTimeout(() => navigate("/onboarding"), 400);
+    setTimeout(() => router.push("/onboarding"), 400);
   };
 
   return (
@@ -32,7 +35,7 @@ const Signup = () => {
         <header className="border-b border-border/60">
           <div className="container-mobile flex h-14 items-center justify-between">
             <Logo />
-            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground">홈으로</Link>
+            <Link href="/" className="text-xs text-muted-foreground hover:text-foreground">홈으로</Link>
           </div>
         </header>
 
@@ -99,7 +102,7 @@ const Signup = () => {
           </form>
 
           <div className="mt-5 text-center">
-            <Link to="/home" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            <Link href="/home" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
               먼저 둘러볼게요 →
             </Link>
           </div>
