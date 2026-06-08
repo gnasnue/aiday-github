@@ -11,6 +11,7 @@ import { withSubjectSuffix } from "@/lib/korean";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
+import type { WeatherData } from "@/lib/weather-api";
 
 const items = [
   { emoji: "🧣", name: "유아 면 목수건", price: "9,900원" },
@@ -59,6 +60,9 @@ const Home = () => {
   });
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
+  const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  const [aiMessage, setAiMessage] = useState<string>("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   // Refresh profiles when returning from onboarding
   useEffect(() => {
@@ -74,21 +78,130 @@ const Home = () => {
     try { localStorage.setItem("aiweather:activeProfileId", active); } catch {}
   }, [active]);
 
+  // 실제 날씨 + 대기질 데이터 로드
+  useEffect(() => {
+    const fetchEnv = async () => {
+      setLoading(true);
+      try {
+        const [weatherRes, airRes] = await Promise.allSettled([
+          fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
+          fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+        ]);
+
+        const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
+        const a = airRes.status === "fulfilled" ? airRes.value : null;
+
+        if (w && !w.error) {
+          const dustGrade = a?.pm10Grade ?? 1;
+          const dustLabel = (["좋음", "보통", "나쁨", "매우나쁨"] as const)[dustGrade - 1] ?? "보통";
+          const windLabel = w.windSpeed >= 9 ? "강함" : w.windSpeed >= 4 ? "보통" : "약함";
+          setWeatherData({
+            ...mockWeather,
+            temp: w.temperature ?? mockWeather.temp,
+            humidity: w.humidity ?? mockWeather.humidity,
+            dustLevel: dustLabel,
+            windSpeed: windLabel,
+          });
+          // Claude AI 리포트 스트리밍 요청
+          setAiLoading(true);
+          setAiMessage("");
+        }
+        setLoading(false);
+      } catch {
+        setLoading(false);
+      }
+    };
+    fetchEnv();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
 
-  const recommendation = useMemo(
-    () => buildRecommendation(cur, mockWeather),
-    [cur]
-  );
-  const { checklist: baseChecklist, message, badges } = recommendation;
-
-  const allDone = checked.length === baseChecklist.length;
-
-  // simulate initial loading
+  // Claude AI 스트리밍 리포트
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+    if (!aiLoading || !cur) return;
+
+    const fetchReport = async () => {
+      try {
+        const [weatherRes, airRes] = await Promise.allSettled([
+          fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
+          fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+        ]);
+        const w = weatherRes.status === "fulfilled" ? weatherRes.value : {};
+        const a = airRes.status === "fulfilled" ? airRes.value : null;
+
+        const res = await fetch("/api/report", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            child: {
+              name: cur.name,
+              age: cur.age,
+              gender: cur.gender,
+              conditions: cur.conditions,
+              cold: cur.cold,
+              hot: cur.hot,
+              sweat: cur.sweat,
+            },
+            weather: w,
+            air: a?.error ? null : a,
+          }),
+        });
+
+        if (!res.ok || !res.body) {
+          setAiLoading(false);
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          // SSE 형식: "data: {...}\n\n"
+          const lines = chunk.split("\n");
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6);
+            if (jsonStr === "[DONE]") continue;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const delta = parsed?.delta?.text ?? parsed?.type === "content_block_delta" ? parsed?.delta?.text : null;
+              if (delta) {
+                accumulated += delta;
+                setAiMessage(accumulated);
+              }
+            } catch {
+              // 파싱 실패 무시
+            }
+          }
+        }
+      } catch (err) {
+        console.error("[AI report]", err);
+      } finally {
+        setAiLoading(false);
+      }
+    };
+
+    fetchReport();
+  }, [aiLoading, cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 프로필 변경 시 AI 리포트 재요청
+  useEffect(() => {
+    if (!loading) setAiLoading(true);
+  }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recommendation = useMemo(
+    () => buildRecommendation(cur, weatherData),
+    [cur, weatherData]
+  );
+  const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
+
+  const message = aiMessage || fallbackMessage;
+  const allDone = checked.length === baseChecklist.length;
 
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);

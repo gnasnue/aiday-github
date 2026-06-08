@@ -24,6 +24,7 @@ import {
   genderToEmoji,
   koreanGenderToCode,
   saveProfile,
+  saveProfileToDb,
 } from "@/lib/profile";
 
 const TOTAL = 7;
@@ -169,7 +170,13 @@ const Onboarding = () => {
       },
       createdAt: Date.now(),
     };
-    saveProfile(profile);
+    saveProfile(profile); // localStorage (오프라인 접근용)
+    saveProfileToDb(profile).then((dbId) => {
+      // DB 저장 후 반환된 UUID로 activeProfileId 갱신
+      if (dbId) {
+        try { localStorage.setItem("aiweather:activeProfileId", dbId); } catch {}
+      }
+    });
     try {
       localStorage.setItem("aiweather:activeProfileId", profile.id);
     } catch {}
