@@ -18,7 +18,7 @@ const pains = [
 
 const diffs = [
   { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 “육아 번역기”처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: "👶", title: "우리 아이 맞춤 해석", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 “육아 번역기”처럼,\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: “👶”, title: “우리 아이 맞춤 해석”, desc: “비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요” },
   { icon: "⏰", title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
   { icon: "📲", title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
@@ -139,24 +139,6 @@ const Index = () => {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section className="bg-primary">
-          <div className="container-mobile py-12 text-center">
-            <h2 className="text-2xl font-bold tracking-tight text-primary-foreground break-keep">
-              오늘부터 아이데이가<br />대신 챙겨드릴게요
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-primary-foreground/90 break-keep">
-              매일 아침 바쁜 엄마 아빠 곁에서,<br />
-              우리 아이의 하루를 함께 준비합니다.
-            </p>
-            <Link to="/signup" className="mt-6 block">
-              <Button size="lg" className="h-12 w-full bg-background text-base font-semibold text-foreground hover:bg-background/90">
-                무료로 시작하기
-              </Button>
-            </Link>
           </div>
         </section>
 
