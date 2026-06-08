@@ -56,7 +56,7 @@ const Index = () => {
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background/70 px-3 py-1 text-xs font-medium text-accent shadow-soft">
               ✨ 바쁜 엄마아빠를 위한 AI 육아 비서
             </span>
-            <h1 className="mt-5 text-2xl font-bold leading-tight tracking-tight text-foreground break-keep">
+            <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-foreground break-keep">
               오늘 우리 아이,<br />뭘 입히고 뭘 챙겨야 할지<br />
               <span className="text-accent">AI가 먼저 알려드려요</span>
             </h1>
@@ -82,7 +82,7 @@ const Index = () => {
         {/* Pain points */}
         <section className="py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight">
+            <h2 className="text-center text-2xl font-bold tracking-tight">
               매일 아침 이런 고민<br />하고 계신가요?
             </h2>
             <div className="mt-6 space-y-3">
@@ -99,14 +99,14 @@ const Index = () => {
         {/* Differentiators */}
         <section className="bg-soft py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight break-keep">
+            <h2 className="text-center text-2xl font-bold tracking-tight break-keep">
               아이데이는 환경 정보를<br />“우리 아이 기준”으로 해석합니다.
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
                 <div key={d.title} className="rounded-2xl bg-background p-6 shadow-soft text-center flex flex-col items-center">
                   <div className="text-2xl">{d.icon}</div>
-                  <h3 className="mt-3 text-base font-semibold break-keep">{d.title}</h3>
+                  <h3 className="mt-3 text-lg font-semibold break-keep">{d.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
                 </div>
               ))}
@@ -118,7 +118,7 @@ const Index = () => {
         {/* Reviews - 정렬 레이아웃 대폭 수정 */}
         <section className="bg-secondary py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-xl font-bold tracking-tight">
+            <h2 className="text-center text-2xl font-bold tracking-tight">
               부모님들의 이야기
             </h2>
             <div className="mt-6 space-y-4">
@@ -145,7 +145,7 @@ const Index = () => {
         {/* CTA */}
         <section className="bg-primary">
           <div className="container-mobile py-12 text-center">
-            <h2 className="text-xl font-bold tracking-tight text-primary-foreground break-keep">
+            <h2 className="text-2xl font-bold tracking-tight text-primary-foreground break-keep">
               오늘부터 아이데이가<br />대신 챙겨드릴게요
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-primary-foreground/90 break-keep">
