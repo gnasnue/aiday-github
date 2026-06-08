@@ -69,23 +69,7 @@ const Signup = () => {
             </p>
           </div>
 
-          <div className="mt-7">
-            <button
-              type="button"
-              onClick={signInWithGoogle}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-smooth hover:bg-muted"
-            >
-              <span>G</span> 구글로 시작하기
-            </button>
-          </div>
-
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs text-muted-foreground">또는</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <form onSubmit={handleSubmit} className="mt-7 space-y-4" noValidate>
             <div className="space-y-1.5">
               <Label htmlFor="email">이메일</Label>
               <Input id="email" type="email" placeholder="parent@example.com" required className="h-12" />
@@ -123,6 +107,20 @@ const Signup = () => {
               {loading ? "처리 중..." : "가입하기"}
             </Button>
           </form>
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">또는</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card text-sm font-semibold text-foreground transition-smooth hover:bg-muted"
+          >
+            <span>G</span> 구글로 시작하기
+          </button>
 
           <div className="mt-5 text-center">
             <Link href="/home" className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">

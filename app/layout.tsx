@@ -3,6 +3,7 @@ import "./globals.css";
 import Providers from "./providers";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://aiday-demo.vercel.app"),
   title: "아이데이(AI-Day)",
   description: "내 아이를 위한 맞춤형 날씨 정보를 알려드립니다",
   openGraph: {
