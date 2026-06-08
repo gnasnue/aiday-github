@@ -44,21 +44,7 @@ const Signup = () => {
             </p>
           </div>
 
-          <div className="mt-7 space-y-2.5">
-            <button
-              type="button"
-              onClick={() => social("카카오")}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-kakao text-sm font-semibold text-kakao-foreground transition-smooth hover:opacity-90"
-            >
-              <span className="text-lg">💬</span> 카카오로 시작하기
-            </button>
-            <button
-              type="button"
-              onClick={() => social("네이버")}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-naver text-sm font-semibold text-naver-foreground transition-smooth hover:opacity-90"
-            >
-              <span className="font-black">N</span> 네이버로 시작하기
-            </button>
+          <div className="mt-7">
             <button
               type="button"
               onClick={() => social("구글")}
