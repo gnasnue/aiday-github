@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation"; ;
 import { ArrowLeft, MapPin, ChevronDown, RefreshCw, Info } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,8 +90,8 @@ const humidityLabel = (h: number) =>
 /* ----------------------------- page ----------------------------- */
 
 const Environment = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
   const activeId = (() => {
     try {
@@ -182,7 +184,7 @@ const Environment = () => {
           <div className="container-mobile flex h-14 items-center justify-between">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => router.back()}
                 className="rounded-full p-2 text-foreground hover:bg-muted"
                 aria-label="뒤로가기"
               >

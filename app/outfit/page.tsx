@@ -1,8 +1,10 @@
+"use client";
+
 import { useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation"; ;
 import { ArrowLeft, Info } from "lucide-react";
 import Logo from "@/components/Logo";
-import ootdLook from "@/assets/ootd-look.jpg";
+const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withTopicParticle } from "@/lib/korean";
@@ -159,8 +161,8 @@ function buildOutfit(profile: ChildProfile | undefined): OutfitPlan {
 }
 
 const Outfit = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
   const activeId = (() => {
     try {
@@ -191,7 +193,7 @@ const Outfit = () => {
           <div className="container-mobile flex h-14 items-center justify-between">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => router.back()}
                 className="rounded-full p-2 text-foreground hover:bg-muted"
                 aria-label="뒤로가기"
               >

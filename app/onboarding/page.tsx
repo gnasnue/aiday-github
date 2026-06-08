@@ -1,5 +1,8 @@
+"use client";
+
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation"; ;
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -111,7 +114,7 @@ const defaultState: State = {
 };
 
 const Onboarding = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [s, setS] = useState<State>(defaultState);
@@ -186,10 +189,10 @@ const Onboarding = () => {
     }
   };
 
-  const prev = () => (step > 1 ? setStep(step - 1) : navigate(-1));
+  const prev = () => (step > 1 ? setStep(step - 1) : router.back());
   const saveLater = () => {
     toast.success("진행 상태가 저장됐어요. 나중에 이어서 할 수 있어요.");
-    navigate("/home");
+    router.push("/home");
   };
 
   if (done) {
@@ -205,7 +208,7 @@ const Onboarding = () => {
               지금 바로 오늘의 리포트를<br />확인해보세요.
             </p>
             <Button
-              onClick={() => navigate("/home")}
+              onClick={() => router.push("/home")}
               size="lg"
               className="mt-8 h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-glow"
             >
@@ -637,7 +640,7 @@ const Onboarding = () => {
               {step === TOTAL ? "완료" : "다음"}
             </Button>
             <Link
-              to="/home"
+              href="/home"
               className="mt-3 block text-center text-xs text-muted-foreground hover:text-foreground"
             >
               먼저 둘러볼게요

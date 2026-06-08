@@ -1,5 +1,7 @@
+"use client";
+
 import { useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation"; ;
 import { ArrowLeft, ExternalLink, ShieldCheck, BookOpen, AlertTriangle } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,8 +52,8 @@ const sevBadge = (s: Tip["severity"]) =>
 
 /* ----------------------------- page ----------------------------- */
 const Tips = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
   const activeId = (() => {
     try {
@@ -251,7 +253,7 @@ const Tips = () => {
           <div className="container-mobile flex h-14 items-center justify-between">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => navigate(-1)}
+                onClick={() => router.back()}
                 className="rounded-full p-2 text-foreground hover:bg-muted"
                 aria-label="뒤로가기"
               >
@@ -287,7 +289,7 @@ const Tips = () => {
                 </p>
               </div>
               <button
-                onClick={() => navigate("/me")}
+                onClick={() => router.push("/me")}
                 className="text-xs font-medium text-accent hover:underline"
               >
                 수정

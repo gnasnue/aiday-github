@@ -1,4 +1,7 @@
-import { Link, useLocation } from "react-router-dom";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { toast } from "sonner";
 
 const navItems = [
@@ -12,14 +15,14 @@ const navItems = [
 const allowed = ["/home", "/env", "/outfit", "/tips", "/me"];
 
 const BottomNav = () => {
-  const location = useLocation();
+  const pathname = usePathname();
 
   return (
     <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border bg-background/95 backdrop-blur-md">
       <div className="container-mobile">
         <ul className="grid grid-cols-5">
           {navItems.map((n) => {
-            const isActive = location.pathname === n.to;
+            const isActive = pathname === n.to;
             const handleClick = (e: React.MouseEvent) => {
               if (!allowed.includes(n.to)) {
                 e.preventDefault();
@@ -29,7 +32,7 @@ const BottomNav = () => {
             return (
               <li key={n.label}>
                 <Link
-                  to={n.to}
+                  href={n.to}
                   onClick={handleClick}
                   className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] transition-smooth ${
                     isActive
