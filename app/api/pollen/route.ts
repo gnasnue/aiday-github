@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     time: today,
   });
 
-  const url = `https://apis.data.go.kr/1360000/HealthWthrIdxServiceV4/getPollenRiskIdxV4?${params}`;
+  const url = `https://apis.data.go.kr/1360000/HealthWthrIdxServiceV3/getPollenRiskIdxV3?${params}`;
 
   try {
     const res = await fetch(url, { next: { revalidate: 3600 * 6 } }); // 6시간 캐시
