@@ -16,12 +16,14 @@
 
 | 기능 | 상태 |
 |------|------|
-| 아이 프로필 기반 온보딩 (7단계) | ✅ UI 완성 |
-| AI 외출 판단 리포트 (홈) | 🔧 더미 데이터 |
-| 환경정보 (미세먼지·꽃가루·자외선·습도) | 🔧 더미 데이터 |
+| 아이 프로필 기반 온보딩 (7단계) | ✅ UI + Supabase DB 저장 |
+| AI 외출 판단 리포트 (홈) | ✅ Claude Haiku 연동 |
+| 환경정보 — 날씨 | ✅ 기상청 단기예보 실시간 |
+| 환경정보 — 대기질 | ✅ 에어코리아 실시간 |
+| 환경정보 — 꽃가루 | 🔧 API 키 승인 대기 |
 | 오늘의 옷차림 추천 (OOTD) | 🔧 더미 데이터 |
 | 근거 기반 건강팁 | ✅ 정적 콘텐츠 |
-| 회원가입 / 로그인 | ✅ UI 완성 |
+| 회원가입 / 로그인 | ✅ Google OAuth (Supabase) |
 
 프로토타입 데모: [aiday2026.lovable.app](https://aiday2026.lovable.app)
 
@@ -31,10 +33,11 @@
 
 | 영역 | 스택 |
 |------|------|
-| Frontend | React + TypeScript (Lovable) |
-| Backend | Supabase (예정) |
-| AI | Claude API (예정) |
-| 환경 데이터 | 기상청 API, 에어코리아 (예정) |
+| Frontend | Next.js 15 (App Router) + TypeScript |
+| Auth / DB | Supabase (Google OAuth, PostgreSQL + RLS) |
+| AI | Claude Haiku (`claude-haiku-4-5`) |
+| 환경 데이터 | 기상청 단기예보 API, 에어코리아, 기상청 꽃가루농도위험지수 |
+| 스타일 | Tailwind CSS + shadcn/ui |
 
 ---
 
@@ -44,7 +47,32 @@
 git clone https://github.com/gnasnue/aiday-github.git
 cd aiday-github
 npm install
+cp .env.example .env.local   # 환경 변수 설정 후
 npm run dev
+```
+
+### 필수 환경 변수 (`.env.local`)
+
+```env
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+
+# 공공데이터포털 (data.go.kr) — 단일 키로 모두 사용
+KMA_API_KEY=...
+AIRKOREA_API_KEY=...
+POLLEN_API_KEY=...
+
+# Anthropic
+ANTHROPIC_API_KEY=...
+```
+
+### DB 마이그레이션
+
+Supabase Dashboard → SQL Editor에서 실행:
+
+```bash
+supabase/migrations/001_children.sql
 ```
 
 ---
@@ -67,12 +95,23 @@ Family Memory Engine(아이 건강 이력 누적 + 부모 선호 모델) 구축 
 
 ---
 
+## API 엔드포인트
+
+| 엔드포인트 | 설명 |
+|-----------|------|
+| `GET /api/weather?lat=&lon=` | 기상청 단기예보 (기온·하늘·강수확률 등) |
+| `GET /api/air?station=종로구` | 에어코리아 실시간 대기질 (PM10·PM2.5·통합지수) |
+| `GET /api/pollen?region=서울` | 기상청 꽃가루농도위험지수 |
+| `POST /api/report` | Claude AI 아침 준비 리포트 생성 |
+
 ## 문서
 
 | 문서 | 설명 |
 |------|------|
 | [MANIFESTO.md](./MANIFESTO.md) | 서비스가 존재하는 이유와 설계 원칙 |
 | [SPEC.md](./SPEC.md) | 페이지별 기능 명세 및 구현 현황 |
+| [DESIGN.md](./DESIGN.md) | 디자인 시스템 (폰트·색상·컴포넌트 원칙) |
+| [supabase/migrations/](./supabase/migrations/) | DB 스키마 마이그레이션 |
 
 ---
 
