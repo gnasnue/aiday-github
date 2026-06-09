@@ -147,38 +147,13 @@ const Home = () => {
           }),
         });
 
-        if (!res.ok || !res.body) {
+        if (!res.ok) {
           setAiLoading(false);
           return;
         }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let accumulated = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          // SSE 형식: "data: {...}\n\n"
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6);
-            if (jsonStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed?.delta?.text ?? parsed?.type === "content_block_delta" ? parsed?.delta?.text : null;
-              if (delta) {
-                accumulated += delta;
-                setAiMessage(accumulated);
-              }
-            } catch {
-              // 파싱 실패 무시
-            }
-          }
-        }
+        const data = await res.json();
+        if (data.text) setAiMessage(data.text);
       } catch (err) {
         console.error("[AI report]", err);
       } finally {
