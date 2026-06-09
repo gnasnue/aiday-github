@@ -9,37 +9,29 @@ import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withSubjectSuffix } from "@/lib/korean";
 
-/* ----------------------------- mock data ----------------------------- */
+/* ----------------------------- helpers ----------------------------- */
 
-const current = {
-  city: "서울 강남구",
-  updated: "방금 업데이트",
-  icon: "🌤️",
-  desc: "구름 조금",
-  temp: 18,
-  feels: 16,
-  high: 22,
-  low: 9,
-  humidity: 38,
-  wind: 4.2, // m/s
-  rainProb: 10,
+const gradeToLabel = (g: number | null) =>
+  g === 1 ? "좋음" : g === 2 ? "보통" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "알 수 없음";
+
+const skyIcon = (sky: number | null, pty: number | null) => {
+  if (pty && pty > 0) return pty === 3 ? "🌨️" : "🌧️";
+  if (sky === 1) return "☀️";
+  if (sky === 3) return "⛅";
+  if (sky === 4) return "☁️";
+  return "🌤️";
 };
 
-const dust = {
-  pm10: { value: 62, label: "보통" },
-  pm25: { value: 28, label: "보통" },
-  o3: { value: 0.041, label: "보통" },
+const skyDesc = (sky: number | null, pty: number | null) => {
+  if (pty === 1) return "비";
+  if (pty === 2) return "비/눈";
+  if (pty === 3) return "눈";
+  if (pty === 4) return "소나기";
+  if (sky === 1) return "맑음";
+  if (sky === 3) return "구름많음";
+  if (sky === 4) return "흐림";
+  return "알 수 없음";
 };
-
-const pollen = [
-  { name: "참나무", level: "매우높음", score: 4 },
-  { name: "소나무", level: "높음", score: 3 },
-  { name: "자작나무", level: "보통", score: 2 },
-  { name: "잡초류", level: "낮음", score: 1 },
-  { name: "잔디류", level: "낮음", score: 1 },
-];
-
-const uv = { value: 7, label: "높음" }; // 0-10+
 
 const hourly = [
   { h: "08", icon: "⛅", t: 12, rain: 0 },
@@ -103,9 +95,28 @@ const Environment = () => {
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
   const [loading, setLoading] = useState(true);
 
+  // 실제 API 데이터
+  const [weather, setWeather] = useState<{
+    temperature: number | null; sky: number | null; pty: number | null;
+    humidity: number | null; windSpeed: number | null; pop: number | null;
+  } | null>(null);
+  const [air, setAir] = useState<{
+    pm10: number | null; pm25: number | null;
+    pm10Grade: number | null; pm25Grade: number | null;
+    o3: number | null; stationName: string | null;
+  } | null>(null);
+
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
+    const fetchAll = async () => {
+      const [wRes, aRes] = await Promise.allSettled([
+        fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
+        fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+      ]);
+      if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
+      if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
+      setLoading(false);
+    };
+    fetchAll();
   }, []);
 
   /* personalized insights based on conditions + env */
@@ -116,36 +127,15 @@ const Environment = () => {
     const hasAllergy = conds.some((c) => c.includes("알레르기"));
     const hasSkin = conds.some((c) => c.includes("피부"));
 
-    if (pollen[0].score >= 3 && (hasResp || hasAllergy)) {
-      list.push({
-        icon: "🌳",
-        title: `${pollen[0].name} 꽃가루 ${pollen[0].level}`,
-        body: `알레르기·호흡기 민감 아이는 외출 시 KF94 마스크와 모자를 챙겨주세요. 귀가 후 옷 털기·세안·코 세척이 도움됩니다.`,
-        tone: "warn",
-      });
-    }
-    if (uv.value >= 6) {
-      list.push({
-        icon: "🧴",
-        title: `자외선 ${uv.label} (지수 ${uv.value})`,
-        body: "외출 20분 전 SPF30+ 자외선차단제, 챙 넓은 모자, 자외선 차단 선글라스 착용을 권장해요.",
-        tone: "warn",
-      });
-    }
-    if (current.humidity <= 35) {
-      list.push({
-        icon: "💧",
-        title: `습도 ${humidityLabel(current.humidity)} (${current.humidity}%)`,
-        body: hasSkin
-          ? "민감 피부에는 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
-          : "수분 섭취를 늘리고 실내 가습으로 호흡기·피부 건조를 예방하세요.",
-        tone: "info",
-      });
-    }
-    if (dust.pm10.value >= 80 || dust.pm25.value >= 35) {
+    const pm10Grade = air?.pm10Grade ?? 2;
+    const pm25Grade = air?.pm25Grade ?? 2;
+    const humidity = weather?.humidity ?? 50;
+    const windSpeed = weather?.windSpeed ?? 0;
+
+    if ((pm10Grade >= 3 || pm25Grade >= 3) ) {
       list.push({
         icon: "😷",
-        title: `미세먼지 ${dust.pm10.label} / 초미세 ${dust.pm25.label}`,
+        title: `미세먼지 ${gradeToLabel(pm10Grade)} / 초미세 ${gradeToLabel(pm25Grade)}`,
         body: "장시간 야외활동은 피하고, 외출 시 마스크·외출 후 손 씻기를 잊지 마세요.",
         tone: "warn",
       });
@@ -157,16 +147,34 @@ const Environment = () => {
         tone: "ok",
       });
     }
-    if (current.wind >= 5) {
+    if (humidity <= 35) {
+      list.push({
+        icon: "💧",
+        title: `습도 ${humidityLabel(humidity)} (${humidity}%)`,
+        body: hasSkin
+          ? "민감 피부에는 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
+          : "수분 섭취를 늘리고 실내 가습으로 호흡기·피부 건조를 예방하세요.",
+        tone: "info",
+      });
+    }
+    if (windSpeed >= 5) {
       list.push({
         icon: "🧣",
-        title: `바람 ${current.wind}m/s`,
+        title: `바람 ${windSpeed}m/s`,
         body: "체감온도가 낮아질 수 있어요. 얇은 바람막이나 목수건을 챙기면 좋아요.",
         tone: "info",
       });
     }
+    if ((hasResp || hasAllergy)) {
+      list.push({
+        icon: "🌳",
+        title: "꽃가루 주의 (호흡기·알레르기 민감)",
+        body: "외출 시 KF94 마스크와 모자를 챙겨주세요. 귀가 후 옷 털기·세안·코 세척이 도움됩니다.",
+        tone: "warn",
+      });
+    }
     return list;
-  }, [cur]);
+  }, [cur, air, weather]);
 
   const refresh = () => {
     setLoading(true);
@@ -211,9 +219,9 @@ const Environment = () => {
             className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
             <MapPin className="h-4 w-4" />
-            <span>{current.city}</span>
+            <span>{air?.stationName ?? "서울"}</span>
             <ChevronDown className="h-3.5 w-3.5" />
-            <span className="ml-1 text-xs">· {current.updated}</span>
+            <span className="ml-1 text-xs">· 실시간</span>
           </button>
 
           {/* Personalized insights */}
@@ -275,28 +283,36 @@ const Environment = () => {
                 <div>
                   <p className="text-xs font-medium text-accent">현재 날씨</p>
                   <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-foreground">{current.temp}°</span>
-                    <span className="text-sm text-muted-foreground">체감 {current.feels}°</span>
+                    <span className="text-5xl font-bold text-foreground">
+                      {weather?.temperature != null ? `${weather.temperature}°` : "--°"}
+                    </span>
                   </div>
-                  <p className="mt-1 text-sm text-foreground">{current.desc}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    최고 {current.high}° · 최저 {current.low}°
+                  <p className="mt-1 text-sm text-foreground">
+                    {skyDesc(weather?.sky ?? null, weather?.pty ?? null)}
                   </p>
                 </div>
-                <span className="text-6xl leading-none">{current.icon}</span>
+                <span className="text-6xl leading-none">
+                  {skyIcon(weather?.sky ?? null, weather?.pty ?? null)}
+                </span>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-background/70 p-3 text-center text-xs">
                 <div>
                   <p className="text-muted-foreground">습도</p>
-                  <p className="mt-0.5 font-bold text-foreground">{current.humidity}%</p>
+                  <p className="mt-0.5 font-bold text-foreground">
+                    {weather?.humidity != null ? `${weather.humidity}%` : "--"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">바람</p>
-                  <p className="mt-0.5 font-bold text-foreground">{current.wind}m/s</p>
+                  <p className="mt-0.5 font-bold text-foreground">
+                    {weather?.windSpeed != null ? `${weather.windSpeed}m/s` : "--"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">강수확률</p>
-                  <p className="mt-0.5 font-bold text-foreground">{current.rainProb}%</p>
+                  <p className="mt-0.5 font-bold text-foreground">
+                    {weather?.pop != null ? `${weather.pop}%` : "--"}
+                  </p>
                 </div>
               </div>
             </section>
@@ -307,9 +323,9 @@ const Environment = () => {
             <h2 className="text-base font-bold tracking-tight">대기질 · 미세먼지</h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {[
-                { k: "PM10", v: dust.pm10.value, label: dust.pm10.label, unit: "㎍/㎥" },
-                { k: "PM2.5", v: dust.pm25.value, label: dust.pm25.label, unit: "㎍/㎥" },
-                { k: "오존", v: dust.o3.value, label: dust.o3.label, unit: "ppm" },
+                { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
+                { k: "PM2.5", v: air?.pm25 ?? "--", label: gradeToLabel(air?.pm25Grade ?? null), unit: "㎍/㎥" },
+                { k: "오존", v: air?.o3 != null ? air.o3 : "--", label: "알 수 없음", unit: "ppm" },
               ].map((d) => (
                 <div
                   key={d.k}
@@ -337,29 +353,9 @@ const Environment = () => {
                 기상청 출처
               </a>
             </div>
-            <div className="mt-3 space-y-2 rounded-2xl border border-border bg-card p-3 shadow-soft">
-              {pollen.map((p) => (
-                <div key={p.name} className="flex items-center gap-3">
-                  <span className="w-16 text-sm font-medium text-foreground">{p.name}</span>
-                  <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${
-                        p.score >= 4
-                          ? "bg-destructive"
-                          : p.score >= 3
-                            ? "bg-accent"
-                            : p.score >= 2
-                              ? "bg-primary"
-                              : "bg-muted-foreground/40"
-                      }`}
-                      style={{ width: `${(p.score / 4) * 100}%` }}
-                    />
-                  </div>
-                  <span className={`w-16 text-right text-xs font-bold ${levelTone(p.level)}`}>
-                    {p.level}
-                  </span>
-                </div>
-              ))}
+            <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              🌳 꽃가루 데이터 준비 중이에요
+              <p className="mt-1 text-xs">기상청 API 승인 후 자동으로 표시됩니다</p>
             </div>
           </section>
 
@@ -367,26 +363,25 @@ const Environment = () => {
           <section className="mt-7 grid grid-cols-2 gap-3">
             <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
               <p className="text-xs font-medium text-muted-foreground">자외선 지수</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{uv.value}</p>
-              <p className={`text-xs font-bold ${levelTone(uv.label)}`}>{uvLabel(uv.value)}</p>
+              <p className="mt-1 text-3xl font-bold text-foreground">--</p>
+              <p className="text-xs text-muted-foreground">준비 중</p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full bg-gradient-to-r from-primary via-accent to-destructive"
-                  style={{ width: `${Math.min(100, (uv.value / 11) * 100)}%` }}
-                />
+                <div className="h-full w-0 bg-gradient-to-r from-primary via-accent to-destructive" />
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
               <p className="text-xs font-medium text-muted-foreground">온·습도</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{current.humidity}%</p>
+              <p className="mt-1 text-3xl font-bold text-foreground">
+                {weather?.humidity != null ? `${weather.humidity}%` : "--"}
+              </p>
               <p
                 className={`text-xs font-bold ${
-                  current.humidity <= 30 || current.humidity >= 75
+                  (weather?.humidity ?? 50) <= 30 || (weather?.humidity ?? 50) >= 75
                     ? "text-accent"
                     : "text-foreground"
                 }`}
               >
-                {humidityLabel(current.humidity)}
+                {weather?.humidity != null ? humidityLabel(weather.humidity) : "로딩 중"}
               </p>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 실내 권장 40~60%
