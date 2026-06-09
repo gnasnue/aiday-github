@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
       max_tokens: 512,
       messages: [{ role: "user", content: prompt }],
       system:
-        "당신은 만 1~8세 아이를 둔 부모를 위한 AI 육아 비서입니다. 날씨와 아이의 건강 특성을 고려하여 오늘 아침 준비를 돕는 짧고 실용적인 리포트를 작성합니다. 항상 한국어로 답변하세요.",
+        "당신은 만 1~8세 아이를 둔 부모를 위한 AI 육아 비서입니다. 날씨와 아이의 건강 특성을 고려하여 오늘 아침 준비를 돕는 짧고 실용적인 리포트를 작성합니다. 항상 한국어로 답변하세요. 응답은 반드시 순수 JSON 객체만 반환하세요. 코드블록(```)이나 설명 텍스트를 절대 포함하지 마세요.",
     });
 
     const raw =
@@ -140,8 +140,15 @@ export async function POST(req: NextRequest) {
         checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
       });
     } catch {
-      // JSON 파싱 실패 → 텍스트 전체를 message로 반환 (graceful fallback)
-      return NextResponse.json({ message: raw, checklist: [] });
+      // JSON 파싱 실패 → 텍스트에서 이모지 줄을 체크리스트로 분리
+      const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
+      const emojiLineRe = /^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}])/u;
+      const checklistItems = lines.filter((l) => emojiLineRe.test(l));
+      const messageLines = lines.filter((l) => !emojiLineRe.test(l));
+      return NextResponse.json({
+        message: messageLines.join("\n"),
+        checklist: checklistItems.length > 0 ? checklistItems : [],
+      });
     }
   } catch (err) {
     console.error("[AI report] Claude API 오류:", err);
