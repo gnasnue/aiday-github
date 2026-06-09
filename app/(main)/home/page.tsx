@@ -121,12 +121,24 @@ const Home = () => {
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
 
-  // Claude AI 스트리밍 리포트
+  const REPORT_CACHE_TTL = 5 * 60 * 1000;
+
+  // Claude AI 리포트 (T5: 5분 localStorage 캐시)
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
+    const today = new Date().toISOString().slice(0, 10);
+    const cacheKey = `aiday:report:${cur.id}:${today}`;
+
     const fetchReport = async () => {
       try {
+        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.text) {
+          setAiMessage(cached.text);
+          setAiLoading(false);
+          return;
+        }
+
         // T4: use cached weather/air from fetchEnv instead of re-fetching
         const w = weatherRawRef.current ?? {};
         const a = airRawRef.current as { error?: string; pm10Grade?: number } | null;
@@ -157,7 +169,12 @@ const Home = () => {
         }
 
         const data = await res.json();
-        if (data.text) setAiMessage(data.text);
+        if (data.text) {
+          setAiMessage(data.text);
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify({ text: data.text, ts: Date.now() }));
+          } catch {}
+        }
       } catch (err) {
         console.error("[AI report]", err);
         toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
