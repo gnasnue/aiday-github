@@ -117,7 +117,7 @@ const Home = () => {
       }
     };
     fetchEnv();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
 
