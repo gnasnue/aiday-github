@@ -328,14 +328,22 @@ const Home = () => {
                     {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
                   </span>
                 </div>
-                {/* 리포트 본문 — 문단 단위로 표시, 강제 줄바꿈 없음 */}
-                <div className="mt-3 space-y-2">
-                  {message.split("\n").filter(Boolean).map((line, i) => (
-                    <p key={i} className="text-[15px] leading-[1.75] text-foreground break-keep">
-                      {renderRich(line)}
-                    </p>
-                  ))}
-                </div>
+                {/* 리포트 본문 — AI 대기 중엔 skeleton */}
+                {aiLoading ? (
+                  <div className="mt-3 space-y-2">
+                    <Skeleton className="h-4 w-full rounded-md" />
+                    <Skeleton className="h-4 w-5/6 rounded-md" />
+                    <Skeleton className="h-4 w-4/5 rounded-md" />
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {message.split("\n").filter(Boolean).map((line, i) => (
+                      <p key={i} className="text-[15px] leading-[1.75] text-foreground break-keep">
+                        {renderRich(line)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="px-5 pb-5">
               <div className="mt-4 flex flex-wrap gap-1.5">
