@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     time: today,
   });
 
-  const url = `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV4/getUVIdxV4?${params}`;
+  const url = `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`;
 
   try {
     const res = await fetch(url, { next: { revalidate: 3600 } }); // 1시간 캐시
