@@ -105,13 +105,17 @@ export async function POST(req: NextRequest) {
 
 위 정보를 바탕으로 오늘 아침 ${child.name}의 등원/외출 준비를 위한 AI 리포트를 작성해주세요.
 
-형식:
-1. 첫 문장: 오늘 날씨와 공기 상태를 한 문장으로 자연스럽게 요약 (아이 이름 포함)
-2. 핵심 주의사항 1~2가지 (건강 특이사항과 날씨 연계)
-3. 옷차림 추천 1문장
-4. 오늘 챙길 것 3~4개 (체크리스트 형식, 각 항목은 "이모지 내용" 형태)
+반드시 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 절대 포함하지 마세요:
 
-응답은 **한국어**로, 따뜻하고 친근한 톤으로. 총 5~7문장. 마크다운 없이 순수 텍스트로.`;
+{
+  "message": "첫 문장: 날씨·공기 상태 요약(아이 이름 포함).\n두 번째 문장: 핵심 주의사항(건강 특이사항 연계).\n세 번째 문장: 옷차림 추천.",
+  "checklist": ["이모지 항목1", "이모지 항목2", "이모지 항목3"]
+}
+
+규칙:
+- message: 문장마다 \\n으로 구분. 중요 키워드는 **단어** 형식으로 강조. 3문장 이내.
+- checklist: 오늘 반드시 챙길 물건 3~4개. 각 항목은 "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧥 얇은 가디건").
+- 전체 응답은 파싱 가능한 JSON이어야 함. 따뜻하고 친근한 한국어 톤.`;
 
   // 스트리밍 대신 완성된 응답을 반환 (Next.js 15 호환)
   try {
@@ -123,10 +127,22 @@ export async function POST(req: NextRequest) {
         "당신은 만 1~8세 아이를 둔 부모를 위한 AI 육아 비서입니다. 날씨와 아이의 건강 특성을 고려하여 오늘 아침 준비를 돕는 짧고 실용적인 리포트를 작성합니다. 항상 한국어로 답변하세요.",
     });
 
-    const text =
-      message.content[0]?.type === "text" ? message.content[0].text : "";
+    const raw =
+      message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
 
-    return NextResponse.json({ text });
+    // JSON 파싱 시도 → 실패 시 legacy 텍스트로 fallback
+    try {
+      // ```json ... ``` 감싸기 제거 (Claude가 마크다운 코드블록으로 감쌀 때 대비)
+      const jsonStr = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+      const parsed = JSON.parse(jsonStr) as { message?: string; checklist?: string[] };
+      return NextResponse.json({
+        message: parsed.message ?? "",
+        checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+      });
+    } catch {
+      // JSON 파싱 실패 → 텍스트 전체를 message로 반환 (graceful fallback)
+      return NextResponse.json({ message: raw, checklist: [] });
+    }
   } catch (err) {
     console.error("[AI report] Claude API 오류:", err);
     return NextResponse.json(
