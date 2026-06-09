@@ -139,18 +139,16 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `aiday:report:${cur.id}:${today}`;
+    // v3: 캐시 버전 업 → 구형 plain-text 캐시 강제 무효화
+    const cacheKey = `aiday:report:v3:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
-        // 신규 형식(message/checklist) 또는 구형 형식(text) 모두 처리
-        const cachedMsg = cached?.message ?? cached?.text ?? null;
-        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cachedMsg) {
-          setAiMessage(cachedMsg);
-          if (Array.isArray(cached.checklist) && cached.checklist.length > 0) {
-            setAiChecklist(cached.checklist);
-          }
+        // v3 형식(message/checklist)만 처리
+        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.message && Array.isArray(cached.checklist)) {
+          setAiMessage(cached.message);
+          if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
           setAiLoading(false);
           return;
         }
