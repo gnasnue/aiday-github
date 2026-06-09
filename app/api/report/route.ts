@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic();
-
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
   if (sky === 1) return "맑음";
@@ -38,6 +36,8 @@ export async function POST(req: NextRequest) {
       { status: 503 }
     );
   }
+
+  const client = new Anthropic({ apiKey });
 
   const body = await req.json();
   const { child, weather, air } = body as {
@@ -113,19 +113,25 @@ export async function POST(req: NextRequest) {
 
 응답은 **한국어**로, 따뜻하고 친근한 톤으로. 총 5~7문장. 마크다운 없이 순수 텍스트로.`;
 
-  const stream = await client.messages.stream({
-    model: "claude-haiku-4-5",
-    max_tokens: 512,
-    messages: [{ role: "user", content: prompt }],
-    system:
-      "당신은 만 1~8세 아이를 둔 부모를 위한 AI 육아 비서입니다. 날씨와 아이의 건강 특성을 고려하여 오늘 아침 준비를 돕는 짧고 실용적인 리포트를 작성합니다. 항상 한국어로 답변하세요.",
-  });
+  // 스트리밍 대신 완성된 응답을 반환 (Next.js 15 호환)
+  try {
+    const message = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 512,
+      messages: [{ role: "user", content: prompt }],
+      system:
+        "당신은 만 1~8세 아이를 둔 부모를 위한 AI 육아 비서입니다. 날씨와 아이의 건강 특성을 고려하여 오늘 아침 준비를 돕는 짧고 실용적인 리포트를 작성합니다. 항상 한국어로 답변하세요.",
+    });
 
-  return new Response(stream.toReadableStream(), {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
+    const text =
+      message.content[0]?.type === "text" ? message.content[0].text : "";
+
+    return NextResponse.json({ text });
+  } catch (err) {
+    console.error("[AI report] Claude API 오류:", err);
+    return NextResponse.json(
+      { error: "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요." },
+      { status: 503 }
+    );
+  }
 }
