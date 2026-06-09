@@ -26,23 +26,33 @@ const toneStyle = (t: "ok" | "warn") =>
     : "bg-background text-muted-foreground border-border";
 
 const renderRich = (text: string) => {
-  const parts = text.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
-  return parts.map((p, i) => {
-    if (/^__[^_]+__$/.test(p)) {
-      return (
-        <b key={i} className="font-bold text-accent">
-          {p.slice(2, -2)}
-        </b>
-      );
-    }
-    if (/^\*\*[^*]+\*\*$/.test(p)) {
-      return (
-        <b key={i} className="font-bold text-foreground">
-          {p.slice(2, -2)}
-        </b>
-      );
-    }
-    return <span key={i}>{p}</span>;
+  // 줄바꿈(\n)을 기준으로 문단 분리 후, 각 문단 내에서 **bold**/__accent__ 처리
+  const lines = text.split(/\n/);
+  return lines.map((line, li) => {
+    const parts = line.split(/(\*\*[^*]+\*\*|__[^_]+__)/g);
+    const rendered = parts.map((p, i) => {
+      if (/^__[^_]+__$/.test(p)) {
+        return (
+          <b key={i} className="font-bold text-accent">
+            {p.slice(2, -2)}
+          </b>
+        );
+      }
+      if (/^\*\*[^*]+\*\*$/.test(p)) {
+        return (
+          <b key={i} className="font-semibold text-foreground">
+            {p.slice(2, -2)}
+          </b>
+        );
+      }
+      return <span key={i}>{p}</span>;
+    });
+    return (
+      <span key={li}>
+        {rendered}
+        {li < lines.length - 1 && <br />}
+      </span>
+    );
   });
 };
 
@@ -62,6 +72,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
   const [aiMessage, setAiMessage] = useState<string>("");
+  const [aiChecklist, setAiChecklist] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
@@ -133,8 +144,13 @@ const Home = () => {
     const fetchReport = async () => {
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
-        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.text) {
-          setAiMessage(cached.text);
+        // 신규 형식(message/checklist) 또는 구형 형식(text) 모두 처리
+        const cachedMsg = cached?.message ?? cached?.text ?? null;
+        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cachedMsg) {
+          setAiMessage(cachedMsg);
+          if (Array.isArray(cached.checklist) && cached.checklist.length > 0) {
+            setAiChecklist(cached.checklist);
+          }
           setAiLoading(false);
           return;
         }
@@ -169,10 +185,13 @@ const Home = () => {
         }
 
         const data = await res.json();
-        if (data.text) {
-          setAiMessage(data.text);
+        if (data.message) {
+          setAiMessage(data.message);
+          if (Array.isArray(data.checklist) && data.checklist.length > 0) {
+            setAiChecklist(data.checklist);
+          }
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ text: data.text, ts: Date.now() }));
+            localStorage.setItem(cacheKey, JSON.stringify({ message: data.message, checklist: data.checklist ?? [], ts: Date.now() }));
           } catch {}
         }
       } catch (err) {
@@ -198,7 +217,21 @@ const Home = () => {
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;
-  const allDone = checked.length === baseChecklist.length;
+
+  // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
+  const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
+    if (aiChecklist.length > 0) {
+      return aiChecklist.map((item, i) => {
+        // "☂️ 우산" 형태 파싱
+        const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
+        if (match) return { icon: match[1], text: match[2], key: `ai-${i}` };
+        return { icon: "✅", text: item, key: `ai-${i}` };
+      });
+    }
+    return baseChecklist;
+  }, [aiChecklist, baseChecklist]);
+
+  const allDone = checked.length === activeChecklist.length;
 
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
@@ -324,7 +357,7 @@ const Home = () => {
                   )}
                 </div>
                 <ul className="mt-1 divide-y divide-border/40">
-                  {baseChecklist.map((c, i) => {
+                  {activeChecklist.map((c, i) => {
                     const on = checked.includes(i);
                     return (
                       <li key={i}>
