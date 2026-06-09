@@ -73,6 +73,9 @@ const levelBg = (label: string) => {
 const uvLabel = (v: number) =>
   v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
 
+const pollenGradeLabel = (g: number | null) =>
+  g === null ? "--" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+
 const humidityLabel = (h: number) =>
   h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
 
@@ -105,15 +108,23 @@ const Environment = () => {
     pm10Grade: number | null; pm25Grade: number | null;
     o3: number | null; stationName: string | null;
   } | null>(null);
+  const [pollen, setPollen] = useState<{
+    oak: number | null; pine: number | null; weed: number | null;
+  } | null>(null);
+  const [uv, setUv] = useState<{ uvi: number | null } | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
-      const [wRes, aRes] = await Promise.allSettled([
+      const [wRes, aRes, pRes, uRes] = await Promise.allSettled([
         fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
         fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+        fetch("/api/pollen?region=서울").then((r) => r.json()),
+        fetch("/api/uv?region=서울").then((r) => r.json()),
       ]);
       if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
       if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
+      if (pRes.status === "fulfilled" && !pRes.value.error) setPollen(pRes.value);
+      if (uRes.status === "fulfilled" && !uRes.value.error) setUv(uRes.value);
       setLoading(false);
     };
     fetchAll();
@@ -353,20 +364,51 @@ const Environment = () => {
                 기상청 출처
               </a>
             </div>
-            <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-              🌳 꽃가루 데이터 준비 중이에요
-              <p className="mt-1 text-xs">기상청 API 승인 후 자동으로 표시됩니다</p>
-            </div>
+            {loading ? (
+              <Skeleton className="mt-3 h-20 w-full rounded-2xl" />
+            ) : pollen ? (
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[
+                  { k: "참나무", v: pollen.oak, emoji: "🌳" },
+                  { k: "소나무", v: pollen.pine, emoji: "🌲" },
+                  { k: "잡초", v: pollen.weed, emoji: "🌿" },
+                ].map((d) => {
+                  const label = pollenGradeLabel(d.v);
+                  return (
+                    <div
+                      key={d.k}
+                      className={`rounded-2xl border p-3 text-center ${levelBg(label)}`}
+                    >
+                      <p className="text-xl">{d.emoji}</p>
+                      <p className="mt-1 text-xs font-medium text-muted-foreground">{d.k}</p>
+                      <p className={`mt-1 text-sm font-bold ${levelTone(label)}`}>{label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                🌳 꽃가루 데이터를 불러오지 못했어요
+                <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
+              </div>
+            )}
           </section>
 
           {/* UV + Humidity */}
           <section className="mt-7 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className={`rounded-2xl border bg-card p-4 shadow-soft ${uv?.uvi != null ? levelBg(uvLabel(uv.uvi)) : "border-border"}`}>
               <p className="text-xs font-medium text-muted-foreground">자외선 지수</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">--</p>
-              <p className="text-xs text-muted-foreground">준비 중</p>
+              <p className="mt-1 text-3xl font-bold text-foreground">
+                {uv?.uvi != null ? uv.uvi : "--"}
+              </p>
+              <p className={`text-xs font-bold ${uv?.uvi != null ? levelTone(uvLabel(uv.uvi)) : "text-muted-foreground"}`}>
+                {uv?.uvi != null ? uvLabel(uv.uvi) : (loading ? "로딩 중" : "데이터 없음")}
+              </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div className="h-full w-0 bg-gradient-to-r from-primary via-accent to-destructive" />
+                <div
+                  className="h-full bg-gradient-to-r from-primary via-accent to-destructive"
+                  style={{ width: uv?.uvi != null ? `${Math.min(uv.uvi / 11 * 100, 100)}%` : "0%" }}
+                />
               </div>
             </div>
             <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
