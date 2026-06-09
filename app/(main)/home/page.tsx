@@ -322,18 +322,13 @@ const Home = () => {
             </section>
           ) : (
             <section className="mt-4 rounded-3xl border border-border/60 bg-card p-5 shadow-soft animate-fade-up">
-              <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-secondary text-lg">
-                  🌤️
-                </div>
-                <div className="flex-1 pt-0.5">
-                  <p className="text-[11px] uppercase tracking-wider text-accent font-bold">
-                    AI 리포트 · 오늘 아침
-                  </p>
-                  <p className="mt-1.5 text-[15px] leading-relaxed text-foreground break-keep">
-                    {renderRich(message)}
-                  </p>
-                </div>
+              <div>
+                <p className="text-[13px] font-bold tracking-tight text-accent">
+                  AI리포트 {new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                </p>
+                <p className="mt-2 text-[15px] leading-relaxed text-foreground break-keep">
+                  {renderRich(message)}
+                </p>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-1.5">
