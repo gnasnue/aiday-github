@@ -39,10 +39,10 @@ export default function IndexPage() {
             <Logo />
             <div className="flex items-center gap-1">
               <Link href="/signup">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-foreground">로그인</Button>
+                <Button variant="ghost" size="sm" className="h-11 px-3 text-xs text-foreground">로그인</Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="h-8 bg-primary px-3 text-xs text-primary-foreground hover:bg-primary-hover shadow-soft">
+                <Button size="sm" className="h-11 bg-primary px-4 text-xs text-primary-foreground hover:bg-primary-hover shadow-soft">
                   무료 시작
                 </Button>
               </Link>
