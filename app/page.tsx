@@ -1,26 +1,22 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { RefreshCw, Baby, Clock, Smartphone } from "lucide-react";
 
-const features = [
-  { icon: "🌤️", title: "통합 환경 정보", desc: "날씨, 미세먼지, 꽃가루, 자외선을 한눈에" },
-  { icon: "👶", title: "아이 맞춤 AI 리포트", desc: "우리 아이 체질에 맞게 매일 아침 분석" },
-  { icon: "👕", title: "시간대별 코디 가이드", desc: "등원부터 저녁 산책까지 시간대별 안내" },
-  { icon: "🔔", title: "스마트 알림", desc: "자기 전, 등원 준비 전 맞춤 정보 알림" },
-];
+import type { LucideIcon } from "lucide-react";
 
 const pains = [
-  { emoji: "😵‍💫", text: "날씨 앱, 미세먼지 앱, 꽃가루, 자외선 정보… 따로따로 확인하기 너무 번거로워요" },
-  { emoji: "🤔", text: "일교차가 심한 날 아이 옷차림을 어떻게 해야 할지 매번 헷갈려요" },
-  { emoji: "🤯", text: "바쁜 아침에 이것저것 고민하고 챙길 시간이 없어요" },
-  { emoji: "🤒", text: "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 세심한 케어 가이드 없을까요?" },
+  "날씨 앱, 미세먼지 앱, 꽃가루, 자외선 정보… 따로따로 확인하기 너무 번거로워요",
+  "일교차가 심한 날 아이 옷차림을 어떻게 해야 할지 매번 헷갈려요",
+  "바쁜 아침에 이것저것 고민하고 챙길 시간이 없어요",
+  "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 세심한 케어 가이드 없을까요?",
 ];
 
-const diffs = [
-  { icon: "🔄", title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 '육아 번역기'처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: "👶", title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요" },
-  { icon: "⏰", title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
-  { icon: "📲", title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
+const diffs: { icon: LucideIcon; title: string; desc: string }[] = [
+  { icon: RefreshCw, title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 '육아 번역기'처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: Baby, title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요" },
+  { icon: Clock, title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
+  { icon: Smartphone, title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
@@ -39,10 +35,10 @@ export default function IndexPage() {
             <Logo />
             <div className="flex items-center gap-1">
               <Link href="/signup">
-                <Button variant="ghost" size="sm" className="h-8 px-2 text-xs text-foreground">로그인</Button>
+                <Button variant="ghost" size="sm" className="h-11 px-3 text-xs text-foreground">로그인</Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="h-8 bg-primary px-3 text-xs text-primary-foreground hover:bg-primary-hover shadow-soft">
+                <Button size="sm" className="h-11 bg-primary px-4 text-xs text-primary-foreground hover:bg-primary-hover shadow-soft">
                   무료 시작
                 </Button>
               </Link>
@@ -87,9 +83,9 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card p-6 shadow-soft text-center flex flex-col items-center">
-                  <div className="text-3xl">{p.emoji}</div>
-                  <p className="mt-3 text-sm font-medium leading-relaxed text-foreground break-keep">{p.text}</p>
+                <div key={i} className="rounded-2xl border border-border bg-card shadow-soft flex items-start gap-4 px-5 py-4">
+                  <div className="w-1 self-stretch rounded-full bg-primary flex-shrink-0" />
+                  <p className="text-sm font-medium leading-relaxed text-foreground break-keep">{p}</p>
                 </div>
               ))}
             </div>
@@ -104,10 +100,14 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
-                <div key={d.title} className="rounded-2xl bg-background p-6 shadow-soft text-center flex flex-col items-center">
-                  <div className="text-2xl">{d.icon}</div>
-                  <h3 className="mt-3 text-lg font-semibold break-keep">{d.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
+                <div key={d.title} className="rounded-2xl bg-background p-5 shadow-soft flex items-start gap-4">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <d.icon size={20} strokeWidth={1.75} className="text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold break-keep">{d.title}</h3>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>

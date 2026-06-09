@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
+import { Home, Wind, Shirt, Heart, User } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
-const navItems = [
-  { icon: "🏠", label: "홈", to: "/home" },
-  { icon: "📊", label: "환경정보", to: "/env" },
-  { icon: "👕", label: "옷차림", to: "/outfit" },
-  { icon: "💊", label: "건강팁", to: "/tips" },
-  { icon: "👤", label: "마이", to: "/me" },
+const navItems: { icon: LucideIcon; label: string; to: string }[] = [
+  { icon: Home, label: "홈", to: "/home" },
+  { icon: Wind, label: "환경정보", to: "/env" },
+  { icon: Shirt, label: "옷차림", to: "/outfit" },
+  { icon: Heart, label: "건강팁", to: "/tips" },
+  { icon: User, label: "마이", to: "/me" },
 ];
 
 const allowed = ["/home", "/env", "/outfit", "/tips", "/me"];
@@ -40,7 +42,7 @@ const BottomNav = () => {
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span className="text-lg">{n.icon}</span>
+                  <n.icon size={22} strokeWidth={1.75} />
                   {n.label}
                 </Link>
               </li>

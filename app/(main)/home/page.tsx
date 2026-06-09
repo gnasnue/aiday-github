@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, MapPin, ChevronDown, Check } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -63,6 +63,8 @@ const Home = () => {
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiLoading, setAiLoading] = useState(false);
+  const weatherRawRef = useRef<object | null>(null);
+  const airRawRef = useRef<object | null>(null);
 
   // Refresh profiles when returning from onboarding
   useEffect(() => {
@@ -91,6 +93,10 @@ const Home = () => {
         const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
         const a = airRes.status === "fulfilled" ? airRes.value : null;
 
+        // Cache raw API responses for use in fetchReport (T4: avoid duplicate fetch)
+        weatherRawRef.current = w;
+        airRawRef.current = a;
+
         if (w && !w.error) {
           const dustGrade = a?.pm10Grade ?? 1;
           const dustLabel = (["좋음", "보통", "나쁨", "매우나쁨"] as const)[dustGrade - 1] ?? "보통";
@@ -102,7 +108,6 @@ const Home = () => {
             dustLevel: dustLabel,
             windSpeed: windLabel,
           });
-          // Claude AI 리포트 스트리밍 요청
           setAiLoading(true);
           setAiMessage("");
         }
@@ -122,12 +127,9 @@ const Home = () => {
 
     const fetchReport = async () => {
       try {
-        const [weatherRes, airRes] = await Promise.allSettled([
-          fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
-          fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
-        ]);
-        const w = weatherRes.status === "fulfilled" ? weatherRes.value : {};
-        const a = airRes.status === "fulfilled" ? airRes.value : null;
+        // T4: use cached weather/air from fetchEnv instead of re-fetching
+        const w = weatherRawRef.current ?? {};
+        const a = airRawRef.current as { error?: string; pm10Grade?: number } | null;
 
         const res = await fetch("/api/report", {
           method: "POST",
@@ -147,40 +149,18 @@ const Home = () => {
           }),
         });
 
-        if (!res.ok || !res.body) {
+        if (!res.ok) {
+          // T3: show user-facing error when AI report API fails
+          toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
           setAiLoading(false);
           return;
         }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let accumulated = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          // SSE 형식: "data: {...}\n\n"
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6);
-            if (jsonStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const delta = parsed?.delta?.text ?? parsed?.type === "content_block_delta" ? parsed?.delta?.text : null;
-              if (delta) {
-                accumulated += delta;
-                setAiMessage(accumulated);
-              }
-            } catch {
-              // 파싱 실패 무시
-            }
-          }
-        }
+        const data = await res.json();
+        if (data.text) setAiMessage(data.text);
       } catch (err) {
         console.error("[AI report]", err);
+        toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
       } finally {
         setAiLoading(false);
       }
