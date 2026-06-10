@@ -123,7 +123,7 @@ export async function POST(req: NextRequest) {
       model: "claude-haiku-4-5",
       max_tokens: 512,
       messages: [{ role: "user", content: prompt }],
-      temperature: 1.2,
+      temperature: 1.0,
       system:
         "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 오늘 날씨와 아이 특성을 바탕으로 따뜻하고 자연스러운 말투로 아침 준비를 도와주세요. 마치 매일 아침 친한 친구가 카톡으로 보내주는 것처럼 편안하고 공감 가는 톤으로 써주세요. 딱딱한 보고서 문체나 나열식 표현은 절대 피하세요. 항상 한국어로 답변하세요. 응답은 반드시 순수 JSON 객체만 반환하세요. 코드블록(```)이나 설명 텍스트를 절대 포함하지 마세요.",
     });
