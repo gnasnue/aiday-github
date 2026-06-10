@@ -23,8 +23,8 @@ const AREA_CODE_MAP: Record<string, string> = {
   제주: "39",
 };
 
-function getTodayKST(): string {
-  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+function getDateKST(offsetDays = 0): string {
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 + offsetDays * 86400 * 1000);
   return (
     String(kst.getUTCFullYear()) +
     String(kst.getUTCMonth() + 1).padStart(2, "0") +
@@ -36,7 +36,6 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const region = searchParams.get("region") ?? "서울";
   const areaNo = AREA_CODE_MAP[region] ?? "11";
-  const today = getTodayKST();
 
   const apiKey = process.env.KMA_API_KEY;
   if (!apiKey || apiKey === "YOUR_DATA_GO_KR_API_KEY") {
@@ -46,45 +45,58 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const params = new URLSearchParams({
-    serviceKey: apiKey,
-    numOfRows: "10",
-    pageNo: "1",
-    dataType: "JSON",
-    areaNo,
-    time: today,
-  });
+  const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const hour = kst.getUTCHours();
 
-  const url = `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`;
+  // 오전 6시 이전이면 아직 당일 데이터 미발행 → 어제 데이터로 fallback
+  const dates = hour < 6
+    ? [getDateKST(-1), getDateKST(0)]
+    : [getDateKST(0), getDateKST(-1)];
+
+  async function fetchUV(date: string) {
+    const params = new URLSearchParams({
+      serviceKey: apiKey!,
+      numOfRows: "10",
+      pageNo: "1",
+      dataType: "JSON",
+      areaNo,
+      time: date,
+    });
+    const res = await fetch(
+      `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.response?.header?.resultCode !== "00") return null;
+    return data?.response?.body?.items?.item ?? [];
+  }
 
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } }); // 1시간 캐시
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `자외선 API 오류: ${res.status}` },
-        { status: 502 }
-      );
+    let items: Array<Record<string, string>> | null = null;
+    let usedDate = dates[0];
+    for (const date of dates) {
+      const result = await fetchUV(date);
+      if (result && result.length > 0) {
+        items = result;
+        usedDate = date;
+        break;
+      }
     }
 
-    const data = await res.json();
-    const items: Array<Record<string, string>> =
-      data?.response?.body?.items?.item ?? [];
-
-    if (!items.length) {
-      return NextResponse.json({ uvi: null, date: today });
+    if (!items || !items.length) {
+      return NextResponse.json({ uvi: null, date: usedDate });
     }
 
     const item = items[0];
     // h0~h23: 시간대별 자외선지수
-    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-    const hour = kst.getUTCHours();
     const hourKey = `h${hour}`;
     const uvValue = item[hourKey] ?? item["h12"] ?? null;
 
     return NextResponse.json({
       uvi: uvValue !== null && uvValue !== "-" ? Number(uvValue) : null,
       region,
-      date: today,
+      date: usedDate,
     });
   } catch (err) {
     console.error("[uv API]", err);

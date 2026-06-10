@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// 기상청 꽃가루농도위험지수 (3.0)
+// 기상청 꽃가루농도위험지수 조회서비스(3.0)
 // 지역 코드: 11=서울, 21=부산, 22=대구, 23=인천, 24=광주, 25=대전, 26=울산, 29=세종
 // 31=경기, 32=강원, 33=충북, 34=충남, 35=전북, 36=전남, 37=경북, 38=경남, 39=제주
 const AREA_CODE_MAP: Record<string, string> = {
@@ -23,6 +23,8 @@ const AREA_CODE_MAP: Record<string, string> = {
   제주: "39",
 };
 
+const BASE = "https://apis.data.go.kr/1360000/HealthWthrIdxServiceV3";
+
 function getTodayKST(): string {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return (
@@ -30,6 +32,45 @@ function getTodayKST(): string {
     String(kst.getUTCMonth() + 1).padStart(2, "0") +
     String(kst.getUTCDate()).padStart(2, "0")
   );
+}
+
+async function fetchPollenType(
+  operation: string,
+  apiKey: string,
+  areaNo: string,
+  today: string
+): Promise<number | null> {
+  const params = new URLSearchParams({
+    serviceKey: apiKey,
+    numOfRows: "10",
+    pageNo: "1",
+    dataType: "JSON",
+    areaNo,
+    time: today,
+  });
+  try {
+    const res = await fetch(`${BASE}/${operation}?${params}`, {
+      next: { revalidate: 3600 * 6 },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.response?.header?.resultCode !== "00") return null;
+    const items: Array<Record<string, string>> =
+      data?.response?.body?.items?.item ?? [];
+    if (!items.length) return null;
+    const item = items[0];
+    // V3 반환 필드: oak/pine 타입별로 같은 이름 또는 첫 번째 숫자 필드
+    const typeKey = operation.startsWith("getOak")
+      ? "oak"
+      : operation.startsWith("getPine")
+        ? "pine"
+        : "weed";
+    const raw = item[typeKey] ?? item["h12"] ?? item["value"] ?? null;
+    if (raw == null || raw === "-") return null;
+    return Number(raw);
+  } catch {
+    return null;
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -46,41 +87,16 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const params = new URLSearchParams({
-    serviceKey: apiKey,
-    numOfRows: "10",
-    pageNo: "1",
-    dataType: "JSON",
-    areaNo,
-    time: today,
-  });
-
-  const url = `https://apis.data.go.kr/1360000/HealthWthrIdxServiceV3/getPollenRiskIdxV3?${params}`;
-
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 * 6 } }); // 6시간 캐시
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `꽃가루 API 오류: ${res.status}` },
-        { status: 502 }
-      );
-    }
+    const [oak, pine] = await Promise.all([
+      fetchPollenType("getOakPollenRiskIdxV3", apiKey, areaNo, today),
+      fetchPollenType("getPinePollenRiskIdxV3", apiKey, areaNo, today),
+    ]);
 
-    const data = await res.json();
-    const items: Array<Record<string, string>> =
-      data?.response?.body?.items?.item ?? [];
-
-    if (!items.length) {
-      return NextResponse.json({ oak: null, pine: null, weed: null, date: today });
-    }
-
-    const item = items[0];
-
-    // 등급: 1=낮음, 2=보통, 3=높음, 4=매우높음
     return NextResponse.json({
-      oak: item.oak !== "-" ? Number(item.oak) : null,       // 참나무
-      pine: item.pine !== "-" ? Number(item.pine) : null,    // 소나무
-      weed: item.weed !== "-" ? Number(item.weed) : null,    // 잡초
+      oak,
+      pine,
+      weed: null, // V3에 잡초 오퍼레이션 없음
       region,
       date: today,
     });
