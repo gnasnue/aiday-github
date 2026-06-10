@@ -34,8 +34,9 @@ function getDateKST(offsetDays = 0): string {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const region = searchParams.get("region") ?? "서울";
-  const areaNo = AREA_CODE_MAP[region] ?? "11";
+  const regionParam = searchParams.get("region") ?? "서울";
+  const region = regionParam in AREA_CODE_MAP ? regionParam : "서울";
+  const areaNo = AREA_CODE_MAP[region];
 
   const apiKey = process.env.KMA_API_KEY;
   if (!apiKey || apiKey === "YOUR_DATA_GO_KR_API_KEY") {
@@ -54,22 +55,26 @@ export async function GET(request: NextRequest) {
     : [getDateKST(0), getDateKST(-1)];
 
   async function fetchUV(date: string) {
-    const params = new URLSearchParams({
-      serviceKey: apiKey!,
-      numOfRows: "10",
-      pageNo: "1",
-      dataType: "JSON",
-      areaNo,
-      time: date,
-    });
-    const res = await fetch(
-      `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`,
-      { next: { revalidate: 3600 } }
-    );
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data?.response?.header?.resultCode !== "00") return null;
-    return data?.response?.body?.items?.item ?? [];
+    try {
+      const params = new URLSearchParams({
+        serviceKey: apiKey!,
+        numOfRows: "10",
+        pageNo: "1",
+        dataType: "JSON",
+        areaNo,
+        time: date,
+      });
+      const res = await fetch(
+        `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`,
+        { next: { revalidate: 3600 } }
+      );
+      if (!res.ok) return null;
+      const data = await res.json();
+      if (data?.response?.header?.resultCode !== "00") return null;
+      return data?.response?.body?.items?.item ?? [];
+    } catch {
+      return null;
+    }
   }
 
   try {

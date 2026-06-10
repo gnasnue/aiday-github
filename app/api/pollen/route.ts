@@ -65,7 +65,7 @@ async function fetchPollenType(
       : operation.startsWith("getPine")
         ? "pine"
         : "weed";
-    const raw = item[typeKey] ?? item["h12"] ?? item["value"] ?? null;
+    const raw = item[typeKey] ?? item["value"] ?? null;
     if (raw == null || raw === "-") return null;
     const n = Number(raw);
     return isNaN(n) ? null : n;
@@ -76,8 +76,9 @@ async function fetchPollenType(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const region = searchParams.get("region") ?? "서울";
-  const areaNo = AREA_CODE_MAP[region] ?? "11";
+  const regionParam = searchParams.get("region") ?? "서울";
+  const region = regionParam in AREA_CODE_MAP ? regionParam : "서울";
+  const areaNo = AREA_CODE_MAP[region];
   const today = getTodayKST();
 
   const apiKey = process.env.POLLEN_API_KEY;
