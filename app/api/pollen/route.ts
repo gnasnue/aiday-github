@@ -67,7 +67,8 @@ async function fetchPollenType(
         : "weed";
     const raw = item[typeKey] ?? item["h12"] ?? item["value"] ?? null;
     if (raw == null || raw === "-") return null;
-    return Number(raw);
+    const n = Number(raw);
+    return isNaN(n) ? null : n;
   } catch {
     return null;
   }
