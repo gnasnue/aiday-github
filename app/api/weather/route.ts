@@ -127,6 +127,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 오늘 3시간 간격 시간대별 예보 (06~21시)
+    const hourSlots = ["0600", "0900", "1200", "1500", "1800", "2100"];
+    const hourlyForecast = hourSlots
+      .map((slot) => {
+        const d: Record<string, string> = {};
+        for (const item of items) {
+          if (item.fcstDate === todayStr && item.fcstTime === slot) {
+            d[item.category] = item.fcstValue;
+          }
+        }
+        if (!d["TMP"]) return null;
+        return {
+          hour: slot.slice(0, 2) + ":" + slot.slice(2),
+          temp: Number(d["TMP"]),
+          sky: d["SKY"] ? Number(d["SKY"]) : null,
+          pty: d["PTY"] ? Number(d["PTY"]) : null,
+          humidity: d["REH"] ? Number(d["REH"]) : null,
+          windSpeed: d["WSD"] ? Number(d["WSD"]) : null,
+          pop: d["POP"] ? Number(d["POP"]) : null,
+        };
+      })
+      .filter(Boolean);
+
     // SKY: 1=맑음, 3=구름많음, 4=흐림
     // PTY: 0=없음, 1=비, 2=비/눈, 3=눈, 4=소나기
     return NextResponse.json({
@@ -136,8 +159,8 @@ export async function GET(request: NextRequest) {
       pty: forecast["PTY"] ? Number(forecast["PTY"]) : null,
       humidity: forecast["REH"] ? Number(forecast["REH"]) : null,
       windSpeed: forecast["WSD"] ? Number(forecast["WSD"]) : null,
-      pop: forecast["POP"] ? Number(forecast["POP"]) : null, // 강수확률
-      raw: forecast,
+      pop: forecast["POP"] ? Number(forecast["POP"]) : null,
+      hourlyForecast,
     });
   } catch (err) {
     console.error("[weather API]", err);

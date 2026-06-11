@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.1.1.0] - 2026-06-11
+
+### Changed
+- **AI 리포트 프롬프트**: 부모에게 전달하는 3인칭 문장으로 수정 — 기존 프롬프트가 아이에게 직접 말 거는 2인칭("지우야, 오늘은...") 문장을 생성하던 버그 수정
+- **AI 리포트 컨텍스트**: 아이 일정(등원·야외활동·하원)과 시간대별 날씨를 프롬프트에 주입 — 일정 시간대 기온·강수확률·하늘 상태 기반으로 구체적인 조언 생성
+- **기상청 API**: 오늘 3시간 간격 시간대별 예보(`hourlyForecast`) 반환 추가 — 06:00~21:00 슬롯
+- **아이 프로파일**: `conditionEtc`(기타 건강 메모) 및 `schedule` 필드를 AI 리포트 API 페이로드에 포함
+- **캐시 키**: v3 → v4로 업그레이드하여 구형 캐시 자동 무효화
+
+### Fixed
+- **AI 리포트 temperature**: Anthropic API 허용 범위(0~1.0) 초과 값(`1.2`) → `1.0`으로 수정
+
 ## [0.1.0.1] - 2026-06-10
 
 ### Fixed

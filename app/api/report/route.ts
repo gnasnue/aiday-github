@@ -46,9 +46,18 @@ export async function POST(req: NextRequest) {
       age: string;
       gender: "male" | "female" | "unknown";
       conditions?: string[];
+      conditionEtc?: string;
       cold?: string;
       hot?: string;
       sweat?: string;
+      schedule?: {
+        goSchool?: string;
+        outdoorStart?: string;
+        outdoorEnd?: string;
+        leaveSchool?: string;
+        eveningStart?: string;
+        eveningEnd?: string;
+      };
     };
     weather: {
       temperature: number | null;
@@ -57,6 +66,15 @@ export async function POST(req: NextRequest) {
       humidity: number | null;
       windSpeed: number | null;
       pop: number | null;
+      hourlyForecast?: Array<{
+        hour: string;
+        temp: number;
+        sky: number | null;
+        pty: number | null;
+        humidity: number | null;
+        windSpeed: number | null;
+        pop: number | null;
+      }>;
     };
     air: {
       pm10: number | null;
@@ -67,55 +85,89 @@ export async function POST(req: NextRequest) {
     } | null;
   };
 
-  // 환경 요약 구성
-  const weatherSummary = [
-    `기온 ${weather.temperature ?? "?"}°C`,
-    `하늘 ${skyLabel(weather.sky)}`,
-    weather.pty ? `강수 ${ptyLabel(weather.pty)}` : null,
-    `습도 ${weather.humidity ?? "?"}%`,
-    `바람 ${weather.windSpeed ?? "?"}m/s`,
-    `강수확률 ${weather.pop ?? "?"}%`,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
+  // ── 환경 요약 ──────────────────────────────────────────────
   const airSummary = air
     ? `PM10 ${air.pm10 ?? "?"}μg/m³(${gradeLabel(air.pm10Grade)}), PM2.5 ${air.pm25 ?? "?"}μg/m³(${gradeLabel(air.pm25Grade)}), 통합대기 ${gradeLabel(air.khaiGrade)}`
     : "대기질 데이터 없음";
 
-  const healthContext = child.conditions?.length
-    ? `건강 특이사항: ${child.conditions.join(", ")}`
-    : "특이 건강 이슈 없음";
-
+  // ── 아이 프로필 ─────────────────────────────────────────────
+  const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
+  const conditions = child.conditions?.length
+    ? child.conditions.join(", ") + (child.conditionEtc ? `, ${child.conditionEtc}` : "")
+    : child.conditionEtc || "없음";
   const tempSensitivity = [
-    child.cold ? `추위 민감도: ${child.cold}` : null,
-    child.hot ? `더위 민감도: ${child.hot}` : null,
-    child.sweat ? `땀 흘림: ${child.sweat}` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
+    child.cold ? `추위: ${child.cold}` : null,
+    child.hot ? `더위: ${child.hot}` : null,
+    child.sweat ? `땀: ${child.sweat}` : null,
+  ].filter(Boolean).join(", ") || "특이사항 없음";
 
-  const prompt = `아이 정보:
-- 이름: ${child.name} (${child.age}, ${child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정"})
-- ${healthContext}
-- ${tempSensitivity || "체온 특이사항 없음"}
+  // ── 시간대별 날씨 → 일정 매핑 ──────────────────────────────
+  const hourly = weather.hourlyForecast ?? [];
 
-오늘 날씨: ${weatherSummary}
-대기질: ${airSummary}
+  // HH:MM 기준으로 가장 가까운 시간대 예보 찾기
+  const findSlot = (time?: string) => {
+    if (!time || !hourly.length) return null;
+    const [hh] = time.split(":");
+    const targetH = parseInt(hh, 10);
+    return hourly.reduce((best, s) => {
+      const sh = parseInt(s.hour.split(":")[0], 10);
+      const bh = parseInt(best.hour.split(":")[0], 10);
+      return Math.abs(sh - targetH) < Math.abs(bh - targetH) ? s : best;
+    });
+  };
 
-위 정보를 바탕으로 오늘 아침 ${child.name}의 등원/외출 준비를 위한 AI 리포트를 작성해주세요.
+  const slotLine = (label: string, time?: string, endTime?: string) => {
+    const s = findSlot(time);
+    if (!s) return null;
+    const timeStr = endTime ? `${time}~${endTime}` : time;
+    const sky = skyLabel(s.sky);
+    const rain = s.pty ? ` / ${ptyLabel(s.pty)}` : "";
+    const pop = s.pop != null ? ` (강수확률 ${s.pop}%)` : "";
+    return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}${pop}, 습도 ${s.humidity ?? "?"}%`;
+  };
 
-반드시 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트는 절대 포함하지 마세요:
+  const scheduleLines = [
+    slotLine("등원", child.schedule?.goSchool),
+    child.schedule?.outdoorStart
+      ? slotLine("야외활동", child.schedule.outdoorStart, child.schedule.outdoorEnd)
+      : null,
+    slotLine("하원", child.schedule?.leaveSchool),
+    child.schedule?.eveningStart
+      ? slotLine("저녁 외출", child.schedule.eveningStart, child.schedule.eveningEnd)
+      : null,
+  ].filter(Boolean);
+
+  const scheduleSummary = scheduleLines.length
+    ? scheduleLines.join("\n")
+    : hourly.length
+      ? hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${s.pty ? ` / ${ptyLabel(s.pty)}` : ""}${s.pop != null ? ` (강수 ${s.pop}%)` : ""}`).join("\n")
+      : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%, 강수확률 ${weather.pop ?? "?"}%`;
+
+  // ── 프롬프트 ────────────────────────────────────────────────
+  const prompt = `[아이 정보]
+이름: ${child.name} (${child.age}, ${genderLabel})
+건강 특이사항: ${conditions}
+체온 민감도: ${tempSensitivity}
+
+[오늘 일정별 날씨]
+${scheduleSummary}
+
+[현재 대기질]
+${airSummary}
+
+위 정보를 바탕으로 ${child.name}의 오늘 하루 준비를 위한 AI 리포트를 부모에게 전달하는 문장으로 작성해주세요.
+
+반드시 아래 JSON 형식으로만 응답하세요:
 
 {
-  "message": "첫 문장: 날씨·공기 상태 요약(아이 이름 포함).\n두 번째 문장: 핵심 주의사항(건강 특이사항 연계).\n세 번째 문장: 옷차림 추천.",
+  "message": "문장1: 오늘 날씨·대기질 핵심 요약 (일정 중 가장 주의가 필요한 시간대 언급).\n문장2: 건강 특이사항과 연계한 구체적 주의사항.\n문장3: 옷차림 또는 준비물 추천.",
   "checklist": ["이모지 항목1", "이모지 항목2", "이모지 항목3"]
 }
 
 규칙:
-- message: 문장마다 \\n으로 구분. 중요 키워드는 **단어** 형식으로 강조. 3문장 이내.
-- checklist: 오늘 반드시 챙길 물건 3~4개. 각 항목은 "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧥 얇은 가디건").
-- 전체 응답은 파싱 가능한 JSON이어야 함. 따뜻하고 친근한 한국어 톤.`;
+- message: 반드시 부모에게 전달하는 3인칭 문장. "${child.name}야/아", "너는", "네가" 같은 2인칭 절대 금지. 아이는 "${child.name}는/${child.name}이" 형태로 지칭. 문장마다 \\n 구분. 중요 키워드는 **단어** 형식 강조.
+- checklist: 오늘 반드시 챙길 물건 3~4개. "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧴 보습크림"). 일정과 건강 상태를 고려해 선정.
+- 전체 응답은 파싱 가능한 JSON만. 따뜻하고 친근한 한국어 톤.`;
 
   // 스트리밍 대신 완성된 응답을 반환 (Next.js 15 호환)
   try {
@@ -125,7 +177,7 @@ export async function POST(req: NextRequest) {
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
       system:
-        "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 오늘 날씨와 아이 특성을 바탕으로 따뜻하고 자연스러운 말투로 아침 준비를 도와주세요. 마치 매일 아침 친한 친구가 카톡으로 보내주는 것처럼 편안하고 공감 가는 톤으로 써주세요. 딱딱한 보고서 문체나 나열식 표현은 절대 피하세요. 항상 한국어로 답변하세요. 응답은 반드시 순수 JSON 객체만 반환하세요. 코드블록(```)이나 설명 텍스트를 절대 포함하지 마세요.",
+        "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 오늘 날씨와 아이 특성을 바탕으로 따뜻하고 자연스러운 말투로 아침 준비를 도와주세요. 마치 매일 아침 친한 친구가 카톡으로 보내주는 것처럼 편안하고 공감 가는 톤으로 써주세요. 딱딱한 보고서 문체나 나열식 표현은 절대 피하세요. 중요: 리포트는 반드시 부모에게 전달하는 문장으로 작성하세요. 아이에게 직접 말 거는 2인칭 표현('지우야', '너는', '네가' 등)은 절대 사용하지 마세요. 아이는 항상 3인칭으로 지칭하세요. 항상 한국어로 답변하세요. 응답은 반드시 순수 JSON 객체만 반환하세요. 코드블록(```)이나 설명 텍스트를 절대 포함하지 마세요.",
     });
 
     const raw =

@@ -140,7 +140,7 @@ const Home = () => {
 
     const today = new Date().toISOString().slice(0, 10);
     // v3: 캐시 버전 업 → 구형 plain-text 캐시 강제 무효화
-    const cacheKey = `aiday:report:v3:${cur.id}:${today}`;
+    const cacheKey = `aiday:report:v4:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
@@ -166,9 +166,11 @@ const Home = () => {
               age: cur.age,
               gender: cur.gender,
               conditions: cur.conditions,
+              conditionEtc: cur.conditionEtc,
               cold: cur.cold,
               hot: cur.hot,
               sweat: cur.sweat,
+              schedule: cur.schedule,
             },
             weather: w,
             air: a?.error ? null : a,
