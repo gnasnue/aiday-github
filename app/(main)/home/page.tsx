@@ -141,8 +141,7 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    // v3: 캐시 버전 업 → 구형 plain-text 캐시 강제 무효화
-    const cacheKey = `aiday:report:v4:${cur.id}:${today}`;
+    const cacheKey = `aiday:report:v5:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {

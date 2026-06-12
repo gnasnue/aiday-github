@@ -155,53 +155,57 @@ ${scheduleSummary}
 [현재 대기질]
 ${airSummary}
 
-위 정보를 바탕으로 ${child.name}의 오늘 하루 준비를 위한 AI 리포트를 부모에게 전달하는 문장으로 작성해주세요.
+오늘 ${child.name}의 하루를 준비하는 부모에게 AI 리포트를 작성해주세요.
 
-반드시 아래 JSON 형식으로만 응답하세요:
+출력 형식 — 아래 JSON만 반환 (코드블록 없이):
+{"message":"...","checklist":["이모지 항목1","이모지 항목2","이모지 항목3"]}
 
-{
-  "message": "문장1: 오늘 날씨·대기질 핵심 요약 (일정 중 가장 주의가 필요한 시간대 언급).\n문장2: 건강 특이사항과 연계한 구체적 주의사항.\n문장3: 옷차림 또는 준비물 추천.",
-  "checklist": ["이모지 항목1", "이모지 항목2", "이모지 항목3"]
-}
+message 작성 기준:
+- 오늘 ${child.name}에게 가장 중요한 한 가지를 첫 문장에 바로 꺼낼 것 (날씨 개요로 시작 금지)
+- 건강 특이사항(${conditions})과 오늘 날씨·일정의 교차점을 반드시 짚을 것
+- 부모가 바로 행동할 수 있는 구체적인 준비 사항 포함
+- 전체 2~3문장. 문장마다 \\n 구분. 중요 키워드는 **단어** 형식으로 강조
+- ${child.name}는/${child.name}이는 형태로 3인칭 지칭. 2인칭("${child.name}야", "너는") 절대 금지
 
-규칙:
-- message: 반드시 부모에게 전달하는 3인칭 문장. "${child.name}야/아", "너는", "네가" 같은 2인칭 절대 금지. 아이는 "${child.name}는/${child.name}이" 형태로 지칭. 문장마다 \\n 구분. 중요 키워드는 **단어** 형식 강조.
-- checklist: 오늘 반드시 챙길 물건 3~4개. "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧴 보습크림"). 일정과 건강 상태를 고려해 선정.
-- 전체 응답은 파싱 가능한 JSON만. 따뜻하고 친근한 한국어 톤.`;
+checklist: 오늘 일정과 건강 상태를 고려해 반드시 챙길 물건 3~4개. "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧴 보습크림")`;
 
   // 스트리밍 대신 완성된 응답을 반환 (Next.js 15 호환)
   try {
     const message = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 512,
+      max_tokens: 600,
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
       system:
-        "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 오늘 날씨와 아이 특성을 바탕으로 따뜻하고 자연스러운 말투로 아침 준비를 도와주세요. 마치 매일 아침 친한 친구가 카톡으로 보내주는 것처럼 편안하고 공감 가는 톤으로 써주세요. 딱딱한 보고서 문체나 나열식 표현은 절대 피하세요. 중요: 리포트는 반드시 부모에게 전달하는 문장으로 작성하세요. 아이에게 직접 말 거는 2인칭 표현('지우야', '너는', '네가' 등)은 절대 사용하지 마세요. 아이는 항상 3인칭으로 지칭하세요. 항상 한국어로 답변하세요. 응답은 반드시 순수 JSON 객체만 반환하세요. 코드블록(```)이나 설명 텍스트를 절대 포함하지 마세요.",
+        "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 매일 아침 카카오톡처럼 따뜻하고 자연스럽게, 오늘 이 아이에게 꼭 필요한 이야기만 전해주세요. 핵심 원칙: 첫 문장부터 아이의 건강 특이사항과 오늘 환경의 교차점을 짚을 것. 날씨 개요로 시작하지 말 것. 아이는 항상 3인칭으로만 지칭할 것. 응답은 반드시 순수 JSON 한 줄만 반환하세요. 코드블록(```)이나 줄바꿈, 설명 텍스트 없이 JSON 객체 하나만.",
     });
 
     const raw =
       message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
 
-    // JSON 파싱 시도 → 실패 시 legacy 텍스트로 fallback
+    // 코드블록으로 감싸인 경우 내용 추출 후 파싱
     try {
-      // ```json ... ``` 감싸기 제거 (Claude가 마크다운 코드블록으로 감쌀 때 대비)
-      const jsonStr = raw.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+      const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw;
       const parsed = JSON.parse(jsonStr) as { message?: string; checklist?: string[] };
       return NextResponse.json({
         message: parsed.message ?? "",
         checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
       });
     } catch {
-      // JSON 파싱 실패 → 텍스트에서 이모지 줄을 체크리스트로 분리
-      const lines = raw.split("\n").map((l) => l.trim()).filter(Boolean);
-      const emojiLineRe = /^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}])/u;
-      const checklistItems = lines.filter((l) => emojiLineRe.test(l));
-      const messageLines = lines.filter((l) => !emojiLineRe.test(l));
-      return NextResponse.json({
-        message: messageLines.join("\n"),
-        checklist: checklistItems.length > 0 ? checklistItems : [],
-      });
+      // JSON 파싱 실패 → { } 블록 직접 추출 시도
+      const braceMatch = raw.match(/\{[\s\S]*\}/);
+      if (braceMatch) {
+        try {
+          const parsed = JSON.parse(braceMatch[0]) as { message?: string; checklist?: string[] };
+          return NextResponse.json({
+            message: parsed.message ?? "",
+            checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+          });
+        } catch {}
+      }
+      // 최후 fallback: 빈 응답 반환 → 클라이언트가 recommendation-engine 사용
+      return NextResponse.json({ message: "", checklist: [] });
     }
   } catch (err) {
     console.error("[AI report] Claude API 오류:", err);
