@@ -71,6 +71,7 @@ const Home = () => {
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
@@ -121,6 +122,7 @@ const Home = () => {
             windSpeed: windLabel,
           });
           setAiLoading(true);
+          setAiHook("");
           setAiMessage("");
           setAiError(false);
         }
@@ -141,13 +143,13 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `aiday:report:v5:${cur.id}:${today}`;
+    const cacheKey = `aiday:report:v6:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
-        // v3 형식(message/checklist)만 처리
         if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.message && Array.isArray(cached.checklist)) {
+          setAiHook(cached.hook ?? "");
           setAiMessage(cached.message);
           if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
           setAiLoading(false);
@@ -187,12 +189,13 @@ const Home = () => {
 
         const data = await res.json();
         if (data.message) {
+          setAiHook(data.hook ?? "");
           setAiMessage(data.message);
           if (Array.isArray(data.checklist) && data.checklist.length > 0) {
             setAiChecklist(data.checklist);
           }
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ message: data.message, checklist: data.checklist ?? [], ts: Date.now() }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], ts: Date.now() }));
           } catch {}
         }
       } catch (err) {
@@ -211,6 +214,7 @@ const Home = () => {
   useEffect(() => {
     if (!loading) {
       setAiLoading(true);
+      setAiHook("");
       setAiError(false);
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -340,21 +344,34 @@ const Home = () => {
                     </span>
                   </div>
                 </div>
-                {/* AI 로딩 중: 메시지 영역만 skeleton, 나머지는 즉시 표시 */}
+
+                {/* AI 로딩 중: hook + message 영역 skeleton */}
                 {aiLoading ? (
                   <div className="mt-3 space-y-2">
-                    <Skeleton className="h-4 w-full rounded-full" />
-                    <Skeleton className="h-4 w-5/6 rounded-full" />
-                    <Skeleton className="h-4 w-3/4 rounded-full" />
+                    <Skeleton className="h-5 w-3/4 rounded-full" />
+                    <div className="mt-3 space-y-1.5">
+                      <Skeleton className="h-3.5 w-full rounded-full" />
+                      <Skeleton className="h-3.5 w-5/6 rounded-full" />
+                      <Skeleton className="h-3.5 w-4/6 rounded-full" />
+                    </div>
                   </div>
                 ) : (
-                  <div className="mt-3 space-y-2">
-                    {message.split("\n").filter(Boolean).map((line, i) => (
-                      <p key={i} className="text-[15px] leading-[1.75] text-foreground break-keep">
-                        {renderRich(line)}
+                  <>
+                    {/* hook — 공감+행동 한 줄 */}
+                    {aiHook && (
+                      <p className="mt-3 text-[17px] font-bold leading-snug text-foreground break-keep">
+                        {aiHook}
                       </p>
-                    ))}
-                  </div>
+                    )}
+                    {/* message — 상세 설명 */}
+                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
+                      {message.split("\n").filter(Boolean).map((line, i) => (
+                        <p key={i} className="text-[14px] leading-[1.7] text-foreground/80 break-keep">
+                          {renderRich(line)}
+                        </p>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
               <div className="px-5 pb-5">

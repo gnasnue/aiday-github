@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { buildReportPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
 
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
@@ -104,7 +105,6 @@ export async function POST(req: NextRequest) {
   // ── 시간대별 날씨 → 일정 매핑 ──────────────────────────────
   const hourly = weather.hourlyForecast ?? [];
 
-  // HH:MM 기준으로 가장 가까운 시간대 예보 찾기
   const findSlot = (time?: string) => {
     if (!time || !hourly.length) return null;
     const [hh] = time.split(":");
@@ -143,69 +143,53 @@ export async function POST(req: NextRequest) {
       ? hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${s.pty ? ` / ${ptyLabel(s.pty)}` : ""}${s.pop != null ? ` (강수 ${s.pop}%)` : ""}`).join("\n")
       : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%, 강수확률 ${weather.pop ?? "?"}%`;
 
-  // ── 프롬프트 ────────────────────────────────────────────────
-  const prompt = `[아이 정보]
-이름: ${child.name} (${child.age}, ${genderLabel})
-건강 특이사항: ${conditions}
-체온 민감도: ${tempSensitivity}
+  const prompt = buildReportPrompt({
+    name: child.name,
+    age: child.age,
+    genderLabel,
+    conditions,
+    tempSensitivity,
+    scheduleSummary,
+    airSummary,
+  });
 
-[오늘 일정별 날씨]
-${scheduleSummary}
-
-[현재 대기질]
-${airSummary}
-
-오늘 ${child.name}의 하루를 준비하는 부모에게 AI 리포트를 작성해주세요.
-
-출력 형식 — 아래 JSON만 반환 (코드블록 없이):
-{"message":"...","checklist":["이모지 항목1","이모지 항목2","이모지 항목3"]}
-
-message 작성 기준:
-- 오늘 ${child.name}에게 가장 중요한 한 가지를 첫 문장에 바로 꺼낼 것 (날씨 개요로 시작 금지)
-- 건강 특이사항(${conditions})과 오늘 날씨·일정의 교차점을 반드시 짚을 것
-- 부모가 바로 행동할 수 있는 구체적인 준비 사항 포함
-- 전체 2~3문장. 문장마다 \\n 구분. 중요 키워드는 **단어** 형식으로 강조
-- ${child.name}는/${child.name}이는 형태로 3인칭 지칭. 2인칭("${child.name}야", "너는") 절대 금지
-
-checklist: 오늘 일정과 건강 상태를 고려해 반드시 챙길 물건 3~4개. "이모지 짧은이름" 형식 (예: "☂️ 우산", "🧴 보습크림")`;
-
-  // 스트리밍 대신 완성된 응답을 반환 (Next.js 15 호환)
   try {
-    const message = await client.messages.create({
+    const response = await client.messages.create({
       model: "claude-haiku-4-5",
-      max_tokens: 600,
+      max_tokens: 700,
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
-      system:
-        "당신은 아이를 키우는 부모의 든든한 육아 친구입니다. 매일 아침 카카오톡처럼 따뜻하고 자연스럽게, 오늘 이 아이에게 꼭 필요한 이야기만 전해주세요. 핵심 원칙: 첫 문장부터 아이의 건강 특이사항과 오늘 환경의 교차점을 짚을 것. 날씨 개요로 시작하지 말 것. 아이는 항상 3인칭으로만 지칭할 것. 응답은 반드시 순수 JSON 한 줄만 반환하세요. 코드블록(```)이나 줄바꿈, 설명 텍스트 없이 JSON 객체 하나만.",
+      system: REPORT_SYSTEM_PROMPT,
     });
 
     const raw =
-      message.content[0]?.type === "text" ? message.content[0].text.trim() : "";
+      response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
 
-    // 코드블록으로 감싸인 경우 내용 추출 후 파싱
+    // 1차: 코드블록 제거 후 JSON 파싱
     try {
       const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
       const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw;
-      const parsed = JSON.parse(jsonStr) as { message?: string; checklist?: string[] };
+      const parsed = JSON.parse(jsonStr) as { hook?: string; message?: string; checklist?: string[] };
       return NextResponse.json({
+        hook: parsed.hook ?? "",
         message: parsed.message ?? "",
         checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
       });
     } catch {
-      // JSON 파싱 실패 → { } 블록 직접 추출 시도
+      // 2차: { } 블록 직접 추출
       const braceMatch = raw.match(/\{[\s\S]*\}/);
       if (braceMatch) {
         try {
-          const parsed = JSON.parse(braceMatch[0]) as { message?: string; checklist?: string[] };
+          const parsed = JSON.parse(braceMatch[0]) as { hook?: string; message?: string; checklist?: string[] };
           return NextResponse.json({
+            hook: parsed.hook ?? "",
             message: parsed.message ?? "",
             checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
           });
         } catch {}
       }
-      // 최후 fallback: 빈 응답 반환 → 클라이언트가 recommendation-engine 사용
-      return NextResponse.json({ message: "", checklist: [] });
+      // 최후: 빈 응답 → 클라이언트가 recommendation-engine 사용
+      return NextResponse.json({ hook: "", message: "", checklist: [] });
     }
   } catch (err) {
     console.error("[AI report] Claude API 오류:", err);
