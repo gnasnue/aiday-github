@@ -74,6 +74,7 @@ const Home = () => {
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(false);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
 
@@ -121,6 +122,7 @@ const Home = () => {
           });
           setAiLoading(true);
           setAiMessage("");
+          setAiError(false);
         }
         setLoading(false);
       } catch {
@@ -178,7 +180,7 @@ const Home = () => {
         });
 
         if (!res.ok) {
-          // T3: show user-facing error when AI report API fails
+          setAiError(true);
           toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
           setAiLoading(false);
           return;
@@ -196,6 +198,7 @@ const Home = () => {
         }
       } catch (err) {
         console.error("[AI report]", err);
+        setAiError(true);
         toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
       } finally {
         setAiLoading(false);
@@ -207,7 +210,10 @@ const Home = () => {
 
   // 프로필 변경 시 AI 리포트 재요청
   useEffect(() => {
-    if (!loading) setAiLoading(true);
+    if (!loading) {
+      setAiLoading(true);
+      setAiError(false);
+    }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recommendation = useMemo(
@@ -303,8 +309,7 @@ const Home = () => {
           </button>
 
           {/* AI message card */}
-          {/* loading || aiLoading: 날씨·AI 둘 다 완료될 때까지 skeleton 유지 → 중간 상태(mockWeather fallback) 노출 방지 */}
-          {(loading || aiLoading) ? (
+          {loading ? (
             <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-soft">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
@@ -327,18 +332,31 @@ const Home = () => {
               <div className="bg-gradient-warm px-5 pt-5 pb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-accent">AI Report</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {aiError && (
+                      <span className="text-[10px] text-muted-foreground/60">기본 추천</span>
+                    )}
+                    <span className="text-[11px] text-muted-foreground">
+                      {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                    </span>
+                  </div>
                 </div>
-                {/* 리포트 본문 — 항상 실제 AI 텍스트 (skeleton 단계는 위에서 처리됨) */}
-                <div className="mt-3 space-y-2">
-                  {message.split("\n").filter(Boolean).map((line, i) => (
-                    <p key={i} className="text-[15px] leading-[1.75] text-foreground break-keep">
-                      {renderRich(line)}
-                    </p>
-                  ))}
-                </div>
+                {/* AI 로딩 중: 메시지 영역만 skeleton, 나머지는 즉시 표시 */}
+                {aiLoading ? (
+                  <div className="mt-3 space-y-2">
+                    <Skeleton className="h-4 w-full rounded-full" />
+                    <Skeleton className="h-4 w-5/6 rounded-full" />
+                    <Skeleton className="h-4 w-3/4 rounded-full" />
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {message.split("\n").filter(Boolean).map((line, i) => (
+                      <p key={i} className="text-[15px] leading-[1.75] text-foreground break-keep">
+                        {renderRich(line)}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="px-5 pb-5">
               <div className="mt-4 flex flex-wrap gap-1.5">
