@@ -9,15 +9,39 @@ import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withSubjectSuffix } from "@/lib/korean";
 
-/* ----------------------------- mock env (shared assumption) ----------------------------- */
-const env = {
-  uv: 7, // 0-10+
-  pm10: 62,
-  pm25: 28,
-  humidity: 38, // %
-  pollenTop: { name: "참나무", level: "매우높음", score: 4 },
-  temp: 18,
+/* ----------------------------- env types ----------------------------- */
+type Env = {
+  uv: number;
+  pm10: number;
+  pm25: number;
+  humidity: number;
+  pollenTop: { name: string; level: string; score: number };
+  temp: number;
 };
+
+const DEFAULT_ENV: Env = {
+  uv: 0,
+  pm10: 0,
+  pm25: 0,
+  humidity: 50,
+  pollenTop: { name: "참나무", level: "낮음", score: 0 },
+  temp: 20,
+};
+
+function pollenScore(raw: number | null): number {
+  if (raw == null) return 0;
+  if (raw <= 1) return 1;
+  if (raw <= 2) return 2;
+  if (raw <= 3) return 3;
+  return 4;
+}
+
+function pollenLevel(score: number): string {
+  if (score <= 1) return "낮음";
+  if (score <= 2) return "보통";
+  if (score <= 3) return "높음";
+  return "매우높음";
+}
 
 /* ----------------------------- types ----------------------------- */
 type Source = { label: string; url: string };
@@ -64,11 +88,45 @@ const Tips = () => {
   })();
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
   const [loading, setLoading] = useState(true);
+  const [env, setEnv] = useState<Env>(DEFAULT_ENV);
   const [filter, setFilter] = useState<"전체" | Tip["category"]>("전체");
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 400);
-    return () => clearTimeout(t);
+    const fetchEnv = async () => {
+      setLoading(true);
+      try {
+        const [weatherRes, airRes, uvRes, pollenRes] = await Promise.allSettled([
+          fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
+          fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+          fetch("/api/uv?region=서울").then((r) => r.json()),
+          fetch("/api/pollen?region=서울").then((r) => r.json()),
+        ]);
+
+        const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
+        const a = airRes.status === "fulfilled" ? airRes.value : null;
+        const uv = uvRes.status === "fulfilled" ? uvRes.value : null;
+        const p = pollenRes.status === "fulfilled" ? pollenRes.value : null;
+
+        const oakScore = pollenScore(p?.oak ?? null);
+        const pineScore = pollenScore(p?.pine ?? null);
+        const topScore = Math.max(oakScore, pineScore);
+        const topName = oakScore >= pineScore ? "참나무" : "소나무";
+
+        setEnv({
+          uv: uv?.uvi ?? 0,
+          pm10: a?.pm10 ?? 0,
+          pm25: a?.pm25 ?? 0,
+          humidity: w?.humidity ?? 50,
+          temp: w?.temperature ?? 20,
+          pollenTop: { name: topName, level: pollenLevel(topScore), score: topScore },
+        });
+      } catch {
+        // 실패 시 DEFAULT_ENV 유지
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEnv();
   }, []);
 
   const tips = useMemo<Tip[]>(() => {
@@ -237,7 +295,7 @@ const Tips = () => {
     });
 
     return list;
-  }, [cur]);
+  }, [cur, env]);
 
   const filtered = filter === "전체" ? tips : tips.filter((t) => t.category === filter);
   const categories: ("전체" | Tip["category"])[] = [
