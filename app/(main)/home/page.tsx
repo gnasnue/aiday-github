@@ -484,7 +484,12 @@ const Home = () => {
 
           {/* Character-based personalized report */}
           {!loading && (
-            <CharacterReport gender={cur.gender} childName={cur.name} />
+            <CharacterReport
+              gender={cur.gender}
+              childName={cur.name}
+              weather={weatherData}
+              conditions={cur.conditions ?? []}
+            />
           )}
 
           {/* Recommended items */}
