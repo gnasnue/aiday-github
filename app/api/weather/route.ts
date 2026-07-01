@@ -118,11 +118,21 @@ export async function GET(request: NextRequest) {
 
     const currentHour = kst.getUTCHours();
     const nearestHour = Math.ceil(currentHour / 3) * 3;
-    const fcstTime = String(nearestHour >= 24 ? 0 : nearestHour).padStart(2, "0") + "00";
+    const wrapsToNextDay = nearestHour >= 24;
+    const fcstTime = String(wrapsToNextDay ? 0 : nearestHour).padStart(2, "0") + "00";
+
+    // 22~23시엔 nearestHour가 24(=다음날 0시)로 넘어가므로, 조회 날짜도 함께 하루 넘겨야 함
+    const targetDate = wrapsToNextDay
+      ? new Date(kst.getTime() + 24 * 60 * 60 * 1000)
+      : kst;
+    const targetDateStr =
+      String(targetDate.getUTCFullYear()) +
+      String(targetDate.getUTCMonth() + 1).padStart(2, "0") +
+      String(targetDate.getUTCDate()).padStart(2, "0");
 
     const forecast: Record<string, string> = {};
     for (const item of items) {
-      if (item.fcstDate === todayStr && item.fcstTime === fcstTime) {
+      if (item.fcstDate === targetDateStr && item.fcstTime === fcstTime) {
         forecast[item.category] = item.fcstValue;
       }
     }
