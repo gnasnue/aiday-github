@@ -429,9 +429,9 @@ const Home = () => {
 
           {/* Timeline */}
           <section className="mt-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold tracking-tight">시간대별 환경</h2>
-              <span className="text-[11px] text-muted-foreground">가로로 스크롤 →</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-[22px] font-bold tracking-tight">시간대별 환경</h2>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">가로로 스크롤 →</span>
             </div>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
@@ -489,7 +489,7 @@ const Home = () => {
 
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="text-[15px] font-bold tracking-tight">
+            <h2 className="text-[22px] font-bold tracking-tight">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">

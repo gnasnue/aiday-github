@@ -98,11 +98,11 @@ const CharacterReport = ({
 
   return (
     <section className="mt-8">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-bold tracking-tight">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="min-w-0 truncate text-[22px] font-bold tracking-tight">
           {withSubjectSuffix(childName)} 위한 오늘의 종합 솔루션
         </h2>
-        <span className="text-[11px] text-muted-foreground">탭하면 자세히 →</span>
+        <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">탭하면 자세히 →</span>
       </div>
 
       <div className="mt-3 rounded-3xl border border-border/60 bg-card px-4 pb-3 pt-4">
