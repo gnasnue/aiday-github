@@ -258,15 +258,15 @@ const Home = () => {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => toast("새 알림이 없어요")}
-                className="relative rounded-full p-2 text-foreground hover:bg-muted"
+                className="relative rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="알림"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
+                className="rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="설정"
               >
                 <Settings className="h-5 w-5" />
@@ -282,7 +282,7 @@ const Home = () => {
               <button
                 key={p.id}
                 onClick={() => setActive(p.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
+                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
                   active === p.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/40"
@@ -295,7 +295,7 @@ const Home = () => {
             ))}
             <button
               onClick={() => router.push("/onboarding")}
-              className="shrink-0 rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
+              className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
             >
               + 추가
             </button>
@@ -304,7 +304,7 @@ const Home = () => {
           {/* Location */}
           <button
             onClick={() => toast("위치 변경은 준비 중이에요")}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="mt-4 flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             <MapPin className="h-3.5 w-3.5" />
             <span>서울 강남구</span>
