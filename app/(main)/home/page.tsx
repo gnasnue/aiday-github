@@ -258,15 +258,15 @@ const Home = () => {
             <div className="flex items-center gap-1">
               <button
                 onClick={() => toast("새 알림이 없어요")}
-                className="relative rounded-full p-2 text-foreground hover:bg-muted"
+                className="relative rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="알림"
               >
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-accent" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
+                className="rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="설정"
               >
                 <Settings className="h-5 w-5" />
@@ -282,20 +282,20 @@ const Home = () => {
               <button
                 key={p.id}
                 onClick={() => setActive(p.id)}
-                className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
+                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
                   active === p.id
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/40"
                 }`}
               >
                 <span>{p.emoji}</span>
                 <span className="font-medium">{p.name}</span>
-                <span className={`text-xs ${active === p.id ? "text-background/70" : "text-muted-foreground"}`}>{p.age}</span>
+                <span className={`text-xs ${active === p.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{p.age}</span>
               </button>
             ))}
             <button
               onClick={() => router.push("/onboarding")}
-              className="shrink-0 rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
+              className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
             >
               + 추가
             </button>
@@ -304,7 +304,7 @@ const Home = () => {
           {/* Location */}
           <button
             onClick={() => toast("위치 변경은 준비 중이에요")}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+            className="mt-4 flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
             <MapPin className="h-3.5 w-3.5" />
             <span>서울 강남구</span>
@@ -407,7 +407,7 @@ const Home = () => {
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-smooth ${
                               on
-                                ? "border-foreground bg-foreground text-background"
+                                ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background"
                             }`}
                           >
@@ -429,9 +429,9 @@ const Home = () => {
 
           {/* Timeline */}
           <section className="mt-8">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold tracking-tight">시간대별 환경</h2>
-              <span className="text-[11px] text-muted-foreground">가로로 스크롤 →</span>
+            <div className="flex items-baseline justify-between gap-2">
+              <h2 className="text-[22px] font-bold tracking-tight">시간대별 환경</h2>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">가로로 스크롤 →</span>
             </div>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
@@ -484,12 +484,17 @@ const Home = () => {
 
           {/* Character-based personalized report */}
           {!loading && (
-            <CharacterReport gender={cur.gender} childName={cur.name} />
+            <CharacterReport
+              gender={cur.gender}
+              childName={cur.name}
+              weather={weatherData}
+              conditions={cur.conditions ?? []}
+            />
           )}
 
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="text-[15px] font-bold tracking-tight">
+            <h2 className="text-[22px] font-bold tracking-tight">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">

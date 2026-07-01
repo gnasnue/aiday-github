@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { withSubjectSuffix } from "@/lib/korean";
+import type { WeatherData } from "@/lib/weather-api";
 
 type Gender = "male" | "female" | "unknown";
 
@@ -13,40 +14,51 @@ type Callout = {
   tone: "warn" | "ok";
 };
 
-const calloutsData: Callout[] = [
-  {
-    id: "head",
-    zone: "head",
-    title: "꽃가루·미세먼지",
-    desc: "마스크 챙기기",
-    emoji: "😷",
-    tone: "warn",
-  },
-  {
-    id: "neck",
-    zone: "neck",
-    title: "오후 바람 강함",
-    desc: "목수건 챙기기",
-    emoji: "🧣",
-    tone: "warn",
-  },
-  {
-    id: "skin",
-    zone: "skin",
-    title: "건조함 주의",
-    desc: "보습제 발라주기",
-    emoji: "💧",
-    tone: "ok",
-  },
-  {
-    id: "outfit",
-    zone: "outfit",
-    title: "일교차 큼",
-    desc: "얇은 가디건",
-    emoji: "🧥",
-    tone: "ok",
-  },
-];
+// Zone content derived from today's real weather/air data + the child's
+// conditions, mirroring the thresholds in lib/recommendation-engine.ts so
+// the illustration never drifts from what the "오늘 챙길 것" checklist says.
+function buildCallouts(weather: WeatherData, conditions: string[]): Callout[] {
+  const hasRhinitis = conditions.includes("비염");
+  const hasSensitiveSkin = conditions.includes("피부 민감");
+
+  const highPollen = weather.timeline.some((t) => t.pollen === "높음" || t.pollen === "매우높음");
+  const badDust = weather.timeline.some((t) => t.dust === "나쁨" || t.dust === "매우나쁨");
+  const hasStrongWind = weather.timeline.some((t) => t.wind === "강함");
+  const avgHumidity =
+    weather.timeline.reduce((s, t) => s + t.humidity, 0) / (weather.timeline.length || 1);
+  const temps = weather.timeline.map((t) => t.temp);
+  const tempRange = temps.length ? Math.max(...temps) - Math.min(...temps) : 0;
+
+  const head: Callout =
+    highPollen || badDust
+      ? {
+          id: "head",
+          zone: "head",
+          title: highPollen ? "꽃가루 높음" : "미세먼지 나쁨",
+          desc: hasRhinitis ? "마스크 필수 챙기기" : "마스크 챙기기",
+          emoji: "😷",
+          tone: "warn",
+        }
+      : { id: "head", zone: "head", title: "공기 양호", desc: "마스크 없이 괜찮아요", emoji: "🌤️", tone: "ok" };
+
+  const neck: Callout = hasStrongWind
+    ? { id: "neck", zone: "neck", title: "오후 바람 강함", desc: "목수건 챙기기", emoji: "🧣", tone: "warn" }
+    : { id: "neck", zone: "neck", title: "바람 약함", desc: "목수건 없이 괜찮아요", emoji: "🍃", tone: "ok" };
+
+  const skin: Callout =
+    avgHumidity < 45 || hasSensitiveSkin
+      ? { id: "skin", zone: "skin", title: "건조함 주의", desc: "보습제 발라주기", emoji: "💧", tone: "warn" }
+      : { id: "skin", zone: "skin", title: "습도 적정", desc: "평소처럼 관리해주세요", emoji: "✨", tone: "ok" };
+
+  const outfit: Callout =
+    tempRange >= 8
+      ? { id: "outfit", zone: "outfit", title: "일교차 큼", desc: "얇은 가디건", emoji: "🧥", tone: "warn" }
+      : weather.temp < 10
+        ? { id: "outfit", zone: "outfit", title: "쌀쌀한 날씨", desc: "두꺼운 외투", emoji: "🧥", tone: "warn" }
+        : { id: "outfit", zone: "outfit", title: "일교차 적음", desc: "평소 옷차림 괜찮아요", emoji: "👕", tone: "ok" };
+
+  return [head, neck, skin, outfit];
+}
 
 const Character = ({ gender }: { gender: Gender }) => {
   const src = gender === "female"
@@ -88,21 +100,26 @@ const boxLayout: Record<
 const CharacterReport = ({
   gender,
   childName,
+  weather,
+  conditions,
 }: {
   gender: Gender;
   childName: string;
+  weather: WeatherData;
+  conditions: string[];
 }) => {
   const [checked, setChecked] = useState<string[]>([]);
+  const calloutsData = useMemo(() => buildCallouts(weather, conditions), [weather, conditions]);
   const toggle = (id: string) =>
     setChecked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   return (
     <section className="mt-8">
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-[15px] font-bold tracking-tight">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="min-w-0 truncate text-[22px] font-bold tracking-tight">
           {withSubjectSuffix(childName)} 위한 오늘의 종합 솔루션
         </h2>
-        <span className="text-[11px] text-muted-foreground">탭하면 자세히 →</span>
+        <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">탭하면 자세히 →</span>
       </div>
 
       <div className="mt-3 rounded-3xl border border-border/60 bg-card px-4 pb-3 pt-4">
@@ -167,7 +184,7 @@ const CharacterReport = ({
                   <span
                     className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-smooth ${
                       isChecked
-                        ? "border-foreground bg-foreground text-background"
+                        ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background"
                     }`}
                   >

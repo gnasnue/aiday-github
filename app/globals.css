@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AI-Weather Design System
-   Brand: #FFB74D (primary), #FFF3E0 (soft bg), #E65100 (accent),
-          #FAFAFA (base bg), #212121 (text)
+/* AI-Weather Design System (see DESIGN.md)
+   Brand: #F5A623 (primary), #FFF3E0 (soft bg), #D45A00 (accent),
+          #E65100 (warning), #FAFAFA (base bg), #212121 (text)
    All colors MUST be HSL.
 */
 
@@ -34,7 +34,7 @@
     --muted-foreground: 0 0% 40%;
 
     /* Strong accent */
-    --accent: 22 100% 45%;               /* #E65100 */
+    --accent: 25 100% 42%;               /* #D45A00 */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
@@ -79,7 +79,7 @@
     --soft: 0 0% 18%;
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 65%;
-    --accent: 22 100% 55%;
+    --accent: 22 100% 56%;               /* #FF7020 */
     --accent-foreground: 0 0% 100%;
     --border: 0 0% 22%;
     --input: 0 0% 22%;
