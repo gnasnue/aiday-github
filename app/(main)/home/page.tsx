@@ -284,13 +284,13 @@ const Home = () => {
                 onClick={() => setActive(p.id)}
                 className={`flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
                   active === p.id
-                    ? "border-foreground bg-foreground text-background"
+                    ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/40"
                 }`}
               >
                 <span>{p.emoji}</span>
                 <span className="font-medium">{p.name}</span>
-                <span className={`text-xs ${active === p.id ? "text-background/70" : "text-muted-foreground"}`}>{p.age}</span>
+                <span className={`text-xs ${active === p.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{p.age}</span>
               </button>
             ))}
             <button
@@ -407,7 +407,7 @@ const Home = () => {
                           <span
                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-smooth ${
                               on
-                                ? "border-foreground bg-foreground text-background"
+                                ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border bg-background"
                             }`}
                           >

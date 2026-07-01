@@ -167,7 +167,7 @@ const CharacterReport = ({
                   <span
                     className={`mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-smooth ${
                       isChecked
-                        ? "border-foreground bg-foreground text-background"
+                        ? "border-primary bg-primary text-primary-foreground"
                         : "border-border bg-background"
                     }`}
                   >
