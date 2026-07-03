@@ -20,6 +20,16 @@ export default {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         soft: "hsl(var(--soft))",
+        status: {
+          good: "hsl(var(--status-good))",
+          "good-bg": "hsl(var(--status-good-bg))",
+          warn: "hsl(var(--status-warn))",
+          "warn-bg": "hsl(var(--status-warn-bg))",
+          bad: "hsl(var(--status-bad))",
+          "bad-bg": "hsl(var(--status-bad-bg))",
+          info: "hsl(var(--status-info))",
+          "info-bg": "hsl(var(--status-info-bg))",
+        },
         kakao: {
           DEFAULT: "hsl(var(--kakao))",
           foreground: "hsl(var(--kakao-foreground))",

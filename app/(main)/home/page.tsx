@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import CharacterReport from "@/components/CharacterReport";
 import { withSubjectSuffix } from "@/lib/korean";
-import { ChildProfile, loadProfiles } from "@/lib/profile";
+import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
@@ -21,9 +21,7 @@ const items = [
 ];
 
 const toneStyle = (t: "ok" | "warn") =>
-  t === "warn"
-    ? "bg-accent/8 text-accent border-accent/15"
-    : "bg-background text-muted-foreground border-border";
+  t === "warn" ? "chip-warn" : "bg-background text-muted-foreground border-border";
 
 const renderRich = (text: string) => {
   // 줄바꿈(\n)을 기준으로 문단 분리 후, 각 문단 내에서 **bold**/__accent__ 처리
@@ -87,6 +85,15 @@ const Home = () => {
       setActive(list[0].id);
     }
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)
+  useEffect(() => {
+    syncProfilesFromDb().then((list) => {
+      if (!list) return;
+      setProfiles(list);
+      setActive((prev) => (list.find((p) => p.id === prev) ? prev : list[0].id));
+    });
+  }, []);
 
   // Persist active profile
   useEffect(() => {
@@ -242,6 +249,9 @@ const Home = () => {
 
   const allDone = checked.length === activeChecklist.length;
 
+  // 오늘의 판단 상태 — 배지 tone에서 도출 (기능 변경 없음, 표현만)
+  const hasWarn = badges.some((b) => b.tone === "warn");
+
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
 
@@ -339,11 +349,23 @@ const Home = () => {
                     {aiError && (
                       <span className="text-[10px] text-muted-foreground/60">기본 추천</span>
                     )}
-                    <span className="text-[11px] text-muted-foreground">
-                      {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric" })}
+                    <span className="text-[11px] tabular text-muted-foreground">
+                      {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
                     </span>
                   </div>
                 </div>
+
+                {/* 상태 필 — 5초 안에 파악되는 오늘의 결론 */}
+                {!aiLoading && (
+                  <span
+                    className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
+                      hasWarn ? "chip-warn" : "chip-good"
+                    }`}
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                    {hasWarn ? "오늘은 주의가 필요해요" : "오늘은 무난한 하루예요"}
+                  </span>
+                )}
 
                 {/* AI 로딩 중: hook + message 영역 skeleton */}
                 {aiLoading ? (
@@ -357,11 +379,11 @@ const Home = () => {
                   </div>
                 ) : (
                   <>
-                    {/* hook — 공감+행동 한 줄 */}
+                    {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론 */}
                     {aiHook && (
-                      <p className="mt-3 text-[17px] font-bold leading-snug text-foreground break-keep">
+                      <h1 className="mt-3 text-[19px] font-bold leading-[1.4] tracking-[-0.01em] text-foreground break-keep">
                         {aiHook}
-                      </p>
+                      </h1>
                     )}
                     {/* message — 상세 설명 */}
                     <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
@@ -379,7 +401,7 @@ const Home = () => {
                 {badges.map((b) => (
                   <span
                     key={b.label}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${toneStyle(b.tone)}`}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium tabular ${toneStyle(b.tone)}`}
                   >
                     {b.label} · {b.value}
                   </span>
@@ -388,11 +410,14 @@ const Home = () => {
 
               <div className="mt-5 rounded-2xl bg-soft p-4">
                 <div className="flex items-center justify-between px-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    오늘 챙길 것
-                  </p>
-                  {allDone && (
-                    <p className="text-xs font-semibold text-accent animate-fade-in">준비 끝! ✓</p>
+                  <p className="eyebrow normal-case tracking-[0.06em]">오늘 챙길 것</p>
+                  {allDone ? (
+                    <p className="text-xs font-semibold text-status-good animate-fade-in">준비 끝 ✓</p>
+                  ) : (
+                    <p className="text-xs font-semibold tabular text-muted-foreground">
+                      {checked.length}
+                      <span className="text-muted-foreground/50"> / {activeChecklist.length}</span>
+                    </p>
                   )}
                 </div>
                 <ul className="mt-1 divide-y divide-border/40">
@@ -423,6 +448,11 @@ const Home = () => {
                   })}
                 </ul>
               </div>
+
+              {/* 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지 */}
+              <p className="mt-3 px-1 text-[11px] leading-relaxed text-muted-foreground/70">
+                {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
+              </p>
               </div>
             </section>
           )}
@@ -430,8 +460,8 @@ const Home = () => {
           {/* Timeline */}
           <section className="mt-8">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">시간대별 환경</h2>
-              <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">가로로 스크롤 →</span>
+              <h2 className="text-[17px] font-bold tracking-tight">시간대별 환경</h2>
+              <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground/70">옆으로 넘겨보세요 →</span>
             </div>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
@@ -450,7 +480,7 @@ const Home = () => {
                         </div>
                         <span className="text-2xl">{t.icon}</span>
                       </div>
-                      <div className="mt-3 flex items-baseline gap-1">
+                      <div className="mt-3 flex items-baseline gap-1 tabular">
                         <span className="text-[26px] font-bold leading-none tracking-tight">{t.temp}°</span>
                         <span className="text-[11px] text-muted-foreground">체감 {t.feels}°</span>
                       </div>
@@ -468,8 +498,8 @@ const Home = () => {
                             <dd
                               className={
                                 bad
-                                  ? "font-semibold text-accent"
-                                  : "font-medium text-foreground"
+                                  ? "font-semibold text-status-warn"
+                                  : "font-medium tabular text-foreground"
                               }
                             >
                               {v}
@@ -494,7 +524,7 @@ const Home = () => {
 
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="text-[22px] font-bold tracking-tight">
+            <h2 className="text-[17px] font-bold tracking-tight break-keep">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">

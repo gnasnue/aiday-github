@@ -34,7 +34,7 @@ export default function IndexPage() {
           <div className="container-mobile flex h-14 items-center justify-between">
             <Logo />
             <div className="flex items-center gap-1">
-              <Link href="/signup">
+              <Link href="/login">
                 <Button variant="ghost" size="sm" className="h-11 px-3 text-xs text-foreground">로그인</Button>
               </Link>
               <Link href="/signup">
@@ -145,7 +145,10 @@ export default function IndexPage() {
               <a href="#" className="hover:text-foreground">개인정보처리방침</a>
               <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
             </div>
-            <p className="mt-4 text-xs text-muted-foreground">© 2026 아이데이. All rights reserved.</p>
+            <p className="mt-4 text-[11px] text-muted-foreground/70">
+              환경 데이터 출처: 기상청 단기예보 · 한국환경공단 에어코리아
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">© 2026 아이데이. All rights reserved.</p>
           </div>
         </footer>
       </div>

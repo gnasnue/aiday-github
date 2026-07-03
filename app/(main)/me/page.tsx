@@ -10,7 +10,10 @@ import {
   ChildProfile,
   loadProfiles,
   removeProfile,
+  removeProfileFromDb,
+  syncProfilesFromDb,
 } from "@/lib/profile";
+import { supabase } from "@/lib/supabase";
 
 
 const sensitivityLabel: Record<string, string> = {
@@ -138,6 +141,15 @@ const My = () => {
     setProfiles(loadProfiles());
   }, [pathname]);
 
+  // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)
+  useEffect(() => {
+    syncProfilesFromDb().then((list) => {
+      if (!list) return;
+      setProfiles(list);
+      setActive((prev) => (list.find((p) => p.id === prev) ? prev : list[0]?.id ?? ""));
+    });
+  }, []);
+
   const select = (id: string) => {
     setActive(id);
     try { localStorage.setItem("aiweather:activeProfileId", id); } catch {}
@@ -147,9 +159,22 @@ const My = () => {
   const del = (id: string) => {
     if (!confirm("이 프로필을 삭제할까요?")) return;
     removeProfile(id);
+    removeProfileFromDb(id).catch(() => {}); // 비로그인·데모 프로필이면 조용히 무시
     const next = loadProfiles();
     setProfiles(next);
     if (active === id && next[0]) setActive(next[0].id);
+  };
+
+  const logout = async () => {
+    if (!confirm("로그아웃할까요?")) return;
+    await supabase.auth.signOut();
+    // 이 기기에 아이 건강정보를 남기지 않도록 로컬 프로필도 정리
+    try {
+      localStorage.removeItem("aiweather:profiles");
+      localStorage.removeItem("aiweather:activeProfileId");
+    } catch {}
+    toast.success("로그아웃했어요");
+    router.push("/");
   };
 
   return (
@@ -226,16 +251,16 @@ const My = () => {
           <section className="mt-7">
             <h2 className="text-base font-bold">계정</h2>
             <div className="mt-3 divide-y divide-border rounded-2xl border border-border bg-card">
-              {[
+              {([
                 { l: "알림 설정", e: "🔔" },
                 { l: "위치 설정", e: "📍" },
                 { l: "약관 및 정책", e: "📄" },
                 { l: "고객 문의", e: "💬" },
-                { l: "로그아웃", e: "🚪" },
-              ].map((it) => (
+                { l: "로그아웃", e: "🚪", action: logout },
+              ] as { l: string; e: string; action?: () => void }[]).map((it) => (
                 <button
                   key={it.l}
-                  onClick={() => toast(`${it.l}은(는) 준비 중이에요`)}
+                  onClick={it.action ?? (() => toast(`${it.l}은(는) 준비 중이에요`))}
                   className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm hover:bg-muted/50"
                 >
                   <span className="text-base">{it.e}</span>

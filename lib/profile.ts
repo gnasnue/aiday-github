@@ -235,6 +235,18 @@ export async function saveProfileToDb(p: ChildProfile): Promise<string | null> {
   return data?.id ?? null;
 }
 
+// DB → localStorage 동기화. 로그인 상태에서 앱 진입 시 호출.
+// DB에 프로필이 있으면 localStorage를 DB 기준으로 덮어쓰고 목록을 반환.
+// 비로그인이거나 DB가 비어 있으면 null 반환 (로컬 상태 유지 — 게스트/데모 보존).
+export async function syncProfilesFromDb(): Promise<ChildProfile[] | null> {
+  const list = await loadProfilesFromDb();
+  if (!list.length) return null;
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+  } catch {}
+  return list;
+}
+
 export async function loadProfilesFromDb(): Promise<ChildProfile[]> {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
