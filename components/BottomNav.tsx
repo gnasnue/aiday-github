@@ -20,7 +20,10 @@ const BottomNav = () => {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border bg-background/95 backdrop-blur-md">
+    <nav
+      aria-label="주요 메뉴"
+      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border/70 bg-background/92 backdrop-blur-xl safe-bottom"
+    >
       <div className="container-mobile">
         <ul className="grid grid-cols-5">
           {navItems.map((n) => {
@@ -36,13 +39,25 @@ const BottomNav = () => {
                 <Link
                   href={n.to}
                   onClick={handleClick}
-                  className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] transition-smooth ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`group relative flex min-h-[56px] flex-col items-center justify-center gap-1 text-[11px] transition-smooth ${
                     isActive
-                      ? "font-semibold text-accent"
-                      : "text-muted-foreground hover:text-foreground"
+                      ? "font-semibold text-foreground"
+                      : "font-medium text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <n.icon size={22} strokeWidth={1.75} />
+                  {/* 활성 탭: 아이콘 뒤 크림 필 — 색이 아닌 형태로도 활성 상태 전달 (색약 접근성) */}
+                  <span
+                    className={`flex h-8 w-14 items-center justify-center rounded-full transition-smooth ${
+                      isActive ? "bg-secondary" : "bg-transparent group-active:bg-muted"
+                    }`}
+                  >
+                    <n.icon
+                      size={21}
+                      strokeWidth={isActive ? 2.2 : 1.75}
+                      className={isActive ? "text-accent" : undefined}
+                    />
+                  </span>
                   {n.label}
                 </Link>
               </li>

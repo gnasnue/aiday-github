@@ -2,88 +2,114 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AI-Weather Design System (see DESIGN.md)
-   Brand: #F5A623 (primary), #FFF3E0 (soft bg), #D45A00 (accent),
-          #E65100 (warning), #FAFAFA (base bg), #212121 (text)
+/* ============================================================
+   AiDay Design System v2 — "Morning Certainty"
+   (DESIGN.md 준수 + 프리미엄 리파인)
+
+   원칙:
+   1. 오렌지는 유일한 브랜드 색 — 판단·행동에만 사용
+   2. 모든 중립색은 웜톤(24~36 hue) — 오렌지가 '붙인 색'이 아니라
+      '원래 있던 색'처럼 느껴지게
+   3. 환경 상태(좋음/주의/위험)는 semantic 토큰으로만 표현
    All colors MUST be HSL.
-*/
+   ============================================================ */
 
 @layer base {
   :root {
-    --background: 0 0% 98%;              /* #FAFAFA */
-    --foreground: 0 0% 13%;              /* #212121 */
+    /* --- Warm neutrals (기존 무채색 그레이 → 웜 잉크/페이퍼) --- */
+    --background: 36 45% 98%;            /* 웜 페이퍼 */
+    --foreground: 24 30% 12%;            /* 웜 잉크 */
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 13%;
+    --card-foreground: 24 30% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 13%;
+    --popover-foreground: 24 30% 12%;
 
-    /* Brand orange */
-    --primary: 38 91% 55%;              /* #F5A623 */
-    --primary-foreground: 20 100% 5%;   /* #1A0F00 — WCAG 4.5:1 대비 확보 */
+    /* --- Brand --- */
+    --primary: 38 91% 55%;               /* #F5A623 */
+    --primary-foreground: 24 100% 6%;    /* WCAG 4.5:1 */
     --primary-hover: 38 91% 48%;
 
-    /* Soft cream */
-    --secondary: 33 100% 94%;            /* #FFF3E0 */
-    --secondary-foreground: 0 0% 13%;
+    --secondary: 35 100% 94%;            /* 크림 */
+    --secondary-foreground: 24 30% 12%;
+    --soft: 33 100% 97%;
 
-    --soft: 30 100% 97%;                 /* #FFF8F0 */
+    --muted: 33 25% 95%;
+    --muted-foreground: 24 10% 42%;
 
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 40%;
-
-    /* Strong accent */
-    --accent: 25 100% 42%;               /* #D45A00 */
+    --accent: 25 100% 40%;               /* 진한 앰버 — 강조/경고성 정보 */
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 4 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 33 100% 65%;
+    --border: 32 24% 89%;
+    --input: 32 24% 89%;
+    --ring: 33 100% 55%;
 
     --radius: 0.875rem;
 
-    /* Gradients & shadows */
-    --gradient-warm: linear-gradient(135deg, hsl(33 100% 94%) 0%, hsl(30 100% 97%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(33 100% 70%) 0%, hsl(33 100% 60%) 100%);
-    --shadow-soft: 0 2px 12px -2px hsl(33 60% 40% / 0.08);
-    --shadow-card: 0 4px 20px -4px hsl(33 60% 40% / 0.12);
-    --shadow-glow: 0 8px 32px -8px hsl(33 100% 65% / 0.4);
+    /* --- Semantic: 환경 상태 (도메인 핵심 토큰) --- */
+    --status-good: 152 42% 32%;
+    --status-good-bg: 150 40% 95%;
+    --status-warn: 25 95% 38%;
+    --status-warn-bg: 33 100% 94%;
+    --status-bad: 4 70% 44%;
+    --status-bad-bg: 6 80% 96%;
+    --status-info: 214 60% 40%;
+    --status-info-bg: 212 55% 96%;
 
-    --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    /* --- Depth: 2겹 웜 섀도우 (기존 단일 섀도우 → 레이어드) --- */
+    --gradient-warm: linear-gradient(160deg, hsl(35 100% 95%) 0%, hsl(33 100% 97.5%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(38 95% 62%) 0%, hsl(33 95% 55%) 100%);
+    --shadow-soft:
+      0 1px 2px hsl(30 40% 30% / 0.05),
+      0 4px 14px -4px hsl(30 45% 35% / 0.08);
+    --shadow-card:
+      0 1px 3px hsl(30 40% 30% / 0.06),
+      0 10px 28px -8px hsl(30 50% 35% / 0.12);
+    --shadow-glow: 0 8px 28px -8px hsl(36 95% 55% / 0.45);
 
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 0 0% 13%;
-    --sidebar-primary: 33 100% 65%;
+    --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 36 45% 98%;
+    --sidebar-foreground: 24 30% 12%;
+    --sidebar-primary: 38 91% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 33 100% 94%;
-    --sidebar-accent-foreground: 0 0% 13%;
-    --sidebar-border: 0 0% 90%;
-    --sidebar-ring: 33 100% 65%;
+    --sidebar-accent: 35 100% 94%;
+    --sidebar-accent-foreground: 24 30% 12%;
+    --sidebar-border: 32 24% 89%;
+    --sidebar-ring: 33 100% 55%;
   }
 
   .dark {
-    --background: 0 0% 13%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 16%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 16%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 33 100% 65%;
-    --primary-foreground: 0 0% 13%;
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 98%;
-    --soft: 0 0% 18%;
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
-    --accent: 22 100% 56%;               /* #FF7020 */
-    --accent-foreground: 0 0% 100%;
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 33 100% 65%;
+    --background: 24 15% 10%;
+    --foreground: 33 30% 96%;
+    --card: 24 12% 14%;
+    --card-foreground: 33 30% 96%;
+    --popover: 24 12% 14%;
+    --popover-foreground: 33 30% 96%;
+    --primary: 38 91% 60%;
+    --primary-foreground: 24 100% 6%;
+    --secondary: 26 18% 18%;
+    --secondary-foreground: 33 30% 96%;
+    --soft: 26 15% 16%;
+    --muted: 26 15% 18%;
+    --muted-foreground: 30 10% 66%;
+    --accent: 24 100% 58%;
+    --accent-foreground: 24 100% 6%;
+    --border: 26 12% 22%;
+    --input: 26 12% 22%;
+    --ring: 38 91% 60%;
+    --status-good: 152 40% 60%;
+    --status-good-bg: 152 30% 15%;
+    --status-warn: 30 95% 62%;
+    --status-warn-bg: 30 50% 15%;
+    --status-bad: 4 75% 62%;
+    --status-bad-bg: 4 40% 15%;
+    --status-info: 214 70% 65%;
+    --status-info-bg: 214 35% 15%;
   }
 }
 
@@ -100,6 +126,24 @@
     @apply bg-background text-foreground antialiased;
     font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont,
       "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-feature-settings: "tnum" 0;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* 접근성: 키보드 포커스 항상 가시화 */
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* 접근성: 모션 최소화 환경 존중 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -111,22 +155,47 @@
   .shadow-glow { box-shadow: var(--shadow-glow); }
   .transition-smooth { transition: var(--transition-smooth); }
 
+  /* 온도·수치 전용: 자릿수 정렬 */
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* iOS 홈 인디케이터 회피 */
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 }
 
 @layer components {
-  .container-app {
-    @apply mx-auto w-full max-w-[390px] px-5;
-  }
+  .container-app,
   .container-mobile {
     @apply mx-auto w-full max-w-[390px] px-5;
   }
-  /* Page frame: centered 390px column on desktop with side gutters */
   .page-frame {
     @apply mx-auto w-full max-w-[390px] min-h-screen bg-background;
   }
   .page-shell {
     @apply min-h-screen w-full bg-muted/40 flex justify-center;
+  }
+
+  /* 섹션 아이브로우: 카드보다 조용한 섹션 시작 신호 */
+  .eyebrow {
+    @apply text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground/80;
+  }
+
+  /* 환경 상태 칩 — semantic 토큰 전용 */
+  .chip-good {
+    background: hsl(var(--status-good-bg));
+    color: hsl(var(--status-good));
+    border-color: hsl(var(--status-good) / 0.18);
+  }
+  .chip-warn {
+    background: hsl(var(--status-warn-bg));
+    color: hsl(var(--status-warn));
+    border-color: hsl(var(--status-warn) / 0.22);
+  }
+  .chip-bad {
+    background: hsl(var(--status-bad-bg));
+    color: hsl(var(--status-bad));
+    border-color: hsl(var(--status-bad) / 0.22);
   }
 }

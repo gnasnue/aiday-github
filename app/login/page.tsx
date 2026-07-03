@@ -7,45 +7,61 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { syncProfilesFromDb } from "@/lib/profile";
 
-const Signup = () => {
+const Login = () => {
   const router = useRouter();
-  const [agree, setAgree] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!agree) {
-      toast.error("이용약관에 동의해주세요.");
-      return;
-    }
     const form = e.currentTarget;
-    const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const pw = (form.elements.namedItem("pw") as HTMLInputElement).value;
-    const pw2 = (form.elements.namedItem("pw2") as HTMLInputElement).value;
-    if (pw !== pw2) {
-      toast.error("비밀번호가 일치하지 않아요.");
+    if (!email.trim()) {
+      toast.error("이메일을 입력해주세요.");
       return;
     }
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password: pw });
-    setLoading(false);
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password: pw,
+    });
     if (error) {
-      toast.error(error.message);
+      setLoading(false);
+      toast.error(
+        error.message === "Invalid login credentials"
+          ? "이메일 또는 비밀번호가 올바르지 않아요."
+          : error.message
+      );
       return;
     }
-    toast.success("가입이 완료되었어요! 온보딩을 시작합니다.");
-    router.push("/onboarding");
+    // DB 프로필이 있으면 localStorage로 복원 후 홈, 없으면 온보딩으로
+    const profiles = await syncProfilesFromDb();
+    setLoading(false);
+    toast.success("다시 만나서 반가워요!");
+    router.push(profiles ? "/home" : "/onboarding");
+  };
+
+  const resetPassword = async () => {
+    if (!email.trim()) {
+      toast.error("가입한 이메일을 먼저 입력해주세요.");
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${location.origin}/auth/callback?next=/reset-password`,
+    });
+    if (error) toast.error(error.message);
+    else toast.success("비밀번호 재설정 메일을 보냈어요. 메일함을 확인해주세요.");
   };
 
   const signInWithGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback?next=/onboarding`,
+        redirectTo: `${location.origin}/auth/callback?next=/home`,
       },
     });
     if (error) toast.error(error.message);
@@ -63,39 +79,37 @@ const Signup = () => {
 
         <main className="container-mobile py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">회원가입</h1>
+            <h1 className="text-2xl font-bold tracking-tight">로그인</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              우리 아이 맞춤 환경 리포트를 시작해보세요
+              다시 만나서 반가워요. 오늘의 리포트가 기다리고 있어요
             </p>
           </div>
 
           <form onSubmit={handleSubmit} className="mt-7 space-y-4" noValidate>
             <div className="space-y-1.5">
               <Label htmlFor="email">이메일</Label>
-              <Input id="email" type="email" placeholder="parent@example.com" required className="h-12" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="parent@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-12"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="pw">비밀번호</Label>
-              <Input id="pw" type="password" placeholder="8자 이상" required className="h-12" />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pw2">비밀번호 확인</Label>
-              <Input id="pw2" type="password" required className="h-12" />
-            </div>
-
-            <div className="space-y-2.5 rounded-xl bg-muted/50 p-4">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <Checkbox checked={agree} onCheckedChange={(v) => setAgree(!!v)} className="mt-0.5" />
-                <span className="text-sm leading-relaxed">
-                  <span className="font-medium text-accent">[필수]</span> 이용약관 및 개인정보처리방침에 동의합니다
-                </span>
-              </label>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <Checkbox className="mt-0.5" />
-                <span className="text-sm leading-relaxed text-muted-foreground">
-                  [선택] 마케팅 정보 수신에 동의합니다
-                </span>
-              </label>
+              <div className="flex items-baseline justify-between">
+                <Label htmlFor="pw">비밀번호</Label>
+                <button
+                  type="button"
+                  onClick={resetPassword}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  비밀번호를 잊으셨나요?
+                </button>
+              </div>
+              <Input id="pw" type="password" required className="h-12" />
             </div>
 
             <Button
@@ -104,7 +118,7 @@ const Signup = () => {
               disabled={loading}
               className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
-              {loading ? "처리 중..." : "가입하기"}
+              {loading ? "로그인 중..." : "로그인"}
             </Button>
           </form>
 
@@ -131,9 +145,9 @@ const Signup = () => {
 
           <div className="mt-6 space-y-3 text-center">
             <p className="text-sm text-muted-foreground">
-              이미 계정이 있으신가요?{" "}
-              <Link href="/login" className="font-medium text-accent underline-offset-4 hover:underline">
-                로그인
+              계정이 없으신가요?{" "}
+              <Link href="/signup" className="font-medium text-accent underline-offset-4 hover:underline">
+                회원가입
               </Link>
             </p>
             <Link href="/home" className="block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
@@ -146,4 +160,4 @@ const Signup = () => {
   );
 };
 
-export default Signup;
+export default Login;

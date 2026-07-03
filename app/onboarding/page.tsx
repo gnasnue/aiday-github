@@ -209,7 +209,7 @@ const Onboarding = () => {
           <div className="w-full text-center animate-scale-in">
             <div className="text-7xl">🎉</div>
             <h1 className="mt-6 text-2xl font-bold tracking-tight">
-              {s.name}의 첫 번째<br />날씨 리포트가 준비됐어요!
+              {s.name}의 첫 번째<br />리포트가 준비됐어요!
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
               지금 바로 오늘의 리포트를<br />확인해보세요.
