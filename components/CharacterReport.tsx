@@ -122,7 +122,7 @@ const CharacterReport = ({
         <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">탭하면 자세히 →</span>
       </div>
 
-      <div className="mt-3 rounded-3xl border border-border/60 bg-card px-4 pb-3 pt-4">
+      <div className="mt-3 rounded-2xl border border-border/60 bg-card px-4 pb-3 pt-4">
         <p className="mb-2 text-center text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           오늘의 준비물 잊지 말고 챙겨주세요
         </p>

@@ -212,7 +212,7 @@ const My = () => {
 
           <section className="mt-6">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-base font-bold">아이 프로필</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">아이 프로필</h2>
               <span className="text-xs text-muted-foreground">{profiles.length}명</span>
             </div>
 
@@ -249,7 +249,7 @@ const My = () => {
           </section>
 
           <section className="mt-7">
-            <h2 className="text-base font-bold">계정</h2>
+            <h2 className="text-[22px] font-bold tracking-tight">계정</h2>
             <div className="mt-3 divide-y divide-border rounded-2xl border border-border bg-card">
               {([
                 { l: "알림 설정", e: "🔔" },

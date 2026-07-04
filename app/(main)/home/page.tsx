@@ -340,9 +340,9 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft animate-fade-up">
+            <section className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft animate-fade-up">
               {/* 카드 헤더 */}
-              <div className="bg-gradient-warm px-5 pt-5 pb-4">
+              <div className="bg-secondary px-5 pt-5 pb-4">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-widest text-accent">AI Report</span>
                   <div className="flex items-center gap-2">
@@ -460,7 +460,7 @@ const Home = () => {
           {/* Timeline */}
           <section className="mt-8">
             <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-[17px] font-bold tracking-tight">시간대별 환경</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">시간대별 환경</h2>
               <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground/70">옆으로 넘겨보세요 →</span>
             </div>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
@@ -524,7 +524,7 @@ const Home = () => {
 
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="text-[17px] font-bold tracking-tight break-keep">
+            <h2 className="text-[22px] font-bold tracking-tight break-keep">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">

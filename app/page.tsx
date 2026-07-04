@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Baby, Clock, Smartphone } from "lucide-react";
+import { RefreshCw, Baby, Clock, Smartphone, Sparkles } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
 
@@ -50,7 +50,8 @@ export default function IndexPage() {
         <section className="bg-secondary">
           <div className="container-mobile py-12 text-center">
             <span className="inline-flex items-center gap-1.5 rounded-full bg-background/70 px-3 py-1 text-xs font-medium text-accent shadow-soft">
-              ✨ 바쁜 엄마아빠를 위한 AI 육아 비서
+              <Sparkles size={13} strokeWidth={2} />
+              바쁜 엄마아빠를 위한 AI 육아 비서
             </span>
             <h1 className="mt-5 text-3xl font-bold leading-tight tracking-tight text-foreground break-keep">
               오늘 우리 아이,<br />뭘 입히고 뭘 챙겨야 할지<br />
@@ -64,7 +65,7 @@ export default function IndexPage() {
             </p>
             <div className="mt-7 flex flex-col items-center gap-3">
               <Link href="/signup" className="w-full">
-                <Button size="lg" className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-glow">
+                <Button size="lg" className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft">
                   무료로 시작하기
                 </Button>
               </Link>
@@ -83,8 +84,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card shadow-soft flex items-start gap-4 px-5 py-4">
-                  <div className="w-1 self-stretch rounded-full bg-primary flex-shrink-0" />
+                <div key={i} className="rounded-2xl border border-border bg-card shadow-soft px-5 py-4">
                   <p className="text-sm font-medium leading-relaxed text-foreground break-keep">{p}</p>
                 </div>
               ))}
