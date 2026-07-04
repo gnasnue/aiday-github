@@ -29,10 +29,10 @@
 - 게스트도 온보딩 진입·프로필 저장 가능 (localStorage에만 — 로그인 상태가 아니면 DB 저장은 조용히 스킵됨)
 - ⚠️ 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 **실제로 호출됨** — 인증 게이트 없음, 토큰 비용 발생
 
-미정의 (스펙 결정 필요):
-- [ ] 게스트 → 가입 전환 시 localStorage 프로필의 DB 이전 여부·시점
-- [ ] 게스트의 AI 리포트 호출 허용 여부 (비용·어뷰즈 관점 — 데이터·API 계약 섹션 참고)
-- [ ] 데모 프로필임을 UI에서 표시할지 (현재는 실제 아이처럼 보임)
+결정 확정됨 (2026-07-04, [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3 — 구현은 미착수):
+- [x] 게스트 → 가입 전환 시 localStorage 프로필을 DB로 이전한다 (가입·로그인 성공 직후 1회 업로드)
+- [x] 게스트의 AI 리포트 호출은 허용하되 IP 레이트리밋 적용 (기본 제안: 일 10회/IP)
+- [x] 데모 프로필에 "예시" 뱃지 표시, 첫 실프로필 등록 시 데모 제거
 
 ---
 
@@ -692,7 +692,7 @@ Today's OOTD
 | `aiweather:onboarding` | 온보딩 진행 상태 (단계+입력값, 완료 시 삭제) | 온보딩 |
 | `aiday:report:v6:{childId}:{YYYY-MM-DD}` | AI 리포트 5분 캐시 (`hook, message, checklist, ts`) | 홈 |
 
-> ⚠️ 네임스페이스가 `aiweather:`와 `aiday:`로 혼재 — 통일 여부 결정 필요 (통일 시 기존 키 마이그레이션 포함)
+> ⚠️ 네임스페이스가 `aiweather:`와 `aiday:`로 혼재 — **`aiday:`로 통일하기로 확정** (1회성 마이그레이션 포함, 프로필 포맷 정규화 작업에서 처리 — [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3-4)
 
 ### Supabase `children` 테이블 (lib/profile.ts DbRow 기준)
 
