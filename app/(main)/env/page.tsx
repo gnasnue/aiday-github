@@ -237,7 +237,7 @@ const Environment = () => {
 
           {/* Personalized insights */}
           <section className="mt-5">
-            <h2 className="text-base font-bold tracking-tight">
+            <h2 className="text-[22px] font-bold tracking-tight">
               {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -268,7 +268,7 @@ const Environment = () => {
           </section>
 
           {/* Outdoor activity index */}
-          <section className="mt-7 rounded-2xl border border-border bg-gradient-warm p-5 shadow-soft">
+          <section className="mt-7 rounded-2xl border border-border bg-secondary p-5 shadow-soft">
             <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
             <div className="mt-1 flex items-baseline gap-2">
               <span className="text-3xl font-bold text-foreground">68</span>
@@ -289,7 +289,7 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl bg-gradient-warm p-5 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-soft animate-fade-up">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-accent">현재 날씨</p>
@@ -331,7 +331,7 @@ const Environment = () => {
 
           {/* Air quality */}
           <section className="mt-7">
-            <h2 className="text-base font-bold tracking-tight">대기질 · 미세먼지</h2>
+            <h2 className="text-[22px] font-bold tracking-tight">대기질 · 미세먼지</h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {[
                 { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
@@ -354,7 +354,7 @@ const Environment = () => {
           {/* Pollen */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-base font-bold tracking-tight">꽃가루 지수</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">꽃가루 지수</h2>
               <a
                 href="https://www.weather.go.kr/w/forecast/life/life-weather-index.do?tabIndex=4"
                 target="_blank"
@@ -434,7 +434,7 @@ const Environment = () => {
           {/* Hourly */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-base font-bold tracking-tight">시간대별 날씨</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">시간대별 날씨</h2>
               <span className="text-xs text-muted-foreground">가로 스크롤 →</span>
             </div>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
@@ -461,7 +461,7 @@ const Environment = () => {
           {/* Weekly */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-base font-bold tracking-tight">주간 날씨</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">주간 날씨</h2>
               <span className="text-xs text-muted-foreground">주말 강조</span>
             </div>
             <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">

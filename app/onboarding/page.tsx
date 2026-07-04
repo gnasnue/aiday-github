@@ -205,7 +205,7 @@ const Onboarding = () => {
   if (done) {
     return (
       <div className="page-shell">
-        <div className="page-frame flex items-center justify-center bg-gradient-warm px-5">
+        <div className="page-frame flex items-center justify-center bg-background px-5">
           <div className="w-full text-center animate-scale-in">
             <div className="text-7xl">🎉</div>
             <h1 className="mt-6 text-2xl font-bold tracking-tight">
@@ -217,7 +217,7 @@ const Onboarding = () => {
             <Button
               onClick={() => router.push("/home")}
               size="lg"
-              className="mt-8 h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-glow"
+              className="mt-8 h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
               오늘 리포트 보러가기 →
             </Button>

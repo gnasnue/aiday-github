@@ -210,9 +210,9 @@ const Outfit = () => {
 
           {/* Hero */}
           {loading ? (
-            <Skeleton className="mt-4 h-32 w-full rounded-3xl" />
+            <Skeleton className="mt-4 h-32 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-3xl border border-border/60 bg-card p-5 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-5 shadow-soft animate-fade-up">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                 현재 기온
               </p>
@@ -235,7 +235,7 @@ const Outfit = () => {
           {/* Recommended items - OOTD style by category */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold tracking-tight">추천 아이템</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">추천 아이템</h2>
               <span className="text-[11px] text-muted-foreground">아우터 → 이너 → 하의 → 악세사리</span>
             </div>
 
@@ -290,7 +290,7 @@ const Outfit = () => {
           {/* Today's Look board */}
           <section className="mt-7">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[15px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
+              <h2 className="text-[22px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
               <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
                 AI코디 추천
               </span>
@@ -298,7 +298,7 @@ const Outfit = () => {
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground break-keep">
               추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
             </p>
-            <div className="mt-3 overflow-hidden rounded-3xl border border-border/60 bg-card shadow-soft">
+            <div className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
               <img
                 src={ootdLook}
                 alt={`${cur?.name ?? "우리 아이"}의 오늘 코디 미리보기`}
@@ -310,7 +310,7 @@ const Outfit = () => {
 
           {/* Avoid */}
           <section className="mt-7">
-            <h2 className="text-[15px] font-bold tracking-tight">피해주세요</h2>
+            <h2 className="text-[22px] font-bold tracking-tight">피해주세요</h2>
             <ul className="mt-3 space-y-2">
               {plan.avoid.map((a) => (
                 <li
