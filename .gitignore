@@ -25,4 +25,9 @@ dist-ssr
 *.sln
 *.sw?
 .gstack/
+.bkit/
+.lovable/
 *.tsbuildinfo
+
+# 로컬 보관용 (GitHub 미추적)
+Trash Can/
