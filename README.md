@@ -28,7 +28,7 @@
 
 > 화면별 상세 구현 현황과 더미 데이터 잔여분은 [SPEC.md](./SPEC.md)의 "페이지 구현 현황 요약" 참조.
 
-프로토타입 데모: [aiday2026.lovable.app](https://aiday2026.lovable.app)
+라이브 데모: [aiday-demo.vercel.app](https://aiday-demo.vercel.app) (Vercel 배포)
 
 ---
 
