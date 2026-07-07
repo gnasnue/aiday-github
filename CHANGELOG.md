@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0.0] - 2026-07-08
+
+> 0.1.1.0(6/11) 이후 릴리스 기록 없이 쌓인 변경들을 소급 정리한 캐치업 릴리스.
+
+### Added
+- **이메일 로그인·비밀번호 재설정**: `signInWithPassword` 로그인, 재설정 메일 → `/reset-password` 플로우
+- **DB 프로필 동기화**: 로그인 시 Supabase DB 프로필 자동 복원
+- **AI 리포트 hook 문장**: 프롬프트 파일 분리(`lib/prompts/report.ts`) + few-shot 설계
+
+### Changed
+- **디자인 시스템 정합(전면)**: `--accent` CSS 변수 수정, 브랜드 오렌지 활성 상태 복원, 홈 섹션 헤더 타이포 스케일 상향(15px→22px), 44px 터치 타겟 확보, CharacterReport 일러스트 예외 승인 및 실데이터 연결
+- **아이콘**: OS 이모지를 Lucide React 아이콘으로 교체 (DESIGN.md 준수)
+- **건강팁 페이지**: 실API 연동 후 의도적으로 정적 콘텐츠로 되돌림 (판단 근거는 PR #33 참조)
+- **문서 체계 정비**: 핵심 포지셔닝 교정("외출 준비"가 아니라 하루 첫 육아 판단 지원), PRD v2.2 신설, 제품 결정 문서(docs/PRODUCT-DECISIONS.md)·문제정의 프레임워크 v2·브리핑 엔진 PDCA 문서 추가
+- **SPEC.md**: 기준선 문서 역할 명시, 한 줄 정의를 "판단 지원" 프레임으로 교정, N-01 알림 P0 승격·채널 우선순위(웹 푸시→카카오 나에게 보내기) 반영
+- **DESIGN.md**: Product Context를 "환경 데이터를 아이 체질 기준으로 해석하는 육아 판단 지원" 프레임으로 교정
+
+### Fixed
+- **자외선 API**: 잘못된 지역 코드 체계·시각 파싱으로 항상 null을 반환하던 버그 수정
+- **날씨 API**: 22시(KST) 이후 현재 날씨가 null로 반환되던 버그 수정
+- **AI 리포트**: JSON 파싱 버그 수정 + 프롬프트 리라이팅, 오류 상태 처리 추가, 홈 최초 랜딩 빈 화면 제거
+
+### Removed
+- 미사용 파일 정리: `public/placeholder.svg`, `components/ui/use-toast.ts`(hooks/use-toast.ts와 중복) — 로컬 Trash Can으로 이동
+
 ## [0.1.1.0] - 2026-06-11
 
 ### Changed
