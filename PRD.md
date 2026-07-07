@@ -463,7 +463,7 @@ flowchart LR
 - [ ] 홈 시간대별 카드를 `weather-mock.ts` → `hourlyForecast` 실데이터로 교체
 - [ ] 캐시 키 버전 상향 (브리핑 스키마 변경 시 — CLAUDE.md 캐시 컨벤션)
 
-(이하 Phase별 Task 상세는 착수 시점에 `@prd.md의 10 구현 방안`을 참조해 Phase 단위로 분해·실행한다)
+(이하 Phase별 Task 상세는 착수 시점에 `@PRD.md의 10 구현 방안`을 참조해 Phase 단위로 분해·실행한다)
 
 ---
 
