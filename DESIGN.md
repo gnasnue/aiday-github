@@ -1,7 +1,7 @@
 # Design System — aiday (AI Weather for Kids)
 
 ## Product Context
-- **What this is:** 날씨 기반 아이 옷차림·건강 케어 추천 앱
+- **What this is:** 환경 데이터를 아이 체질 기준으로 해석해 부모의 하루 첫 육아 판단(옷차림·준비물·케어 방식)을 지원하는 AI 육아 앱
 - **Who it's for:** 영·유아 자녀를 둔 부모 (주 사용자: 30대 엄마·아빠)
 - **Space/industry:** 육아 + 날씨 정보, 한국 모바일 앱
 - **Project type:** 모바일 우선 웹앱 (390px 고정 프레임, BottomNav)
