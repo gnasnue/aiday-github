@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0.1] - 2026-07-08
+
+### Changed
+- **PRD v2.3 — 외부 검토 반영**: 페르소나 나이(지우 4세)·PostHog Phase(6주차) 정합 수정, 용어 정의 섹션 신설(훅·Family Memory·CoT·OverEdge·FGI), FGI 출처·조사 성격 명시, 로그인 사용자 레이트리밋 정책(계정당 일 30회) 추가, 섹션 02 비즈니스 가치 서술 보강, 문서 하단 버전 히스토리 신설
+
 ## [0.2.0.0] - 2026-07-08
 
 > 0.1.1.0(6/11) 이후 릴리스 기록 없이 쌓인 변경들을 소급 정리한 캐치업 릴리스.
