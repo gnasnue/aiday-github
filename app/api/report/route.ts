@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey });
 
   const body = await req.json();
-  const { child, weather, air } = body as {
+  const { child, weather, air, pollen, uv } = body as {
     child: {
       name: string;
       age: string;
@@ -84,12 +84,32 @@ export async function POST(req: NextRequest) {
       pm25Grade: number | null;
       khaiGrade: number | null;
     } | null;
+    pollen?: {
+      oak: number | null;
+      pine: number | null;
+    } | null;
+    uv?: {
+      uvi: number | null;
+    } | null;
   };
 
   // ── 환경 요약 ──────────────────────────────────────────────
   const airSummary = air
     ? `PM10 ${air.pm10 ?? "?"}μg/m³(${gradeLabel(air.pm10Grade)}), PM2.5 ${air.pm25 ?? "?"}μg/m³(${gradeLabel(air.pm25Grade)}), 통합대기 ${gradeLabel(air.khaiGrade)}`
     : "대기질 데이터 없음";
+
+  // 기상청 꽃가루 위험지수(0~4) → 라벨
+  const pollenLabel = (g: number | null | undefined) =>
+    g == null ? null : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+  const uvLabel = (v: number) =>
+    v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
+
+  const pollenParts = [
+    pollenLabel(pollen?.oak) ? `참나무 꽃가루 ${pollenLabel(pollen?.oak)}` : null,
+    pollenLabel(pollen?.pine) ? `소나무 꽃가루 ${pollenLabel(pollen?.pine)}` : null,
+    uv?.uvi != null ? `자외선지수 ${uv.uvi}(${uvLabel(uv.uvi)})` : null,
+  ].filter(Boolean);
+  const pollenUvSummary = pollenParts.length ? pollenParts.join(", ") : "데이터 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
@@ -151,44 +171,65 @@ export async function POST(req: NextRequest) {
     tempSensitivity,
     scheduleSummary,
     airSummary,
+    pollenUvSummary,
   });
 
   try {
+    // structured outputs — 응답이 스키마에 맞는 JSON임을 API 레벨에서 보장
+    // (글자 수·항목 개수 제한은 스키마가 지원하지 않으므로 프롬프트 규칙으로 유지)
     const response = await client.messages.create({
       model: "claude-haiku-4-5",
       max_tokens: 700,
       messages: [{ role: "user", content: prompt }],
       temperature: 1.0,
       system: REPORT_SYSTEM_PROMPT,
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: {
+              hook: { type: "string" },
+              message: { type: "string" },
+              checklist: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    emoji: { type: "string" },
+                    name: { type: "string" },
+                  },
+                  required: ["emoji", "name"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["hook", "message", "checklist"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     const raw =
       response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
 
-    // 1차: 코드블록 제거 후 JSON 파싱
     try {
-      const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-      const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw;
-      const parsed = JSON.parse(jsonStr) as { hook?: string; message?: string; checklist?: string[] };
+      const parsed = JSON.parse(raw) as {
+        hook?: string;
+        message?: string;
+        checklist?: Array<{ emoji?: string; name?: string }>;
+      };
       return NextResponse.json({
         hook: parsed.hook ?? "",
         message: parsed.message ?? "",
-        checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+        checklist: Array.isArray(parsed.checklist)
+          ? parsed.checklist.filter((c) => typeof c?.name === "string" && c.name)
+          : [],
       });
     } catch {
-      // 2차: { } 블록 직접 추출
-      const braceMatch = raw.match(/\{[\s\S]*\}/);
-      if (braceMatch) {
-        try {
-          const parsed = JSON.parse(braceMatch[0]) as { hook?: string; message?: string; checklist?: string[] };
-          return NextResponse.json({
-            hook: parsed.hook ?? "",
-            message: parsed.message ?? "",
-            checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
-          });
-        } catch {}
-      }
-      // 최후: 빈 응답 → 클라이언트가 recommendation-engine 사용
+      // max_tokens 도달·거부 등 스키마 보장이 깨지는 예외 상황 →
+      // 빈 응답을 돌려 클라이언트가 recommendation-engine fallback 사용
       return NextResponse.json({ hook: "", message: "", checklist: [] });
     }
   } catch (err) {

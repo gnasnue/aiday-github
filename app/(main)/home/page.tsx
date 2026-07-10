@@ -11,7 +11,13 @@ import { withSubjectSuffix } from "@/lib/korean";
 import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
-import type { WeatherData } from "@/lib/weather-api";
+import {
+  buildEnvSnapshot,
+  type AirApiData,
+  type PollenApiData,
+  type UvApiData,
+  type WeatherApiData,
+} from "@/lib/env-snapshot";
 
 const items = [
   { emoji: "🧣", name: "유아 면 목수건", price: "9,900원" },
@@ -68,14 +74,21 @@ const Home = () => {
   });
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
-  const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  const [envRaw, setEnvRaw] = useState<{
+    weather: WeatherApiData;
+    air: AirApiData | null;
+    pollen: PollenApiData | null;
+    uv: UvApiData | null;
+  } | null>(null);
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
-  const [aiChecklist, setAiChecklist] = useState<string[]>([]);
+  const [aiChecklist, setAiChecklist] = useState<{ emoji: string; name: string }[]>([]);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(false);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
+  const pollenRawRef = useRef<PollenApiData | null>(null);
+  const uvRawRef = useRef<UvApiData | null>(null);
 
   // Refresh profiles when returning from onboarding
   useEffect(() => {
@@ -100,34 +113,35 @@ const Home = () => {
     try { localStorage.setItem("aiweather:activeProfileId", active); } catch {}
   }, [active]);
 
-  // 실제 날씨 + 대기질 데이터 로드
+  // 실제 날씨 + 대기질 + 꽃가루 + 자외선 데이터 로드
   useEffect(() => {
     const fetchEnv = async () => {
       setLoading(true);
       try {
-        const [weatherRes, airRes] = await Promise.allSettled([
+        const [weatherRes, airRes, pollenRes, uvRes] = await Promise.allSettled([
           fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
           fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+          fetch("/api/pollen?region=%EC%84%9C%EC%9A%B8").then((r) => r.json()),
+          fetch("/api/uv?region=%EC%84%9C%EC%9A%B8").then((r) => r.json()),
         ]);
 
         const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
         const a = airRes.status === "fulfilled" ? airRes.value : null;
+        const p = pollenRes.status === "fulfilled" ? pollenRes.value : null;
+        const u = uvRes.status === "fulfilled" ? uvRes.value : null;
+
+        const aValid = a && !a.error ? a : null;
+        const pValid = p && !p.error ? p : null;
+        const uValid = u && !u.error ? u : null;
 
         // Cache raw API responses for use in fetchReport (T4: avoid duplicate fetch)
         weatherRawRef.current = w;
         airRawRef.current = a;
+        pollenRawRef.current = pValid;
+        uvRawRef.current = uValid;
 
         if (w && !w.error) {
-          const dustGrade = a?.pm10Grade ?? 1;
-          const dustLabel = (["좋음", "보통", "나쁨", "매우나쁨"] as const)[dustGrade - 1] ?? "보통";
-          const windLabel = w.windSpeed >= 9 ? "강함" : w.windSpeed >= 4 ? "보통" : "약함";
-          setWeatherData({
-            ...mockWeather,
-            temp: w.temperature ?? mockWeather.temp,
-            humidity: w.humidity ?? mockWeather.humidity,
-            dustLevel: dustLabel,
-            windSpeed: windLabel,
-          });
+          setEnvRaw({ weather: w, air: aValid, pollen: pValid, uv: uValid });
           setAiLoading(true);
           setAiHook("");
           setAiMessage("");
@@ -143,6 +157,16 @@ const Home = () => {
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
 
+  // 실측 스냅샷 — 뱃지·fallback·시간대별 환경·종합솔루션이 모두 이것 하나를 소비.
+  // 날씨 API 자체가 실패한 경우에만 목데이터로 최후 fallback
+  const weatherData = useMemo(
+    () =>
+      envRaw
+        ? buildEnvSnapshot(envRaw.weather, envRaw.air, envRaw.pollen, envRaw.uv, cur?.schedule)
+        : mockWeather,
+    [envRaw, cur]
+  );
+
   const REPORT_CACHE_TTL = 5 * 60 * 1000;
 
   // Claude AI 리포트 (T5: 5분 localStorage 캐시)
@@ -150,7 +174,8 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `aiday:report:v6:${cur.id}:${today}`;
+    // v7: checklist가 문자열 배열 → {emoji, name} 객체 배열로 스키마 변경
+    const cacheKey = `aiday:report:v7:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
@@ -158,7 +183,10 @@ const Home = () => {
         if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.message && Array.isArray(cached.checklist)) {
           setAiHook(cached.hook ?? "");
           setAiMessage(cached.message);
-          if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
+          const validItems = cached.checklist.filter(
+            (c: { name?: unknown }) => typeof c?.name === "string"
+          );
+          if (validItems.length > 0) setAiChecklist(validItems);
           setAiLoading(false);
           return;
         }
@@ -184,6 +212,8 @@ const Home = () => {
             },
             weather: w,
             air: a?.error ? null : a,
+            pollen: pollenRawRef.current,
+            uv: uvRawRef.current,
           }),
         });
 
@@ -235,14 +265,14 @@ const Home = () => {
   const message = aiMessage || fallbackMessage;
 
   // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
+  // (structured outputs로 {emoji, name} 객체를 받으므로 이모지 파싱 불필요)
   const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
     if (aiChecklist.length > 0) {
-      return aiChecklist.map((item, i) => {
-        // "☂️ 우산" 형태 파싱
-        const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
-        if (match) return { icon: match[1], text: match[2], key: `ai-${i}` };
-        return { icon: "✅", text: item, key: `ai-${i}` };
-      });
+      return aiChecklist.map((item, i) => ({
+        icon: item.emoji || "✅",
+        text: item.name,
+        key: `ai-${i}`,
+      }));
     }
     return baseChecklist;
   }, [aiChecklist, baseChecklist]);
@@ -468,7 +498,7 @@ const Home = () => {
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-44 w-[150px] shrink-0 rounded-2xl" />
                   ))
-                : mockWeather.timeline.map((t) => (
+                : weatherData.timeline.map((t) => (
                     <article
                       key={t.time}
                       className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 transition-smooth hover:border-foreground/30 hover:shadow-soft"
