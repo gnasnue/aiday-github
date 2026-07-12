@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0.3] - 2026-07-12
+
+### Changed
+- **PRD v2.6 — PRD 작성 가이드(강의안) 검토 반영**: ① 섹션 02에 AI 성숙도 로드맵(자동화→예측→시뮬레이션→최적화) 신설 — 4단계를 제품 구조에 매핑(자동화·예측=본 PRD P0, 시뮬레이션·최적화=데이터 확보 후) ② P0 알림 채널을 당일 아침 웹 푸시 1종으로 압축 — 전날 밤 알림·카카오톡을 "조건부 확장"(착수 게이트 명시)으로 분리 ③ P1(있으면 좋음) 계층 삭제 — 래퍼앱·변화 감지형 알림은 Non-Goals의 재검토 조건부 항목으로 이동 ④ Phase 4·5 완료 조건·일정 컨틴전시를 채널 압축에 맞게 조정
+
 ## [0.2.0.2] - 2026-07-12
 
 ### Changed
