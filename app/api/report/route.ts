@@ -38,7 +38,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  // ANTHROPIC_BASE_URL 설정 시 AI 게이트웨이 등 프록시 엔드포인트로 요청 (미설정 시 Anthropic 기본 주소)
+  const client = new Anthropic({
+    apiKey,
+    baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
+  });
 
   const body = await req.json();
   const { child, weather, air } = body as {
