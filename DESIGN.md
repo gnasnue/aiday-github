@@ -8,8 +8,7 @@
 
 ## Aesthetic Direction
 - **Direction:** Warm Minimal — 오렌지의 따뜻함을 유지하되, 불필요한 장식 없이 정보를 명확하게
-- **Decoration level:** intentional — 색상과 그림자로만 깊이 표현, 패턴이나 일러스트 없음
-  - **예외:** 홈 화면 "오늘의 종합 솔루션" 카드(`components/CharacterReport.tsx`)의 아이 캐릭터 일러스트는 유일한 허용 예외. 신체 부위별 준비물(머리·목·피부·옷차림)을 아이콘 목록보다 직관적으로 전달하기 위한 의도적 선택. 다른 화면/컴포넌트로 확장 금지.
+- **Decoration level:** intentional — 색상과 그림자로만 깊이 표현, 패턴이나 일러스트 없음 (예외 없음. 과거 유일 예외였던 홈 "종합 솔루션" 캐릭터 일러스트는 2026-07-12 홈에서 제거 — `components/CharacterReport.tsx`는 보존)
 - **Mood:** 아이를 돌보는 부모가 아침에 빠르게 확인하는 앱. 불안을 줄이고 확신을 주는 느낌. 따뜻하지만 정확하다.
 - **Memorable thing:** "오렌지 날씨 앱 — 아이 걱정이 줄어드는 느낌"
 
