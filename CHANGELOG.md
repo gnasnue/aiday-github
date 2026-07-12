@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0.4] - 2026-07-12
+
+### Changed
+- **PRD v2.7 — 내부·엔지니어링·디자인 3종 리뷰(HOLD SCOPE) 반영**: 범위 축소·정직한 재정렬. ① 6주 목표 하향(공개 베타 → 블로커 해소 + 7일 컨시어지 테스트 → 확산 판단) ② 자동 알림(PWA·웹 푸시) P0 제외 — 7일 테스트 동안 수동 발송, 자동화는 "테스트 이후 단계"로 이동, 알림 오픈율·퍼널 KPI 제외(엔지니어링 T7) ③ 로드맵 4단계는 문서에 명시하되 시뮬레이션·최적화는 "테스트 이후"로 정직하게 배치 — "골든 케이스=시뮬레이션"·"Family Memory=최적화" 오인 표현 교정, 점수·추천은 규칙 코드/LLM은 문장화만 원칙 명시 ④ 신뢰성 정합 P0에 지역 선택·데이터 정합(T2)·새벽 기상 경계 처리(T3) 추가, 조용한 서울 fallback 금지 ⑤ 화면 재정렬(S-002 알림설정→지역 선택, S-003 푸시→저녁 결과 피드백) ⑥ 계측 최소 이벤트 6종(T5)·입력 검증(T6)·최소 자동 테스트 추가 ⑦ 카카오·전날 밤·시뮬레이션·최적화를 "테스트 이후 단계"로 통합, Go/No-go를 다음 단계 착수 판정 + 행동 변화 기준(CEO 리뷰)으로 갱신
+
+### Added
+- `docs/reviews/2026-07-12-{ceo,eng,plan-design}-review-current-stage.md` — v2.7의 근거가 된 현재 단계 3종 리뷰(HOLD SCOPE)
+
 ## [0.2.0.3] - 2026-07-12
 
 ### Changed
