@@ -489,7 +489,7 @@ flowchart LR
 | 프레임워크 | Next.js 15 (App Router) + React 18 |
 | DB·인증 | Supabase (PostgreSQL + Auth, RLS 적용) |
 | 프론트 | Tailwind CSS 3 + shadcn/ui (Radix), 모바일 우선 390px 고정 프레임 |
-| LLM | Claude Haiku (`claude-haiku-4-5`, @anthropic-ai/sdk) — 브리핑 생성 |
+| LLM | Claude Sonnet (`claude-sonnet-5`, @anthropic-ai/sdk) — 브리핑 생성 (2026-07-12 Haiku 4.5에서 전환) |
 | 배포 | Vercel (라이브: https://aiday-demo.vercel.app) |
 | 푸시 발송 (테스트 이후) | web-push(VAPID) + Service Worker — 자동 알림 착수 시 |
 | 발송 스케줄러 (테스트 이후) | Vercel Cron — 10분 폴링 (Pro 플랜 전제) |

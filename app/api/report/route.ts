@@ -155,10 +155,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 700,
+      model: "claude-sonnet-5",
+      max_tokens: 1000,
+      // Sonnet 5는 기본 thinking 활성 — 리포트는 저지연이 우선이므로 비활성화.
+      // thinking 비활성 시 temperature 지정 불가(기본값 사용).
+      thinking: { type: "disabled" },
       messages: [{ role: "user", content: prompt }],
-      temperature: 1.0,
       system: REPORT_SYSTEM_PROMPT,
     });
 
