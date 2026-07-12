@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://aiday-demo.vercel.app"),
   title: "아이데이(AI-Day)",
   description: "내 아이를 위한 맞춤형 날씨 정보를 알려드립니다",
+  appleWebApp: {
+    capable: true,
+    title: "아이데이",
+    statusBarStyle: "default",
+  },
   openGraph: {
     title: "아이데이(AI-Day)",
     description: "내 아이를 위한 맞춤형 날씨 정보를 알려드립니다",
