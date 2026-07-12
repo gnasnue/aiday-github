@@ -208,6 +208,7 @@ export async function POST(req: NextRequest) {
         } catch {}
       }
       // 최후: 빈 응답 → 클라이언트가 recommendation-engine 사용
+      console.error("[AI report] JSON 파싱 실패 — 모델 원문(앞 500자):", raw.slice(0, 500));
       return NextResponse.json({ hook: "", message: "", checklist: [] });
     }
   } catch (err) {

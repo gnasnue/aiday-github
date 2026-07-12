@@ -249,6 +249,11 @@ const Home = () => {
           try {
             localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], ts: Date.now() }));
           } catch {}
+        } else {
+          // 200이지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
+          console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
+          setAiError(true);
+          toast("AI 리포트 생성에 실패해 기본 추천을 보여드려요.");
         }
       } catch (err) {
         console.error("[AI report]", err);
