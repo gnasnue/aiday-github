@@ -2,26 +2,70 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import CharacterReport from "@/components/CharacterReport";
+import ItemIllustration, { type ItemArt } from "@/components/ItemIllustration";
+import LineIcon from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
 import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
 
-const items = [
-  { emoji: "🧣", name: "유아 면 목수건", price: "9,900원" },
-  { emoji: "😷", name: "키즈 KF94 마스크", price: "12,500원" },
-  { emoji: "🧴", name: "민감 피부 보습로션", price: "18,000원" },
-  { emoji: "🧥", name: "얇은 가디건", price: "29,900원" },
+const items: { art: ItemArt; name: string; price: string }[] = [
+  { art: "muffler", name: "유아 면 목수건", price: "9,900원" },
+  { art: "mask", name: "키즈 KF94 마스크", price: "12,500원" },
+  { art: "lotion", name: "민감 피부 보습로션", price: "18,000원" },
+  { art: "cardigan", name: "얇은 가디건", price: "29,900원" },
 ];
 
-const toneStyle = (t: "ok" | "warn") =>
-  t === "warn" ? "chip-warn" : "bg-background text-muted-foreground border-border";
+/* ---- 상태 3단계 (good/neutral/warn) — 표시 계층 전용 매핑 ---- */
+type StatusTone = "good" | "neutral" | "warn";
+
+// 값 텍스트 색: 상태를 나타내는 모든 색은 3단계 토큰 중 하나 (예외 없음)
+const toneText: Record<StatusTone, string> = {
+  good: "text-status-good",
+  neutral: "text-status-neutral",
+  warn: "text-status-warn",
+};
+// 상태 도트: neutral은 옅은 도트(환경 칩) 또는 숨김(시간대 카드)
+const toneDot: Record<StatusTone, string> = {
+  good: "bg-status-good",
+  neutral: "bg-status-neutral-dot",
+  warn: "bg-status-warn",
+};
+
+// 환경 칩: 엔진의 warn 판정 유지, good/neutral은 값 텍스트로 구분
+const GOOD_VALUES = ["좋음", "낮음", "적정"];
+const badgeTone = (tone: "ok" | "warn", value: string): StatusTone =>
+  tone === "warn" ? "warn" : GOOD_VALUES.includes(value) ? "good" : "neutral";
+
+/* ---- 이모지 → 라인 아이콘 매핑 (표시 계층 전용) ---- */
+
+// 시간대 날씨 아이콘 (mock 데이터의 이모지는 유지, 표시만 교체)
+const weatherIcon = (emoji: string) => (
+  <LineIcon name={emoji.includes("☀") ? "sun" : "cloudsun"} size={24} className="text-muted-foreground" />
+);
+
+// 체크리스트 아이콘: AI가 "☂️ 우산" 형태로 동적 생성하므로 키워드 매핑 + fallback
+const checklistIcon = (icon: string, text: string) => {
+  const s = `${icon} ${text}`;
+  const cls = "shrink-0 text-status-warn";
+  if (/😷|마스크/.test(s)) return <LineIcon name="mask" className={cls} />;
+  if (/🧣|목수건|목도리/.test(s)) return <LineIcon name="scarf" className={cls} />;
+  if (/🧥|👕|가디건|외투|긴팔/.test(s)) return <LineIcon name="cardigan" className={cls} />;
+  if (/🧢|👒|모자/.test(s)) return <LineIcon name="cap" className={cls} />;
+  if (/타올|수건/.test(s)) return <LineIcon name="towel" className={cls} />;
+  if (/☂|☔|우산|비옷/.test(s)) return <Umbrella size={19} strokeWidth={1.5} className={cls} />;
+  if (/가습기/.test(s)) return <Droplets size={19} strokeWidth={1.5} className={cls} />;
+  if (/🧴|💧|보습|로션|크림|미온수/.test(s)) return <LineIcon name="droplet" className={cls} />;
+  if (/물병|물통|물/.test(s)) return <LineIcon name="bottle" className={cls} />;
+  if (/☀|🕶|자외선|선크림|햇빛/.test(s)) return <LineIcon name="sun" className={cls} />;
+  if (/통풍|여벌|옷/.test(s)) return <LineIcon name="shirt" className={cls} />;
+  return <CircleCheck size={19} strokeWidth={1.5} className={cls} />;
+};
 
 const renderRich = (text: string) => {
   // 줄바꿈(\n)을 기준으로 문단 분리 후, 각 문단 내에서 **bold**/__accent__ 처리
@@ -271,7 +315,7 @@ const Home = () => {
                 className="relative rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="알림"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-5 w-5" strokeWidth={1.75} />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
               </button>
               <button
@@ -279,7 +323,7 @@ const Home = () => {
                 className="rounded-full p-3 text-foreground hover:bg-muted"
                 aria-label="설정"
               >
-                <Settings className="h-5 w-5" />
+                <Settings className="h-5 w-5" strokeWidth={1.75} />
               </button>
             </div>
           </div>
@@ -292,20 +336,23 @@ const Home = () => {
               <button
                 key={p.id}
                 onClick={() => setActive(p.id)}
-                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-smooth ${
+                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-[5px] pl-1.5 pr-[15px] text-sm transition-smooth ${
                   active === p.id
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-foreground/40"
                 }`}
               >
-                <span>{p.emoji}</span>
-                <span className="font-medium">{p.name}</span>
-                <span className={`text-xs ${active === p.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{p.age}</span>
+                {/* 아바타: 이모지 → 파스텔 원 + 이니셜 (OS 이모지 전면 금지) */}
+                <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-bold text-avatar-foreground">
+                  {p.name.charAt(0)}
+                </span>
+                <span className="font-semibold">{p.name}</span>
+                <span className={`num text-xs ${active === p.id ? "text-primary-foreground/60" : "text-muted-foreground"}`}>{p.age}</span>
               </button>
             ))}
             <button
               onClick={() => router.push("/onboarding")}
-              className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
+              className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border-control bg-card px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
             >
               + 추가
             </button>
@@ -316,7 +363,7 @@ const Home = () => {
             onClick={() => toast("위치 변경은 준비 중이에요")}
             className="mt-4 flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            <MapPin className="h-3.5 w-3.5" />
+            <MapPin className="h-3.5 w-3.5" strokeWidth={1.75} />
             <span>서울 강남구</span>
             <ChevronDown className="h-3 w-3" />
           </button>
@@ -340,16 +387,16 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft animate-fade-up">
+            <section className="mt-4 overflow-hidden rounded-[18px] border border-border/60 bg-card shadow-soft animate-fade-up">
               {/* 카드 헤더 */}
               <div className="bg-secondary px-5 pt-5 pb-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-widest text-accent">AI Report</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent">AI Report</span>
                   <div className="flex items-center gap-2">
                     {aiError && (
                       <span className="text-[10px] text-muted-foreground/60">기본 추천</span>
                     )}
-                    <span className="text-[11px] tabular text-muted-foreground">
+                    <span className="num text-[11px] text-muted-foreground">
                       {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
                     </span>
                   </div>
@@ -358,7 +405,7 @@ const Home = () => {
                 {/* 상태 필 — 5초 안에 파악되는 오늘의 결론 */}
                 {!aiLoading && (
                   <span
-                    className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-semibold ${
+                    className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-semibold ${
                       hasWarn ? "chip-warn" : "chip-good"
                     }`}
                   >
@@ -397,24 +444,32 @@ const Home = () => {
                 )}
               </div>
               <div className="px-5 pb-5">
+              {/* 환경 칩 — 1b: 흰 배경 + 6px 상태 도트 + 값 텍스트만 상태 색 */}
               <div className="mt-4 flex flex-wrap gap-1.5">
-                {badges.map((b) => (
-                  <span
-                    key={b.label}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium tabular ${toneStyle(b.tone)}`}
-                  >
-                    {b.label} · {b.value}
-                  </span>
-                ))}
+                {badges.map((b) => {
+                  const tone = badgeTone(b.tone, b.value);
+                  return (
+                    <span
+                      key={b.label}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border-chip bg-card px-[11px] py-[5px] text-[11px] text-muted-foreground"
+                    >
+                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${toneDot[tone]}`} aria-hidden="true" />
+                      {b.label} ·{" "}
+                      <span className={`${tone === "neutral" ? "font-medium" : "font-semibold"} ${toneText[tone]}`}>
+                        {b.value}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
 
               <div className="mt-5 rounded-2xl bg-soft p-4">
                 <div className="flex items-center justify-between px-1">
                   <p className="eyebrow normal-case tracking-[0.06em]">오늘 챙길 것</p>
                   {allDone ? (
-                    <p className="text-xs font-semibold text-status-good animate-fade-in">준비 끝 ✓</p>
+                    <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
-                    <p className="text-xs font-semibold tabular text-muted-foreground">
+                    <p className="num text-xs text-muted-foreground">
                       {checked.length}
                       <span className="text-muted-foreground/50"> / {activeChecklist.length}</span>
                     </p>
@@ -430,15 +485,15 @@ const Home = () => {
                           className="flex w-full items-center gap-3 px-1 py-2.5 text-left"
                         >
                           <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition-smooth ${
+                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-smooth ${
                               on
                                 ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border bg-background"
+                                : "border-border-control bg-card"
                             }`}
                           >
-                            {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                            {on && <Check className="h-3 w-3" strokeWidth={3.2} />}
                           </span>
-                          <span className="text-base">{c.icon}</span>
+                          {checklistIcon(c.icon, c.text)}
                           <span className={`flex-1 text-sm ${on ? "text-muted-foreground line-through" : "text-foreground"}`}>
                             {c.text}
                           </span>
@@ -457,12 +512,9 @@ const Home = () => {
             </section>
           )}
 
-          {/* Timeline */}
+          {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
           <section className="mt-8">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">시간대별 환경</h2>
-              <span className="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground/70">옆으로 넘겨보세요 →</span>
-            </div>
+            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -473,36 +525,39 @@ const Home = () => {
                       key={t.time}
                       className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 transition-smooth hover:border-foreground/30 hover:shadow-soft"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-sm font-semibold tracking-tight">{t.time}</p>
-                          <p className="text-[11px] text-muted-foreground">{t.hour}</p>
+                          <p className="text-sm font-semibold tracking-[-0.01em]">{t.time}</p>
+                          <p className="text-[11px] tabular text-muted-foreground">{t.hour}</p>
                         </div>
-                        <span className="text-2xl">{t.icon}</span>
+                        {weatherIcon(t.icon)}
                       </div>
-                      <div className="mt-3 flex items-baseline gap-1 tabular">
-                        <span className="text-[26px] font-bold leading-none tracking-tight">{t.temp}°</span>
-                        <span className="text-[11px] text-muted-foreground">체감 {t.feels}°</span>
+                      <div className="mt-3 flex items-baseline gap-1">
+                        <span className="num text-[26px] leading-none">{t.temp}°</span>
+                        <span className="num text-[11px] text-muted-foreground">체감 {t.feels}°</span>
                       </div>
                       <div className="my-3 h-px bg-border/60" />
+                      {/* 지표 값: 5px 도트 + 상태 색 텍스트, neutral은 도트 숨김 */}
                       <dl className="space-y-1.5 text-[11px]">
                         {([
-                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust)],
-                          ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv)],
-                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen)],
-                          ["습도", `${t.humidity}%`, t.humidity <= 40],
-                          ["바람", t.wind, t.wind === "강함"],
-                        ] as [string, string, boolean][]).map(([k, v, bad]) => (
+                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : t.dust === "좋음" ? "good" : "neutral"],
+                          ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : t.uv === "낮음" ? "good" : "neutral"],
+                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : t.pollen === "낮음" ? "good" : "neutral"],
+                          // 수치는 임계값 초과 시에만 warn, 아니면 neutral (good 없음)
+                          ["습도", `${t.humidity}%`, t.humidity <= 40 ? "warn" : "neutral"],
+                          ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],
+                        ] as [string, string, StatusTone][]).map(([k, v, tone]) => (
                           <div key={k} className="flex items-center justify-between">
                             <dt className="text-muted-foreground">{k}</dt>
-                            <dd
-                              className={
-                                bad
-                                  ? "font-semibold text-status-warn"
-                                  : "font-medium tabular text-foreground"
-                              }
-                            >
-                              {v}
+                            <dd className="flex items-center gap-1 whitespace-nowrap">
+                              {tone !== "neutral" && (
+                                <span className={`h-[5px] w-[5px] shrink-0 rounded-full ${toneDot[tone]}`} aria-hidden="true" />
+                              )}
+                              <span
+                                className={`${/\d/.test(v) ? "num" : tone === "neutral" ? "font-medium" : "font-semibold"} ${toneText[tone]}`}
+                              >
+                                {v}
+                              </span>
                             </dd>
                           </div>
                         ))}
@@ -512,19 +567,9 @@ const Home = () => {
             </div>
           </section>
 
-          {/* Character-based personalized report */}
-          {!loading && (
-            <CharacterReport
-              gender={cur.gender}
-              childName={cur.name}
-              weather={weatherData}
-              conditions={cur.conditions ?? []}
-            />
-          )}
-
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="text-[22px] font-bold tracking-tight break-keep">
+            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em] break-keep">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
@@ -538,11 +583,11 @@ const Home = () => {
                       onClick={() => toast("외부 구매 페이지로 이동합니다")}
                       className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left transition-smooth hover:border-foreground/30 hover:shadow-soft"
                     >
-                      <div className="flex h-24 items-center justify-center rounded-xl bg-soft text-4xl">
-                        {it.emoji}
+                      <div className="flex h-24 items-center justify-center rounded-xl bg-soft">
+                        <ItemIllustration art={it.art} />
                       </div>
-                      <p className="mt-2.5 line-clamp-2 px-0.5 text-[13px] font-medium leading-snug">{it.name}</p>
-                      <p className="mt-1 px-0.5 text-xs font-semibold text-foreground">{it.price}</p>
+                      <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-medium leading-snug">{it.name}</p>
+                      <p className="num mt-1 px-0.5 text-xs text-foreground">{it.price}</p>
                     </button>
                   ))}
             </div>
