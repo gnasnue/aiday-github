@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.0.5] - 2026-07-12
+
+### Changed
+- **PRD v2.7.1 — 구현가능성·정합성 정밀 교정(코드 대조)**: 기능 추가·방향 변경 없이 코드 현실과 어긋난 표현만 교정. ① 재현성 모순 해소 — Eval 수락 기준 "3회 동일"을 규칙 안전 판정·필수 준비물로 한정(현재 `route.ts`가 `temperature:1.0`이라 LLM 문장 동일 불가), 머지 게이트를 "매 PR 결정적 레이어 전수 + LLM 출력 샘플링"으로 현실화 ② "확장"→"신규 구축" 정직화 — `lib/safety-rules.ts`·`scripts/eval-briefing.ts`(scripts/ 자체 없음)·`daily_briefings` 등 영속화(현 report 라우트 무상태)·레이트리밋이 전부 신규임을 명시, 반대로 일정×예보 매핑(`findSlot`)은 기존 재사용으로 정정 ③ 미정의 값 확정 — 브리핑 재생성 임계값 예시, 지역 매핑을 소수 지역(서울 자치구)으로 한정·`children.region_code` 컬럼 명시 ④ 일정 현실화 — 영속화 백본을 Phase 2 후반으로 분담, Phase 3 2주 확장 컨틴전시, 결정론 로직 단위 테스트 필수화 + 테스트 인프라 Phase 1 셋업 ⑤ 정합 잔재 정리 — "공개 베타" 잔재 4곳·작성일·CoT 용어("구조화 판단 파이프라인"으로 통일)·데이터 모델 중복 헤더 수정
+
 ## [0.2.0.4] - 2026-07-12
 
 ### Changed
