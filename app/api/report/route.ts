@@ -38,7 +38,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const client = new Anthropic({ apiKey });
+  // ANTHROPIC_BASE_URL 설정 시 AI 게이트웨이 등 프록시 엔드포인트로 요청 (미설정 시 Anthropic 기본 주소).
+  // 게이트웨이는 Anthropic Messages API 호환(패스스루)이어야 한다.
+  const baseURL = process.env.ANTHROPIC_BASE_URL?.trim() || undefined;
+  if (baseURL) {
+    try {
+      const url = new URL(baseURL);
+      if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
+        console.warn(`ANTHROPIC_BASE_URL이 HTTPS가 아님 — API 키가 평문으로 전송될 수 있습니다: ${url.host}`);
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "ANTHROPIC_BASE_URL 형식이 잘못되었습니다. 프로토콜을 포함한 전체 URL을 설정하세요 (예: https://gateway.example.com)." },
+        { status: 503 }
+      );
+    }
+  }
+
+  const client = new Anthropic({ apiKey, baseURL });
 
   const body = await req.json();
   const { child, weather, air } = body as {
