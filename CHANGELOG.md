@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.1.0] - 2026-07-13
+
+### Changed
+- **AI 리포트 모델 전환: Claude Haiku 4.5 → Claude Sonnet 5** (`app/api/report/route.ts`) — 실측 환경 A/B 비교(프로필 3종)에서 Sonnet이 금지 규칙 준수(일반 조언 억제)·체질→증상 구체화·데이터 기반 행동 제안에서 우세함을 확인하고 전환. 파라미터: `thinking` 비활성(저지연 우선), `temperature` 제거(thinking 비활성 시 지정 불가), `max_tokens` 700→1000. 리포트 캐시 키 v6→v7로 구모델 캐시 무효화. 지연 +약 1초·비용 리포트당 약 0.7원(인트로 가격)은 수용
+- **홈 화면 시각 리스타일 + "오늘의 종합 솔루션" 섹션 제거** (#59) — LineIcon·ItemIllustration 도입(OS 이모지 대체), 상태 3단계 토큰 정리. CharacterReport는 AI 리포트와 결론 중복·상충 위험으로 홈에서 제거(CEO 리뷰 P0-3, 컴포넌트·이미지 보존), 추천 아이템 섹션은 유지 결정(숨김 방침 철회). DESIGN.md 일러스트 예외 조항 삭제, SPEC·PRD 정합
+
+### Added
+- **Codex CLI 병행용 에이전트 지침** (#60) — `AGENTS.md`·`.agents/skills/` 14종 (CLAUDE.md·`.claude/skills/` 미러, 기계 치환 오류 교정)
+
 ## [0.2.0.6] - 2026-07-12
 
 ### Changed

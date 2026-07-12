@@ -194,7 +194,8 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    const cacheKey = `aiday:report:v6:${cur.id}:${today}`;
+    // v7: 모델 전환(Haiku→Sonnet 5) — 구모델 캐시 무효화
+    const cacheKey = `aiday:report:v7:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {

@@ -379,7 +379,7 @@ components/CharacterReport.tsx와 /images/character-*.png는 보존 — 베타 �
 활성 탭: 아이콘 뒤 크림 필(pill) + 강조색 아이콘
 ```
 
-**AI 리포트 프롬프트 설계** (`lib/prompts/report.ts`, 호출: `app/api/report/route.ts`, 모델: `claude-haiku-4-5`)
+**AI 리포트 프롬프트 설계** (`lib/prompts/report.ts`, 호출: `app/api/report/route.ts`, 모델: `claude-sonnet-5` — 2026-07-12 Haiku 4.5에서 전환, thinking 비활성·max_tokens 1000)
 
 - **톤:** "아이를 키우는 부모의 든든한 육아 친구" — 카카오톡처럼 따뜻하게, 오늘 이 아이에게 꼭 필요한 이야기만
 - **금지 사항 (시스템 프롬프트에 명시):**

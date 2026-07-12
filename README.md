@@ -17,7 +17,7 @@
 | 기능 | 상태 |
 |------|------|
 | 아이 프로필 기반 온보딩 (7단계) | ✅ UI + Supabase DB 저장 |
-| AI 육아 판단 리포트 (홈) | ✅ Claude Haiku 연동 |
+| AI 육아 판단 리포트 (홈) | ✅ Claude Sonnet 연동 |
 | 환경정보 — 날씨 | ✅ 기상청 단기예보 실시간 |
 | 환경정보 — 대기질 | ✅ 에어코리아 실시간 |
 | 환경정보 — 꽃가루 | ✅ 기상청 꽃가루농도 실시간 (참나무·소나무) |
@@ -38,7 +38,7 @@
 |------|------|
 | Frontend | Next.js 15 (App Router) + TypeScript |
 | Auth / DB | Supabase (Google OAuth, PostgreSQL + RLS) |
-| AI | Claude Haiku (`claude-haiku-4-5`) |
+| AI | Claude Sonnet (`claude-sonnet-5`) |
 | 환경 데이터 | 기상청 단기예보 API, 에어코리아, 기상청 꽃가루농도위험지수 |
 | 스타일 | Tailwind CSS + shadcn/ui |
 

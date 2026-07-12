@@ -1,6 +1,6 @@
 # aiday — Claude Code Instructions
 
-아이데이(AiDay): 날씨·대기질 등 환경 데이터를 아이 체질 기준으로 해석해, 부모가 매일 반복하는 육아 의사결정의 첫 판단(옷차림·준비물·오늘의 케어 방식)을 지원하는 AI 육아 앱. Next.js 15 (App Router) + TypeScript + Supabase + Claude Haiku. 모바일 우선(390px 고정 프레임), 문서·UI·커밋 메시지는 한국어.
+아이데이(AiDay): 날씨·대기질 등 환경 데이터를 아이 체질 기준으로 해석해, 부모가 매일 반복하는 육아 의사결정의 첫 판단(옷차림·준비물·오늘의 케어 방식)을 지원하는 AI 육아 앱. Next.js 15 (App Router) + TypeScript + Supabase + Claude Sonnet. 모바일 우선(390px 고정 프레임), 문서·UI·커밋 메시지는 한국어.
 
 ## Commands
 
