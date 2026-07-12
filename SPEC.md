@@ -677,7 +677,7 @@ Today's OOTD
 | `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 5분) |
 
 - 공통 에러: API 키 미설정 503 / 업스트림 오류 502 / 파싱·기타 500 (+ air는 측정 데이터 없음 404). 클라이언트는 `error` 필드 유무로 판별
-- 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), Supabase 키
+- 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), `ANTHROPIC_BASE_URL`(report, 선택 — AI 게이트웨이/프록시 엔드포인트, 미설정 시 기본 주소), Supabase 키
 - ⚠️ **미활용 필드:** `/api/weather`의 `feelsLike`·`hourlyForecast`는 이미 제공되지만 UI가 사용하지 않음 — 홈 "시간대별 환경"·환경정보 "시간대별 날씨" 실데이터 연동의 재료가 이미 있음 (`/api/report`는 hourlyForecast를 일정 매핑에 사용 중)
 - ⚠️ **인증 없음:** 5개 라우트 모두 인증·레이트리밋 없이 공개. 특히 `/api/report`는 호출당 Claude 비용이 발생하므로 공개 배포 전 보호 필요 (게스트 정책과 함께 결정)
 
