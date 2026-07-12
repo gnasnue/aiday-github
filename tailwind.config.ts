@@ -15,6 +15,8 @@ export default {
     extend: {
       colors: {
         border: "hsl(var(--border))",
+        "border-chip": "hsl(var(--border-chip))",
+        "border-control": "hsl(var(--border-control))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
         background: "hsl(var(--background))",
@@ -23,12 +25,18 @@ export default {
         status: {
           good: "hsl(var(--status-good))",
           "good-bg": "hsl(var(--status-good-bg))",
+          neutral: "hsl(var(--status-neutral))",
+          "neutral-dot": "hsl(var(--status-neutral-dot))",
           warn: "hsl(var(--status-warn))",
           "warn-bg": "hsl(var(--status-warn-bg))",
           bad: "hsl(var(--status-bad))",
           "bad-bg": "hsl(var(--status-bad-bg))",
           info: "hsl(var(--status-info))",
           "info-bg": "hsl(var(--status-info-bg))",
+        },
+        avatar: {
+          DEFAULT: "hsl(var(--avatar-bg))",
+          foreground: "hsl(var(--avatar-fg))",
         },
         kakao: {
           DEFAULT: "hsl(var(--kakao))",

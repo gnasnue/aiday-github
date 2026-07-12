@@ -28,7 +28,7 @@ const Logo = ({ className = "" }: { className?: string }) => (
     className={`inline-flex items-center gap-1.5 font-bold text-foreground ${className}`}
   >
     <Mark />
-    <span className="text-[17px] tracking-tight">AiDay 아이데이</span>
+    <span className="text-[17px] tracking-[-0.01em]">AiDay 아이데이</span>
   </Link>
 );
 
