@@ -234,6 +234,11 @@ const Home = () => {
 
         if (!res.ok) {
           setAiError(true);
+          // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
+          try {
+            const detail = (await res.json())?.error;
+            if (detail) console.error("[AI report] 서버 오류 상세:", detail);
+          } catch {}
           toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
           setAiLoading(false);
           return;

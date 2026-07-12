@@ -44,6 +44,15 @@ export async function POST(req: NextRequest) {
   if (baseURL) {
     try {
       const url = new URL(baseURL);
+      // 붙여넣기 사고로 스킴이 이어붙은 값(예: https://gw.letsur.aihttps)은 URL 파싱을
+      // 통과한 뒤 DNS에서 실패한다(2026-07-12 프로덕션 장애). 호스트명 자체를 검증해 즉시 잡는다.
+      if (/https?$/.test(url.hostname)) {
+        console.error(`[AI report] ANTHROPIC_BASE_URL 호스트명이 비정상입니다: ${url.hostname}`);
+        return NextResponse.json(
+          { error: `ANTHROPIC_BASE_URL 호스트명이 잘못되었습니다 (${url.hostname}). 환경 변수에 URL이 중복 입력되지 않았는지 확인하세요.` },
+          { status: 503 }
+        );
+      }
       if (url.protocol !== "https:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
         console.warn(`ANTHROPIC_BASE_URL이 HTTPS가 아님 — API 키가 평문으로 전송될 수 있습니다: ${url.host}`);
       }
@@ -212,9 +221,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ hook: "", message: "", checklist: [] });
     }
   } catch (err) {
-    console.error("[AI report] Claude API 오류:", err);
+    // 어떤 엔드포인트로 호출했는지 로그에 남겨 게이트웨이 설정 문제와 일반 장애를 즉시 구분한다.
+    const endpoint = baseURL ?? "https://api.anthropic.com";
+    console.error(`[AI report] Claude API 오류 (endpoint: ${endpoint}):`, err);
+    const isConnectionError = err instanceof Anthropic.APIConnectionError;
     return NextResponse.json(
-      { error: "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요." },
+      {
+        error: isConnectionError
+          ? `AI 서버(${endpoint})에 연결하지 못했습니다. ANTHROPIC_BASE_URL 설정과 네트워크를 확인해주세요.`
+          : "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
+      },
       { status: 503 }
     );
   }
