@@ -7,7 +7,8 @@ import type { DustLevel, PollenLevel, UvLevel, WindLevel } from "./weather-api";
  * 각 슬롯 시각에 가장 가까운 실측/예보 데이터로 채운다.
  * - 기온·체감·습도·바람·하늘상태: 기상청 단기예보(시간대별 실값)
  * - 자외선: 기상청 생활기상지수(3시간 단위 실값)
- * - 미세먼지·꽃가루: 시간 해상도가 없어 오늘의 대푯값을 전 슬롯 공유
+ * - 미세먼지: 지나간 시각은 그 시각의 실측 등급(에어코리아 24시간), 미래는 현재 대푯값
+ * - 꽃가루: 일 단위 지수라 오늘의 대푯값을 전 슬롯 공유
  */
 
 export type HomeTimeSlot = {
@@ -46,7 +47,10 @@ export type ScheduleInput = {
 
 export type EnvRaw = {
   weather: { hourlyForecast?: WeatherHour[] } | null;
-  air: { pm10Grade?: number | null } | null;
+  air: {
+    pm10Grade?: number | null;
+    hourly?: Record<string, number | null>; // 오늘 시각별 pm10 1시간 등급 실측
+  } | null;
   uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null;
   pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null;
 };
@@ -88,6 +92,22 @@ const nearestWeather = (hours: WeatherHour[], target: number): WeatherHour | nul
   const bh = parseHour(best.hour);
   if (bh == null || Math.abs(bh - target) > MAX_HOUR_GAP) return null;
   return best;
+};
+
+// 미세먼지: 지나간 시각은 그 시각(±1시간)의 실측 등급으로 고정해,
+// 이후 공기질이 변해도 지나간 슬롯의 표시·준비물이 바뀌지 않게 한다.
+// 실측이 없는 시각(미래 슬롯)은 fallback(현재 대푯값)을 그대로 쓴다.
+const dustAt = (
+  hourly: Record<string, number | null> | undefined,
+  target: number,
+  fallback: number | null
+): number | null => {
+  if (!hourly) return fallback;
+  for (const h of [target, target - 1, target + 1]) {
+    const v = hourly[String(h)];
+    if (v != null) return v;
+  }
+  return fallback;
 };
 
 const nearestUv = (
@@ -147,7 +167,7 @@ export function buildTimeline(
       pop: w.pop,
       temp: Math.round(w.temp),
       feels: Math.round(w.temp - 0.7 * (wind ?? 0)),
-      dust: dustLabel(dustG),
+      dust: dustLabel(dustAt(env.air?.hourly, th, dustG)),
       uv: uvLevel(nearestUv(env.uv?.hourly, th) ?? env.uv?.uvi ?? null),
       pollen: pollenLabel(pollenG),
       humidity: w.humidity ?? 0,
