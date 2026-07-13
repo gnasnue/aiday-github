@@ -174,7 +174,8 @@ AI가 먼저 알려드려요
 - "먼저 둘러볼게요 →" 링크 → `/home`
 
 **조건:**
-- 가입 완료 → 세션 있으면 `/auth/landing`(판단 지점), 없으면(이메일 인증 대기) `/onboarding` (게스트 모드 진행)
+- 가입 완료 → 세션 있으면 `/auth/landing`(판단 지점), 없으면(이메일 인증 대기) "인증 메일을 보냈어요" 안내 토스트 후 `/onboarding` (게스트 모드 진행)
+- `signUp`에 `emailRedirectTo: /auth/callback?next=/auth/landing` 지정 — 인증 메일 링크가 현재 도메인 콜백으로 복귀 (2026-07-13)
 - Google 버튼 → `/auth/callback?next=/auth/landing` (로그인 페이지와 공용 — 기존 사용자가 눌러도 재온보딩되지 않음)
 - "먼저 둘러볼게요 →" → `/home` (게스트 모드)
 
@@ -184,6 +185,7 @@ AI가 먼저 알려드려요
 
 - 구성: 이메일 + 비밀번호 인풋 → `supabase.auth.signInWithPassword` (`app/login/page.tsx`)
   - 자격증명 오류 시 "이메일 또는 비밀번호가 올바르지 않아요." 토스트
+  - 이메일 미인증(`Email not confirmed`) 시 한국어 안내 토스트 + "인증 메일 재발송" 액션(`supabase.auth.resend`) (2026-07-13)
 - "비밀번호를 잊으셨나요?" → `resetPasswordForEmail` 재설정 메일 발송
   → 메일 링크는 `/auth/callback?next=/reset-password`로 세션 교환 후
   `/reset-password`(새 비밀번호 입력, `updateUser`)로 진입 (`app/reset-password/page.tsx`)

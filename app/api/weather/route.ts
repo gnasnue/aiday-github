@@ -83,23 +83,32 @@ export async function GET(request: NextRequest) {
   const { nx, ny } = latLonToGrid(lat, lon);
   const { base_date, base_time } = getBaseDateTime();
 
-  const params = new URLSearchParams({
-    serviceKey: apiKey,
-    // 이른 발표 시각(예: 0200)에서도 당일 21시까지 전 시간대 예보를 확보하려면
-    // 넉넉한 행 수가 필요하다. 100행은 ~7시간분이라 오후 슬롯이 잘린다.
-    numOfRows: "1000",
-    pageNo: "1",
-    dataType: "JSON",
-    base_date,
-    base_time,
-    nx: String(nx),
-    ny: String(ny),
-  });
-
-  const url = `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?${params}`;
+  const fcstUrl = (bd: string, bt: string) => {
+    const params = new URLSearchParams({
+      serviceKey: apiKey,
+      // 이른 발표 시각(예: 0200)에서도 당일 21시까지 전 시간대 예보를 확보하려면
+      // 넉넉한 행 수가 필요하다. 100행은 ~7시간분이라 오후 슬롯이 잘린다.
+      numOfRows: "1000",
+      pageNo: "1",
+      dataType: "JSON",
+      base_date: bd,
+      base_time: bt,
+      nx: String(nx),
+      ny: String(ny),
+    });
+    return `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getVilageFcst?${params}`;
+  };
 
   try {
-    const res = await fetch(url, { next: { revalidate: 1800 } }); // 30분 캐시
+    // 기상청 단기예보는 base_time 이후 시각만 반환해, 오후에는 오늘 오전 시간대(06·09·12시)가
+    // 최신 발표본에서 빠진다. 당일 0200 발표본은 하루 전체를 커버하므로 함께 받아
+    // 지나간 시각 슬롯을 그날 아침에 봤던 값 그대로 고정해 채운다.
+    const [res, fillRes] = await Promise.all([
+      fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 } }), // 30분 캐시
+      base_time !== "0200"
+        ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 } }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
     if (!res.ok) {
       return NextResponse.json(
         { error: `기상청 API 오류: ${res.status}` },
@@ -107,9 +116,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    type FcstItem = { category: string; fcstValue: string; fcstDate: string; fcstTime: string };
     const data = await res.json();
-    const items: Array<{ category: string; fcstValue: string; fcstDate: string; fcstTime: string }> =
-      data?.response?.body?.items?.item ?? [];
+    const items: FcstItem[] = data?.response?.body?.items?.item ?? [];
+
+    // 0200 발표본은 보조 데이터 — 실패해도 최신 발표본만으로 기존과 동일하게 동작한다
+    let fillItems: FcstItem[] = [];
+    if (fillRes?.ok) {
+      try {
+        const fillData = await fillRes.json();
+        fillItems = fillData?.response?.body?.items?.item ?? [];
+      } catch {}
+    }
 
     // 오늘 날짜 기준 현재 시각에 가장 가까운 예보만 추출
     const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
@@ -147,6 +165,14 @@ export async function GET(request: NextRequest) {
         for (const item of items) {
           if (item.fcstDate === todayStr && item.fcstTime === slot) {
             d[item.category] = item.fcstValue;
+          }
+        }
+        // 최신 발표본에 없는 지나간 시각은 당일 0200 발표본 값으로 채운다
+        if (!d["TMP"]) {
+          for (const item of fillItems) {
+            if (item.fcstDate === todayStr && item.fcstTime === slot) {
+              d[item.category] = item.fcstValue;
+            }
           }
         }
         if (!d["TMP"]) return null;

@@ -31,16 +31,30 @@ const Signup = () => {
       return;
     }
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({ email, password: pw });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: pw,
+      options: {
+        // 인증 메일 링크가 Supabase Site URL이 아니라 현재 도메인의 콜백으로 돌아오도록 지정
+        emailRedirectTo: `${location.origin}/auth/callback?next=/auth/landing`,
+      },
+    });
     setLoading(false);
     if (error) {
       toast.error(error.message);
       return;
     }
-    toast.success("가입이 완료되었어요!");
     // 세션이 바로 생기면(이메일 인증 꺼짐) 공통 판단 지점에서 분기 —
     // 게스트 시절 프로필이 있으면 DB 이전 후 홈, 없으면 온보딩.
     // 세션이 없으면(이메일 인증 대기) 게스트 모드로 온보딩 진행, 첫 로그인 때 DB 이전.
+    if (data.session) {
+      toast.success("가입이 완료되었어요!");
+    } else {
+      toast.success("가입이 완료되었어요! 인증 메일을 보냈어요.", {
+        description: "로그인하려면 메일함(스팸함 포함)에서 인증 링크를 눌러주세요.",
+        duration: 8000,
+      });
+    }
     router.replace(data.session ? "/auth/landing" : "/onboarding");
   };
 

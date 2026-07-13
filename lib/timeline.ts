@@ -73,13 +73,21 @@ const uvLevel = (v: number | null): UvLevel =>
 const windLevel = (mps: number | null): WindLevel =>
   mps == null ? "약함" : mps >= 9 ? "강함" : mps >= 4 ? "보통" : "약함";
 
+// 예보는 3시간 해상도(06~21시)라 정상 커버 범위에선 목표 시각과 최대 1.5시간 차이.
+// 2시간을 넘으면 해당 시각 데이터가 없는 것이므로, 엉뚱한 시간대 예보를
+// 그 슬롯인 것처럼 보여주지 않도록 null을 반환한다.
+const MAX_HOUR_GAP = 2;
+
 const nearestWeather = (hours: WeatherHour[], target: number): WeatherHour | null => {
   if (!hours.length) return null;
-  return hours.reduce((best, s) => {
+  const best = hours.reduce((a, s) => {
     const sh = parseHour(s.hour) ?? 0;
-    const bh = parseHour(best.hour) ?? 0;
-    return Math.abs(sh - target) < Math.abs(bh - target) ? s : best;
+    const bh = parseHour(a.hour) ?? 0;
+    return Math.abs(sh - target) < Math.abs(bh - target) ? s : a;
   });
+  const bh = parseHour(best.hour);
+  if (bh == null || Math.abs(bh - target) > MAX_HOUR_GAP) return null;
+  return best;
 };
 
 const nearestUv = (
