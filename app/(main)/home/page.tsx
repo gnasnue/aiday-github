@@ -6,8 +6,7 @@ import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbr
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import ItemIllustration from "@/components/ItemIllustration";
-import LineIcon from "@/components/LineIcon";
+import LineIcon, { type LineIconName } from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
 import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
@@ -67,6 +66,23 @@ const checklistIcon = (icon: string, text: string) => {
   if (/통풍|여벌|옷/.test(s)) return <LineIcon name="shirt" className={cls} />;
   return <CircleCheck size={19} strokeWidth={1.5} className={cls} />;
 };
+
+// 추천 아이템 썸네일: 일러스트 금지(DESIGN.md — 예외 없음) → 체크리스트와 동일한 라인 아이콘 언어
+const ITEM_ICON: Record<Exclude<RecommendedItem["art"], "umbrella">, LineIconName> = {
+  mask: "mask",
+  sunscreen: "sun",
+  cardigan: "cardigan",
+  muffler: "scarf",
+  cap: "cap",
+  bottle: "bottle",
+  lotion: "droplet",
+};
+const itemIcon = (art: RecommendedItem["art"]) =>
+  art === "umbrella" ? (
+    <Umbrella size={20} strokeWidth={1.5} className="text-muted-foreground" />
+  ) : (
+    <LineIcon name={ITEM_ICON[art]} size={20} className="text-muted-foreground" />
+  );
 
 const renderRich = (text: string) => {
   // 줄바꿈(\n)을 기준으로 문단 분리 후, 각 문단 내에서 **bold**/__accent__ 처리
@@ -683,34 +699,36 @@ const Home = () => {
             </div>
           </section>
 
-          {/* Recommended items */}
+          {/* Recommended items — 상단 결론의 파생 콘텐츠. 시각 위계 최하위:
+              일러스트·색 면적 없이 라인 아이콘 + 리스트 행으로 절제해 표현 */}
           <section className="mt-8">
             <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em] break-keep">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
-            <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-              {loading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-[130px] shrink-0 rounded-2xl" />
-                  ))
-                : recommendedItems.map((it) => (
+            {loading ? (
+              <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
+            ) : (
+              <ul className="mt-3 divide-y divide-border/40 rounded-2xl border border-border/60 bg-card px-4 py-1.5">
+                {recommendedItems.map((it) => (
+                  <li key={it.art}>
                     <button
-                      key={it.art}
                       onClick={() => toast("외부 구매 페이지로 이동합니다")}
-                      className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left transition-smooth hover:border-foreground/30 hover:shadow-soft"
+                      className="flex min-h-11 w-full items-center gap-3 py-2.5 text-left"
                     >
-                      <div className="relative flex h-24 items-center justify-center rounded-xl bg-soft">
-                        <ItemIllustration art={it.art} />
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-soft">
+                        {itemIcon(it.art)}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">{it.name}</span>
                         {/* 추천 근거 — 왜 이 아이템인지 (상단 신호와의 연결) */}
-                        <span className="absolute left-1.5 top-1.5 max-w-[112px] truncate rounded-full bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold text-accent shadow-sm">
-                          {it.reason}
-                        </span>
-                      </div>
-                      <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-medium leading-snug">{it.name}</p>
-                      <p className="num mt-1 px-0.5 text-xs text-foreground">{it.price}</p>
+                        <span className="block truncate text-xs text-muted-foreground">{it.reason}</span>
+                      </span>
+                      <span className="num shrink-0 text-sm text-foreground">{it.price}</span>
                     </button>
-                  ))}
-            </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         </main>
       </div>
