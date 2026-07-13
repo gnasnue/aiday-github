@@ -126,6 +126,11 @@ const Home = () => {
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
   const [aiPrep, setAiPrep] = useState<Record<string, string[]>>({});
+  // AI 변형 prep 프리즈: 리포트는 5분 캐시 만료마다 재생성되고 온도 고정도 불가해
+  // 같은 입력에도 키워드가 흔들린다. 지나간 시각 슬롯은 그 시각을 지날 때의 값을
+  // 날짜·프로필별로 고정 저장해, 지난 카드의 준비물이 오후에 바뀌지 않게 한다.
+  // (rule 변형은 입력이 같으면 출력이 같아 프리즈가 필요 없다)
+  const [frozenPrep, setFrozenPrep] = useState<Record<string, string[]>>({});
   // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지
   const [prepVariant] = useState<"rule" | "ai">(() => {
     try {
@@ -227,6 +232,19 @@ const Home = () => {
   }, []);
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
+
+  // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
+  const prepFrozenKey = cur
+    ? `aiday:prepFrozen:v1:${cur.id}:${new Date().toISOString().slice(0, 10)}`
+    : null;
+  useEffect(() => {
+    if (!prepFrozenKey) return;
+    try {
+      setFrozenPrep(JSON.parse(localStorage.getItem(prepFrozenKey) ?? "{}"));
+    } catch {
+      setFrozenPrep({});
+    }
+  }, [prepFrozenKey]);
 
   const REPORT_CACHE_TTL = 5 * 60 * 1000;
 
@@ -358,10 +376,37 @@ const Home = () => {
   // 슬롯별 준비물 키워드 (A/B): rule=로컬 규칙 엔진, ai=Claude prep 필드
   // AI 변형에서 prep이 비면(로딩 중·미지원 응답) 규칙 기반으로 폴백해 빈 화면을 막는다
   const AI_PREP_KEY: Record<string, string> = { 등원시간: "등원", 야외활동: "야외활동", 하원시간: "하원", 저녁: "저녁" };
+  // "HH:MM"이 현재 시각 이전인지 — 지나간 슬롯 판정
+  const slotPassed = (hour: string): boolean => {
+    const [h, m] = hour.split(":").map(Number);
+    if (Number.isNaN(h)) return false;
+    const now = new Date();
+    return h * 60 + (m || 0) <= now.getHours() * 60 + now.getMinutes();
+  };
+
+  // 지나간 슬롯의 AI prep 고정 저장 — 슬롯 시각을 지날 때의 값을 그날 내내 유지
+  useEffect(() => {
+    if (prepVariant !== "ai" || !prepFrozenKey) return;
+    const additions: Record<string, string[]> = {};
+    for (const slot of displaySlots) {
+      if (!slotPassed(slot.hour) || frozenPrep[slot.time]) continue;
+      const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
+      if (Array.isArray(fromAi) && fromAi.length > 0) additions[slot.time] = fromAi.slice(0, 2);
+    }
+    if (!Object.keys(additions).length) return;
+    const merged = { ...frozenPrep, ...additions };
+    setFrozenPrep(merged);
+    try {
+      localStorage.setItem(prepFrozenKey, JSON.stringify(merged));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiPrep, displaySlots, prepVariant, prepFrozenKey, frozenPrep]);
+
   const slotPrep = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
     displaySlots.forEach((slot, i) => {
-      const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
+      const frozen = slotPassed(slot.hour) ? frozenPrep[slot.time] : undefined;
+      const fromAi = frozen ?? aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
       map[slot.time] =
         prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
           ? fromAi.slice(0, 2)
@@ -369,7 +414,7 @@ const Home = () => {
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySlots, aiPrep, prepVariant, cur?.conditions]);
+  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;
