@@ -12,9 +12,9 @@ const pains = [
 
 const diffs: { title: string; desc: string }[] = [
   { title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 '육아 번역기'처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
+  { title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 컨디션과 체질에 따라 다른 준비와 케어가 필요할 수 있어요" },
   { title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
-  { title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
+  { title: "미리 받아보는 육아 가이드", desc: "전날 밤 · 아침준비 전, 앱을 열지 않아도 필요한 데일리 육아 가이드를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
@@ -125,8 +125,8 @@ export default function IndexPage() {
                   <p className="text-sm leading-relaxed text-foreground break-keep">
                     {r.text}
                   </p>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    {r.who}
+                  <p className="mt-3 text-right text-xs text-muted-foreground">
+                    - {r.who}
                   </p>
                 </div>
               ))}
