@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.0.0] - 2026-07-13
+
+### Added
+- **마이 프로필 편집 화면** (`/me/edit/[id]`) — 온보딩에서 입력한 아이 정보(이름·생년월일·성별·건강 정보·추위/더위/땀 민감도·하루 일과)를 마이페이지에서 직접 수정 가능. 저장 시 localStorage + Supabase DB 동시 반영, 마이 카드의 ✏️ 편집 버튼 연결(기존 "준비 중" 토스트 대체). 알림 설정(온보딩 Step 7)은 별도 알림 설정 화면 작업으로 분리
+- **구형 프로필 데이터 정규화** (`lib/profile-options.ts`) — 한국어 라벨로 저장된 민감도("보통이에요" 등)와 단일 키워드 건강 정보("아토피"·"비염" 등)를 현행 코드값·선택지로 매핑. 마이 카드에서 "-"로 보이던 구형 값이 제대로 표시되고, 편집 진입 시 기존값이 채워짐. 온보딩과 편집이 선택지 상수를 공유하도록 추출
+
+### Fixed
+- **편집 저장 시 다른 아이 프로필 유실** — localStorage에 실체화되지 않은 데모 목록 상태에서 `saveProfile`(원본 병합)로 저장하면 편집하지 않은 프로필이 사라짐. 목록 전체 교체 저장(`saveProfiles`)으로 수정
+- **온보딩 프로필 DB 저장 실패가 조용히 넘어감** — `saveProfileToDb`가 게스트(no-auth)/실패(error)/성공(ok)을 구분해 반환하도록 변경, 로그인 상태에서 저장 실패 시 온보딩·편집 화면 모두 사용자에게 재시도 안내 토스트 표시
+
 ## [0.2.3.1] - 2026-07-13
 
 ### Fixed

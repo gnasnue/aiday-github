@@ -27,41 +27,10 @@ import {
   saveProfile,
   saveProfileToDb,
 } from "@/lib/profile";
+import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
 
 const TOTAL = 7;
 const STORAGE_KEY = "aiweather:onboarding";
-
-const conditions = [
-  "호흡기 민감 (비염, 천식·기관지)",
-  "알레르기 체질 (꽃가루·먼지)",
-  "민감 피부 (아토피·건조·자외선)",
-  "해당없음",
-  "기타",
-];
-
-const sensitivity = [
-  { v: "very-much", l: "매우 많이 탐" },
-  { v: "much", l: "조금 많이 탐" },
-  { v: "normal", l: "보통" },
-  { v: "less", l: "조금 덜 탐" },
-  { v: "very-less", l: "매우 덜 탐" },
-];
-
-const sweatLevels = [
-  { v: "very-much", l: "매우 많음" },
-  { v: "much", l: "조금 많음" },
-  { v: "normal", l: "보통" },
-  { v: "less", l: "적은 편" },
-];
-
-const halfHour = (from: number, to: number) => {
-  const out: string[] = [];
-  for (let h = from; h <= to; h++) {
-    out.push(`${String(h).padStart(2, "0")}:00`);
-    if (h < to) out.push(`${String(h).padStart(2, "0")}:30`);
-  }
-  return out;
-};
 
 type State = {
   name: string;
@@ -172,11 +141,19 @@ const Onboarding = () => {
       createdAt: Date.now(),
     };
     saveProfile(profile); // localStorage (오프라인 접근용)
-    saveProfileToDb(profile).then((dbId) => {
-      // DB 저장 후 반환된 UUID로 activeProfileId 갱신
-      if (dbId) {
-        try { localStorage.setItem("aiweather:activeProfileId", dbId); } catch {}
+    saveProfileToDb(profile).then((res) => {
+      if (res.status === "ok") {
+        // DB 저장 후 반환된 UUID로 activeProfileId 갱신
+        try { localStorage.setItem("aiweather:activeProfileId", res.id); } catch {}
+      } else if (res.status === "error") {
+        // 로그인 상태인데 저장 실패 — 조용히 넘기면 다른 기기·재로그인 시
+        // 로컬 데이터가 없어 데모 프로필이 보인다. 사용자에게 알리고 재시도 유도.
+        toast.error("프로필을 계정에 저장하지 못했어요.", {
+          description: "이 기기에는 저장됐지만, 네트워크 확인 후 다시 시도해주세요.",
+          duration: 6000,
+        });
       }
+      // no-auth(게스트)는 로컬 저장만으로 정상 — 알림 없음
     });
     try {
       localStorage.setItem("aiweather:activeProfileId", profile.id);

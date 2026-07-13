@@ -147,6 +147,16 @@ export const loadProfiles = (): ChildProfile[] => {
   }
 };
 
+// 목록 전체를 교체 저장. 아직 localStorage에 실체화되지 않은 목록(데모 기본값)을
+// 다룰 때는 saveProfile(원본 병합)이 다른 프로필을 유실시키므로 이걸 쓴다.
+export const saveProfiles = (list: ChildProfile[]) => {
+  try {
+    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
+  } catch {
+    // ignore
+  }
+};
+
 export const saveProfile = (p: ChildProfile) => {
   try {
     const raw = localStorage.getItem(PROFILES_KEY);
@@ -241,9 +251,19 @@ function rowToProfile(row: Record<string, unknown>): ChildProfile {
   };
 }
 
-export async function saveProfileToDb(p: ChildProfile): Promise<string | null> {
+// 저장 결과. 온보딩 등 호출부가 "게스트(로컬만 저장, 정상)"와
+// "로그인 상태인데 저장 실패(사용자에게 알려야 함)"를 구분해야 하므로 상태를 반환한다.
+// - no-auth: 비로그인(게스트) — 로컬 저장만으로 정상
+// - error:   로그인 상태지만 저장 실패(권한·네트워크 등) — 조용히 넘기면 안 됨
+// - ok:      DB 저장 성공, id는 DB가 부여한 uuid
+export type SaveProfileResult =
+  | { status: "no-auth" }
+  | { status: "error"; message: string }
+  | { status: "ok"; id: string };
+
+export async function saveProfileToDb(p: ChildProfile): Promise<SaveProfileResult> {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  if (!user) return { status: "no-auth" };
 
   const row = profileToRow(p, user.id);
   const { data, error } = await supabase
@@ -254,9 +274,10 @@ export async function saveProfileToDb(p: ChildProfile): Promise<string | null> {
 
   if (error) {
     console.error("[saveProfileToDb]", error.message);
-    return null;
+    return { status: "error", message: error.message };
   }
-  return data?.id ?? null;
+  if (!data?.id) return { status: "error", message: "저장 후 id를 받지 못했어요" };
+  return { status: "ok", id: data.id };
 }
 
 // DB → localStorage 동기화. 로그인 상태에서 앱 진입 시 호출.
@@ -307,7 +328,7 @@ export async function uploadLocalProfilesToDb(): Promise<number> {
   const locals = realLocalProfiles();
   if (!locals.length) return 0;
   const results = await Promise.all(locals.map((p) => saveProfileToDb(p)));
-  return results.filter(Boolean).length;
+  return results.filter((r) => r.status === "ok").length;
 }
 
 export async function removeProfileFromDb(id: string): Promise<void> {
