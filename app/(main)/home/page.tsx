@@ -38,29 +38,44 @@ type EnvSignature = {
   rain: string; // 시각별 강수 형태 유무 ("06:00:0,09:00:1,...")
   maxPop: number; // 하루 최대 강수확률
   dustBad: boolean; // 미세먼지 나쁨(3) 이상 여부
+  uvHigh: boolean; // 자외선 강함(지수 6) 이상 여부
+  pollenHigh: boolean; // 꽃가루 높음(지수 3) 이상 여부
   temps: Record<string, number>; // 시각별 기온
 };
 
 const envSignature = (
   w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null }[] } | null,
-  a: { pm10Grade?: number | null } | null
+  a: { pm10Grade?: number | null } | null,
+  uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null,
+  pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null
 ): EnvSignature => {
   const hours = w?.hourlyForecast ?? [];
+  const uvVals = uv?.hourly ? Object.values(uv.hourly).filter((v): v is number => v != null) : [];
+  const uvPeak = uvVals.length ? Math.max(...uvVals) : uv?.uvi ?? null;
+  const pollenVals = pollen
+    ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
+    : [];
+  const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
   return {
     rain: hours.map((h) => `${h.hour}:${h.pty && h.pty > 0 ? 1 : 0}`).join(","),
     maxPop: hours.reduce((m, h) => Math.max(m, h.pop ?? 0), 0),
     dustBad: (a?.pm10Grade ?? 1) >= 3,
+    uvHigh: (uvPeak ?? 0) >= 6,
+    pollenHigh: (pollenMax ?? 0) >= 3,
     temps: Object.fromEntries(hours.map((h) => [h.hour, h.temp])),
   };
 };
 
 // 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 미세먼지 나쁨 경계 통과 ·
-// 같은 시각 기온 예보 3°C 이상 변동. 스냅샷이 없는 구캐시는 급변 아님으로 취급.
+// 자외선 강함 경계 통과 · 꽃가루 높음 경계 통과 · 같은 시각 기온 예보 3°C 이상 변동.
+// 스냅샷이 없는 구캐시는 급변 아님으로 취급.
 const envChanged = (prev: EnvSignature | undefined, cur: EnvSignature): boolean => {
   if (!prev) return false;
   if (prev.rain !== cur.rain) return true;
   if (Math.abs((prev.maxPop ?? 0) - cur.maxPop) >= 30) return true;
   if (!!prev.dustBad !== cur.dustBad) return true;
+  if (!!prev.uvHigh !== cur.uvHigh) return true;
+  if (!!prev.pollenHigh !== cur.pollenHigh) return true;
   return Object.entries(cur.temps).some(([h, t]) => {
     const pt = prev.temps?.[h];
     return typeof pt === "number" && Math.abs(pt - t) >= 3;
@@ -195,6 +210,8 @@ const Home = () => {
   const lastManualRefreshRef = useRef(0);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
+  const uvRawRef = useRef<object | null>(null);
+  const pollenRawRef = useRef<object | null>(null);
 
   // Refresh profiles when returning from onboarding
   useEffect(() => {
@@ -226,34 +243,29 @@ const Home = () => {
   }, [active]);
 
   // 실제 날씨 + 대기질 데이터 로드
+  // 화면 셸·카드는 weather·air가 도착하면 바로 표시(loading 해제)해 체감 로딩을 줄이고,
+  // AI 리포트는 자외선·꽃가루까지 4개 입력이 모두 준비된 뒤 착수한다(리포트가 이 값들을 반영).
   useEffect(() => {
     const fetchEnv = async () => {
       setLoading(true);
+      // 4개 모두 즉시 병렬 착수 (개별 실패는 null 폴백)
+      const getJson = (url: string) => fetch(url).then((r) => r.json()).catch(() => null);
+      const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780");
+      const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC");
+      const uvP = getJson("/api/uv?region=서울");
+      const pollenP = getJson("/api/pollen?region=서울");
+
       try {
-        const [weatherRes, airRes, uvRes, pollenRes] = await Promise.allSettled([
-          fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
-          fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
-          fetch("/api/uv?region=서울").then((r) => r.json()),
-          fetch("/api/pollen?region=서울").then((r) => r.json()),
-        ]);
-
-        const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
-        const a = airRes.status === "fulfilled" ? airRes.value : null;
-        const u = uvRes.status === "fulfilled" ? uvRes.value : null;
-        const po = pollenRes.status === "fulfilled" ? pollenRes.value : null;
-
-        // Cache raw API responses for use in fetchReport (T4: avoid duplicate fetch)
-        weatherRawRef.current = w;
+        // 1) weather·air 도착 → 화면 셸·상단 카드·시간대 카드를 먼저 표시 (uv·꽃가루는 이후 채움)
+        const [w, a] = await Promise.all([weatherP, airP]);
+        weatherRawRef.current = w; // fetchReport에서 재사용 (T4: 중복 호출 방지)
         airRawRef.current = a;
-
-        // 시간대별 카드용 원시 환경 데이터 (error 응답은 null 처리 → 슬롯 기본값)
         setEnvRaw({
           weather: w && !w.error ? w : null,
           air: a && !a.error ? a : null,
-          uv: u && !u.error ? u : null,
-          pollen: po && !po.error ? po : null,
+          uv: null,
+          pollen: null,
         });
-
         if (w && !w.error) {
           const dustGrade = a?.pm10Grade ?? 1;
           const dustLabel = (["좋음", "보통", "나쁨", "매우나쁨"] as const)[dustGrade - 1] ?? "보통";
@@ -265,12 +277,24 @@ const Home = () => {
             dustLevel: dustLabel,
             windSpeed: windLabel,
           });
+        }
+        setLoading(false);
+
+        // 2) uv·꽃가루 도착 → 시간대 카드 갱신 + 리포트 입력 준비 후 착수
+        const [u, po] = await Promise.all([uvP, pollenP]);
+        uvRawRef.current = u;
+        pollenRawRef.current = po;
+        setEnvRaw((prev) =>
+          prev
+            ? { ...prev, uv: u && !u.error ? u : null, pollen: po && !po.error ? po : null }
+            : prev
+        );
+        if (w && !w.error) {
           setAiLoading(true);
           setAiHook("");
           setAiMessage("");
           setAiError(false);
         }
-        setLoading(false);
       } catch {
         setLoading(false);
       }
@@ -299,20 +323,26 @@ const Home = () => {
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    // v10: 5분 TTL → 당일 고정 + 환경 스냅샷(env)·생성시각(ts) 추가 — 구스키마 캐시 무효화
-    const cacheKey = `aiday:report:v10:${cur.id}:${localDateStr()}`;
+    // v11: 리포트 입력에 자외선·꽃가루 추가 + 급변 스냅샷 확장 — 구스키마 캐시 무효화
+    const cacheKey = `aiday:report:v11:${cur.id}:${localDateStr()}`;
 
     const fetchReport = async () => {
       const force = forceRefreshRef.current;
       forceRefreshRef.current = false;
       let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
       try {
-        // T4: use cached weather/air from fetchEnv instead of re-fetching
+        // T4: use cached env from fetchEnv instead of re-fetching
         const w = weatherRawRef.current ?? {};
         const a = airRawRef.current as { error?: string; pm10Grade?: number } | null;
+        const u = uvRawRef.current as { error?: string; uvi?: number | null; hourly?: Record<string, number | null> } | null;
+        const po = pollenRawRef.current as { error?: string; oak?: number | null; pine?: number | null; weed?: number | null } | null;
+        const uvClean = u?.error ? null : u;
+        const pollenClean = po?.error ? null : po;
         const sig = envSignature(
           w as Parameters<typeof envSignature>[0],
-          a?.error ? null : a
+          a?.error ? null : a,
+          uvClean,
+          pollenClean
         );
 
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
@@ -346,6 +376,8 @@ const Home = () => {
             },
             weather: w,
             air: a?.error ? null : a,
+            uv: uvClean,
+            pollen: pollenClean,
           }),
         });
 

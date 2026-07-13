@@ -29,8 +29,10 @@ export function buildReportPrompt(params: {
   tempSensitivity: string;
   scheduleSummary: string;
   airSummary: string;
+  uvSummary: string;
+  pollenSummary: string;
 }): string {
-  const { name, age, genderLabel, conditions, tempSensitivity, scheduleSummary, airSummary } = params;
+  const { name, age, genderLabel, conditions, tempSensitivity, scheduleSummary, airSummary, uvSummary, pollenSummary } = params;
 
   return `[아이 정보]
 이름: ${name} (${age}, ${genderLabel})
@@ -42,6 +44,10 @@ ${scheduleSummary}
 
 [현재 대기질]
 ${airSummary}
+
+[자외선·꽃가루]
+${uvSummary}
+${pollenSummary}
 
 ---
 

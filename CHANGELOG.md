@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.1.0] - 2026-07-13
+
+### Changed
+- **AI 리포트가 자외선·꽃가루를 실제 반영** (`app/api/report/route.ts`, `lib/prompts/report.ts`, `app/(main)/home/page.tsx`) — 기존엔 리포트에 weather·air만 넘겨, 프롬프트 few-shot에 있던 "자외선 강함→차단제"·"꽃가루 높음→마스크" 판단을 정작 실데이터 없이 추론만 했다. 리포트 입력에 자외선지수(오늘 최댓값)·꽃가루 위험지수(참나무·소나무 최댓값)를 추가해, 아토피·비염 등 체질과 실제 연관될 때 근거 있게 언급하도록 함. #83의 당일 고정 캐시 급변 감지(`envSignature`)에 자외선 강함(6)·꽃가루 높음(3) 경계 통과를 추가하고, 리포트 캐시 키 v10→v11로 구캐시 무효화
+- **홈 로딩 구조 개선** — 화면 셸·상단 카드·시간대 카드는 weather·air가 도착하면 즉시 표시(체감 로딩 단축)하고, AI 리포트는 자외선·꽃가루까지 4개 입력이 준비된 뒤 착수. 카드 렌더가 리포트 입력 대기에 막히지 않음
+
+### Added
+- **홈 로딩 지연 측정 스크립트** (`scripts/measure-home-latency.mjs`) — 각 외부 API 라우트와 Claude 리포트 호출을 라우트별로 실측. dev 서버 + `.env.local` 환경에서 실행
+
 ## [0.3.0.0] - 2026-07-13
 
 ### Added
