@@ -18,11 +18,24 @@
 
 ## 사용자 플로우 전체 순서
 
+핵심 원칙: **도착지는 진입 경로가 아니라 사용자 상태(로그인 여부 × 프로필 유무)로 결정한다.**
+모든 인증 성공(이메일 로그인·가입, Google OAuth — 로그인/가입 페이지 어디서든)은 공통 판단 지점
+`/auth/landing`을 거친다. (2026-07-13 재정의)
+
 ```
-신규: 랜딩(/) → 회원가입(/signup) → 온보딩(/onboarding, 7단계)
-      → 완료 화면 → 홈(/home)
-기존: 랜딩(/) → 로그인(/login) → 홈(/home, DB 프로필 자동 복원)
-      · 비밀번호 분실 시: 재설정 메일 → /reset-password → 홈
+랜딩(/) ─ 무료 시작 → 회원가입(/signup) ─┐
+        └─ 로그인 →   로그인(/login) ────┤ 인증 성공 (이메일·Google 공통)
+                                         ▼
+                            /auth/landing (판단 지점)
+      ① 게스트 시절 만든 로컬 프로필이 있으면 DB로 1회 이전 (§3 결정)
+      ② DB 프로필 있음 → 홈(/home, localStorage 복원)
+      ③ DB 프로필 없음 → 온보딩(/onboarding, 7단계) → 완료 화면 → 홈
+· 비밀번호 분실: 재설정 메일 → /auth/callback?next=/reset-password → 새 비밀번호 → 홈
+· 이메일 가입 후 세션이 없으면(이메일 인증 대기) 게스트 모드로 온보딩 진행,
+  첫 로그인 때 판단 지점에서 로컬 프로필이 DB로 이전됨
+· 홈 진입 가드: 로그인 상태인데 DB·로컬 어디에도 실프로필이 없으면 온보딩으로 유도
+  — 온보딩의 "나중에 이어서 하기 / 먼저 둘러볼게요"는 탭 세션 동안 예외(sessionStorage `aiday:browseHome`).
+  데모 프로필(지우·도윤)은 **비로그인 게스트 전용**이 된다
 → [탭] 환경정보 / 옷차림 / 건강팁 / 마이
 ```
 
@@ -33,8 +46,8 @@
 - 게스트도 온보딩 진입·프로필 저장 가능 (localStorage에만 — 로그인 상태가 아니면 DB 저장은 조용히 스킵됨)
 - ⚠️ 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 **실제로 호출됨** — 인증 게이트 없음, 토큰 비용 발생
 
-결정 확정됨 (2026-07-04, [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3 — 구현은 미착수):
-- [x] 게스트 → 가입 전환 시 localStorage 프로필을 DB로 이전한다 (가입·로그인 성공 직후 1회 업로드)
+결정 확정됨 (2026-07-04, [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3):
+- [x] 게스트 → 가입 전환 시 localStorage 프로필을 DB로 이전한다 (가입·로그인 성공 직후 1회 업로드) — ✅ 구현됨 (2026-07-13, `/auth/landing`에서 DB가 비어 있을 때 `uploadLocalProfilesToDb()`)
 - [x] 게스트의 AI 리포트 호출은 허용하되 IP 레이트리밋 적용 (기본 제안: 일 10회/IP)
 - [x] 데모 프로필에 "예시" 뱃지 표시, 첫 실프로필 등록 시 데모 제거
 
@@ -161,7 +174,8 @@ AI가 먼저 알려드려요
 - "먼저 둘러볼게요 →" 링크 → `/home`
 
 **조건:**
-- 가입 완료 → `/onboarding`
+- 가입 완료 → 세션 있으면 `/auth/landing`(판단 지점), 없으면(이메일 인증 대기) `/onboarding` (게스트 모드 진행)
+- Google 버튼 → `/auth/callback?next=/auth/landing` (로그인 페이지와 공용 — 기존 사용자가 눌러도 재온보딩되지 않음)
 - "먼저 둘러볼게요 →" → `/home` (게스트 모드)
 
 ---
@@ -174,12 +188,14 @@ AI가 먼저 알려드려요
   → 메일 링크는 `/auth/callback?next=/reset-password`로 세션 교환 후
   `/reset-password`(새 비밀번호 입력, `updateUser`)로 진입 (`app/reset-password/page.tsx`)
   - 링크 만료·직접 접근(세션 없음) 시 재요청 안내 화면 표시
-- Google 버튼은 가입/로그인 공용 (`signInWithOAuth`, 로그인 페이지는 `next=/home`)
-- 로그인 성공 시: `syncProfilesFromDb()`로 DB 프로필을 localStorage에 복원 →
-  프로필 있으면 `/home`, 없으면 `/onboarding`
+- Google 버튼은 가입/로그인 공용 (`signInWithOAuth`, 두 페이지 모두 `next=/auth/landing`)
+- 로그인 성공 시(이메일·Google 공통): `/auth/landing` 판단 지점에서 게스트 로컬 프로필 DB 이전 →
+  DB 프로필 있으면 `/home`(localStorage 복원), 없으면 `/onboarding` (2026-07-13 재정의 — 이전에는 구글 경로만 무조건 `/home`으로 가서 신규 구글 사용자에게 데모 프로필이 표시되는 버그가 있었음)
 - 랜딩 네비 `로그인` → `/login`으로 변경. 로그인↔회원가입 상호 링크 추가
 
-**DB 프로필 복원 (함께 구현):** `lib/profile.ts: syncProfilesFromDb()` 신설 — 로그인 상태면 DB 프로필로 localStorage를 덮어쓰고, 비로그인·DB 비어 있으면 로컬(게스트/데모) 유지. 홈·마이 페이지 진입 시 호출. 마이 삭제는 `removeProfileFromDb`로 DB에도 반영, 로그아웃(`signOut`)은 로컬 프로필 정리 후 랜딩으로 이동.
+**DB 프로필 복원:** `lib/profile.ts: fetchProfilesFromDb()` — 비로그인(no-auth)/조회 실패(error)/성공(ok)을 구분해 반환 (조회 실패를 빈 계정으로 오판해 온보딩으로 보내지 않기 위함). 홈은 이걸로 DB → localStorage 복원 + 진입 가드, 마이는 `syncProfilesFromDb()`(ok일 때만 복원) 사용. 마이 삭제는 `removeProfileFromDb`로 DB에도 반영, 로그아웃(`signOut`)은 로컬 프로필 정리 후 랜딩으로 이동.
+
+**인증 후 판단 지점 (`/auth/landing`) ✅ 신설 (2026-07-13):** 스피너 화면. 비로그인 → `/login`, DB 조회 실패 → 토스트 + `/home`(로컬 fallback), DB 비어 있고 게스트 로컬 프로필 있으면 `uploadLocalProfilesToDb()`로 1회 이전 후 재조회, 최종적으로 프로필 있으면 `/home`(localStorage·activeProfileId 복원), 없으면 `/onboarding`. `/auth/callback`의 기본 `next`도 이곳.
 
 **수용 기준:** 이메일 가입 → 로그아웃(또는 다른 브라우저) → 같은 계정으로 재로그인 → DB 프로필이 복원되어 홈에 표시된다. *(코드 경로 구현·검증 완료 — 실계정 E2E는 이메일 인증 포함 수동 확인 필요)*
 
@@ -696,8 +712,9 @@ Today's OOTD
 
 `id`(uuid, PK) · `user_id` · `name` · `emoji` · `gender` · `birth_year/month/day`(int) · `conditions`(text[]) · `condition_etc` · `cold_sensitivity` · `hot_sensitivity` · `sweat_level` · `schedule`(json) · `notif`(json) · `created_at`
 
-- 쓰기: 온보딩 완료 시 `saveProfileToDb()` (비로그인 시 조용히 스킵)
-- 읽기: `syncProfilesFromDb()`가 홈·마이 진입 시 DB → localStorage 복원 (DB 비어 있으면 로컬 유지)
+- 쓰기: 온보딩 완료 시 `saveProfileToDb()` (비로그인 시 조용히 스킵). id는 UUID 형식일 때만 전달 — 로컬 생성 id(`c-…`)·데모 id는 빼고 보내 DB가 uuid를 생성 (2026-07-13 수정: 이전에는 `c-…` id를 그대로 upsert해 uuid 파싱 오류로 저장이 조용히 실패)
+- 읽기: 홈은 `fetchProfilesFromDb()`(no-auth/error/ok 구분), 마이는 `syncProfilesFromDb()` — DB → localStorage 복원 (비로그인·조회 실패·DB 비어 있으면 로컬 유지)
+- 이전: `/auth/landing`에서 DB가 비어 있으면 게스트 로컬 프로필(데모 제외)을 `uploadLocalProfilesToDb()`로 1회 업로드
 - 삭제: 마이페이지 삭제 시 localStorage + DB(`removeProfileFromDb`) 동시 반영
 
 ### 프로필 값 포맷 규약 ⚠️ 현재 이원화 상태
@@ -724,7 +741,8 @@ Today's OOTD
 |------|--------|------|
 | `/` | 랜딩 | ✅ 완성 |
 | `/signup` | 회원가입 | ✅ Supabase Auth (이메일 + Google OAuth) |
-| `/login` | 로그인 | ✅ signInWithPassword + Google OAuth + DB 프로필 복원 |
+| `/login` | 로그인 | ✅ signInWithPassword + Google OAuth (성공 시 `/auth/landing`) |
+| `/auth/landing` | 인증 후 판단 지점 | ✅ 게스트 프로필 DB 이전 + 프로필 유무로 홈/온보딩 분기 |
 | `/reset-password` | 비밀번호 재설정 | ✅ 메일 링크 → 새 비밀번호 설정 |
 | `/onboarding` | 온보딩 7단계 | ✅ localStorage + Supabase DB 저장 |
 | `/home` | 홈 AI 리포트 | ✅ 날씨/AI 리포트 실연동, 🔧 추천 상품만 더미 |
@@ -754,6 +772,8 @@ Today's OOTD
 | 약관·개인정보처리방침 실문서 없음 | 🟢 낮음* | 푸터·가입 화면 링크가 `href="#"`. *아동 건강정보를 다루므로 출시 시점엔 차단 사항 — "데이터·API 계약 > 개인정보" 참고 |
 
 **이전에 기록됐던 아래 항목들은 해결된 상태입니다:**
+- ~~구글 로그인 시 데모 프로필(지우) 표시·온보딩 건너뜀~~ — 인증 후 공통 판단 지점 `/auth/landing` 신설, 상태 기반 분기 + 홈 진입 가드 (2026-07-13)
+- ~~온보딩 프로필 DB 저장 uuid 오류~~ — `profileToRow`가 UUID 형식 id만 전달하도록 수정 (2026-07-13)
 - ~~이메일 재로그인 불가~~ — `/login` 페이지 신설, `signInWithPassword` + 비밀번호 재설정(`/reset-password`) 구현 (2026-07-03)
 - ~~DB 프로필 읽기 미연결~~ — `syncProfilesFromDb()` 신설, 홈·마이 진입 시 DB→localStorage 복원. 마이 삭제 DB 반영 + 로그아웃 구현 (2026-07-03)
 - ~~라우트 불일치 `/env`~~ — 바텀탭·페이지 모두 `/env`로 통일됨 (`components/BottomNav.tsx`)

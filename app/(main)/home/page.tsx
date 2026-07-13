@@ -9,7 +9,14 @@ import { toast } from "sonner";
 import ItemIllustration from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
-import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
+import {
+  ChildProfile,
+  PROFILES_KEY,
+  allowBrowseHome,
+  fetchProfilesFromDb,
+  loadProfiles,
+  realLocalProfiles,
+} from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
@@ -146,14 +153,20 @@ const Home = () => {
     }
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)
+  // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응).
+  // 로그인했는데 DB도 로컬 실프로필도 없으면(온보딩 미완료) 데모 대신 온보딩으로 유도.
   useEffect(() => {
-    syncProfilesFromDb().then((list) => {
-      if (!list) return;
-      setProfiles(list);
-      setActive((prev) => (list.find((p) => p.id === prev) ? prev : list[0].id));
+    fetchProfilesFromDb().then((res) => {
+      if (res.status !== "ok") return; // 게스트·조회 실패 → 로컬 상태 유지
+      if (res.list.length) {
+        try { localStorage.setItem(PROFILES_KEY, JSON.stringify(res.list)); } catch {}
+        setProfiles(res.list);
+        setActive((prev) => (res.list.find((p) => p.id === prev) ? prev : res.list[0].id));
+      } else if (!realLocalProfiles().length && !allowBrowseHome()) {
+        router.replace("/onboarding");
+      }
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist active profile
   useEffect(() => {

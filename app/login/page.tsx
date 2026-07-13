@@ -9,7 +9,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
-import { syncProfilesFromDb } from "@/lib/profile";
 
 const Login = () => {
   const router = useRouter();
@@ -38,11 +37,9 @@ const Login = () => {
       );
       return;
     }
-    // DB 프로필이 있으면 localStorage로 복원 후 홈, 없으면 온보딩으로
-    const profiles = await syncProfilesFromDb();
-    setLoading(false);
     toast.success("다시 만나서 반가워요!");
-    router.push(profiles ? "/home" : "/onboarding");
+    // 홈/온보딩 분기는 인증 후 공통 판단 지점에서 수행
+    router.replace("/auth/landing");
   };
 
   const resetPassword = async () => {
@@ -61,7 +58,7 @@ const Login = () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${location.origin}/auth/callback?next=/home`,
+        redirectTo: `${location.origin}/auth/callback?next=/auth/landing`,
       },
     });
     if (error) toast.error(error.message);

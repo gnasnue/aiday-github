@@ -111,6 +111,30 @@ export const koreanGenderToCode = (label: string): Gender => {
   return "unknown";
 };
 
+// DB(uuid)에서 온 id인지 판별. 로컬 생성 id(c-…)·데모 id(demo-…)는 DB에 그대로 보내면
+// uuid 컬럼 파싱 오류가 나므로, upsert 시 id를 빼고 보내 신규 행으로 삽입되게 한다.
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isDbId = (id: string): boolean => UUID_RE.test(id);
+
+export const isDemoProfile = (p: ChildProfile): boolean =>
+  p.id.startsWith("demo-");
+
+// 사용자가 직접 만든 로컬 프로필(데모 제외)
+export const realLocalProfiles = (): ChildProfile[] =>
+  loadProfiles().filter((p) => !isDemoProfile(p));
+
+// 홈 진입 가드 우회 플래그(sessionStorage — 탭 세션 동안 유지).
+// 로그인했지만 프로필이 없는 사용자는 홈에서 온보딩으로 유도되는데,
+// 온보딩의 "나중에 이어서 하기/먼저 둘러볼게요"로 홈을 구경하는 경우는 예외로 둔다.
+const BROWSE_KEY = "aiday:browseHome";
+export const markBrowseHome = () => {
+  try { sessionStorage.setItem(BROWSE_KEY, "1"); } catch {}
+};
+export const allowBrowseHome = (): boolean => {
+  try { return sessionStorage.getItem(BROWSE_KEY) === "1"; } catch { return false; }
+};
+
 export const loadProfiles = (): ChildProfile[] => {
   try {
     const raw = localStorage.getItem(PROFILES_KEY);
@@ -174,7 +198,7 @@ type DbRow = {
 
 function profileToRow(p: ChildProfile, userId: string): DbRow {
   return {
-    id: p.id.startsWith("demo-") ? undefined : p.id,
+    id: isDbId(p.id) ? p.id : undefined,
     user_id: userId,
     name: p.name,
     emoji: p.emoji,
@@ -247,18 +271,43 @@ export async function syncProfilesFromDb(): Promise<ChildProfile[] | null> {
   return list;
 }
 
-export async function loadProfilesFromDb(): Promise<ChildProfile[]> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return [];
+// DB 프로필 조회 결과. 진입 분기(인증 후 판단 지점·홈 가드)가 "비로그인 / 조회 실패 /
+// 진짜 빈 계정"을 구분해야 하므로 상태를 함께 반환한다.
+// - no-auth: 비로그인(게스트) — 로컬 상태 유지
+// - error:   로그인 상태지만 조회 실패(네트워크 등) — 빈 계정으로 오판해 온보딩으로 보내면 안 됨
+// - ok:      조회 성공 (list가 비어 있으면 아직 아이 등록 전)
+export type DbProfilesResult =
+  | { status: "no-auth" }
+  | { status: "error" }
+  | { status: "ok"; list: ChildProfile[] };
+
+export async function fetchProfilesFromDb(): Promise<DbProfilesResult> {
+  // getSession은 로컬 저장소만 읽으므로 네트워크 오류로 로그인 상태를 오판하지 않는다
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) return { status: "no-auth" };
 
   const { data, error } = await supabase
     .from("children")
     .select("*")
-    .eq("user_id", user.id)
+    .eq("user_id", session.user.id)
     .order("created_at");
 
-  if (error || !data) return [];
-  return data.map(rowToProfile);
+  if (error || !data) return { status: "error" };
+  return { status: "ok", list: data.map(rowToProfile) };
+}
+
+export async function loadProfilesFromDb(): Promise<ChildProfile[]> {
+  const res = await fetchProfilesFromDb();
+  return res.status === "ok" ? res.list : [];
+}
+
+// 게스트 시절 만든 로컬 프로필(데모 제외)을 DB로 1회 이전.
+// DB가 비어 있을 때만 호출할 것 (중복 등록 방지는 호출부 책임). 성공 건수를 반환.
+export async function uploadLocalProfilesToDb(): Promise<number> {
+  const locals = realLocalProfiles();
+  if (!locals.length) return 0;
+  const results = await Promise.all(locals.map((p) => saveProfileToDb(p)));
+  return results.filter(Boolean).length;
 }
 
 export async function removeProfileFromDb(id: string): Promise<void> {
