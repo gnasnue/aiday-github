@@ -14,6 +14,7 @@ import {
   syncProfilesFromDb,
 } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { normalizeSensitivity, normalizeSweat } from "@/lib/profile-options";
 
 
 const sensitivityLabel: Record<string, string> = {
@@ -43,11 +44,13 @@ const ProfileCard = ({
   p,
   active,
   onSelect,
+  onEdit,
   onDelete,
 }: {
   p: ChildProfile;
   active: boolean;
   onSelect: () => void;
+  onEdit: () => void;
   onDelete: () => void;
 }) => {
   const birth = p.birth?.year
@@ -93,9 +96,9 @@ const ProfileCard = ({
       <dl className="mt-3 divide-y divide-border/60 border-t border-border/60 pt-1">
         <InfoRow label="생년월일" value={birth} />
         <InfoRow label="건강 정보" value={condStr} />
-        <InfoRow label="추위 민감도" value={sensitivityLabel[p.cold || ""]} />
-        <InfoRow label="더위 민감도" value={sensitivityLabel[p.hot || ""]} />
-        <InfoRow label="땀 분비" value={sweatLabel[p.sweat || ""]} />
+        <InfoRow label="추위 민감도" value={sensitivityLabel[normalizeSensitivity(p.cold)]} />
+        <InfoRow label="더위 민감도" value={sensitivityLabel[normalizeSensitivity(p.hot)]} />
+        <InfoRow label="땀 분비" value={sweatLabel[normalizeSweat(p.sweat)]} />
         <InfoRow label="등원 시간" value={sched.goSchool} />
         <InfoRow label="야외활동" value={range(sched.outdoorStart, sched.outdoorEnd)} />
         <InfoRow label="하원 시간" value={sched.leaveSchool} />
@@ -104,7 +107,7 @@ const ProfileCard = ({
 
       <div className="mt-3 flex gap-2">
         <button
-          onClick={() => toast("프로필 편집은 준비 중이에요")}
+          onClick={onEdit}
           className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-background text-xs font-medium text-foreground hover:bg-muted"
         >
           <Pencil className="h-3.5 w-3.5" /> 편집
@@ -232,6 +235,7 @@ const My = () => {
                     p={p}
                     active={p.id === active}
                     onSelect={() => select(p.id)}
+                    onEdit={() => router.push(`/me/edit/${encodeURIComponent(p.id)}`)}
                     onDelete={() => del(p.id)}
                   />
                 ))
