@@ -84,7 +84,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card shadow-soft px-5 py-4">
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
                   <p className="text-sm font-medium leading-relaxed text-foreground break-keep">{p}</p>
                 </div>
               ))}
@@ -100,7 +100,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
-                <div key={d.title} className="rounded-2xl bg-background p-5 shadow-soft flex items-start gap-4">
+                <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft flex items-start gap-4">
                   <div className="flex-shrink-0 mt-0.5">
                     <d.icon size={20} strokeWidth={1.75} className="text-accent" />
                   </div>
@@ -122,13 +122,12 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
-                <div key={i} className="rounded-2xl bg-background p-6 shadow-soft flex flex-col py-[14px]">
-                  <div className="text-2xl text-primary font-serif self-start mb-1">&ldquo;</div>
-                  <p className="text-sm leading-relaxed text-foreground text-center break-keep whitespace-pre-line px-2">
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                  <p className="text-sm leading-relaxed text-foreground break-keep whitespace-pre-line">
                     {r.text}
                   </p>
-                  <p className="mt-4 text-xs text-muted-foreground self-end">
-                    — {r.who}
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {r.who}
                   </p>
                 </div>
               ))}
