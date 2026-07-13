@@ -54,7 +54,7 @@ const ProfileCard = ({
   onDelete: () => void;
 }) => {
   const birth = p.birth?.year
-    ? `${p.birth.year}.${p.birth.month}.${p.birth.day}`
+    ? `${p.birth.year}.${p.birth.month}`
     : "";
   const conds = (p.conditions || []).filter(Boolean);
   const condStr = conds.length
@@ -94,7 +94,7 @@ const ProfileCard = ({
       </button>
 
       <dl className="mt-3 divide-y divide-border/60 border-t border-border/60 pt-1">
-        <InfoRow label="생년월일" value={birth} />
+        <InfoRow label="출생 연월" value={birth} />
         <InfoRow label="건강 정보" value={condStr} />
         <InfoRow label="추위 민감도" value={sensitivityLabel[normalizeSensitivity(p.cold)]} />
         <InfoRow label="더위 민감도" value={sensitivityLabel[normalizeSensitivity(p.hot)]} />

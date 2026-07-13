@@ -17,7 +17,7 @@ export type ChildProfile = {
   emoji: string;
   age: string;
   gender: Gender;
-  birth?: { year: string; month: string; day: string };
+  birth?: { year: string; month: string; day?: string };
   conditions?: string[];
   conditionEtc?: string;
   cold?: string;
@@ -48,9 +48,9 @@ const defaultProfiles: ChildProfile[] = [
     id: "demo-1",
     name: "지우",
     emoji: "👧",
-    age: "4세",
+    age: "만 4세",
     gender: "female",
-    birth: { year: "2022", month: "3", day: "3" },
+    birth: { year: "2022", month: "3" },
     conditions: ["아토피", "비염"],
     cold: "보통이에요",
     hot: "더위를 많이 타요",
@@ -67,9 +67,9 @@ const defaultProfiles: ChildProfile[] = [
     id: "demo-2",
     name: "도윤",
     emoji: "👦",
-    age: "2세",
+    age: "만 1세",
     gender: "male",
-    birth: { year: "2024", month: "7", day: "20" },
+    birth: { year: "2024", month: "7" },
     conditions: ["피부 민감"],
     cold: "추위를 많이 타요",
     hot: "보통이에요",
@@ -93,13 +93,21 @@ export const defaultAlerts: AlertSettings = {
   uvHigh: false,
 };
 
-export const calcAge = (year?: string): string => {
+// 만 나이 계산. 월(月)이 있으면 생일 달이 아직 안 지난 해는 1 차감해 정확한
+// 만 나이를 낸다(연령군 규칙 세트가 만 나이 기준). 월이 없으면(구 데이터·손상)
+// 연 나이로 폴백한다. 일(日)은 개인정보 최소수집 원칙에 따라 수집하지 않으므로,
+// 생일 당월(현재 월 == 생월)은 아직 생일 전으로 보수적으로 간주한다 — 케어
+// 가이드는 나이를 낮게 잡는 쪽이 안전하기 때문.
+export const calcAge = (year?: string, month?: string): string => {
   if (!year) return "";
   const y = parseInt(year, 10);
   if (Number.isNaN(y)) return "";
-  const now = new Date().getFullYear();
-  const age = Math.max(0, now - y);
-  return `${age}세`;
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  const m = month ? parseInt(month, 10) : NaN;
+  if (!Number.isNaN(m) && now.getMonth() + 1 <= m) age -= 1;
+  age = Math.max(0, age);
+  return `만 ${age}세`;
 };
 
 export const genderToEmoji = (g: Gender): string =>
@@ -232,12 +240,18 @@ function rowToProfile(row: Record<string, unknown>): ChildProfile {
     name: row.name as string,
     emoji: row.emoji as string,
     gender: (row.gender as Gender) ?? "unknown",
-    age: row.birth_year ? calcAge(String(row.birth_year)) : "",
+    age: row.birth_year
+      ? calcAge(
+          String(row.birth_year),
+          row.birth_month != null ? String(row.birth_month) : undefined
+        )
+      : "",
     birth: row.birth_year
       ? {
           year: String(row.birth_year),
           month: String(row.birth_month ?? ""),
-          day: String(row.birth_day ?? ""),
+          // 일(日)은 더 이상 수집하지 않는다. 구 데이터에 값이 있을 때만 채운다.
+          ...(row.birth_day != null ? { day: String(row.birth_day) } : {}),
         }
       : undefined,
     conditions: (row.conditions as string[]) ?? [],

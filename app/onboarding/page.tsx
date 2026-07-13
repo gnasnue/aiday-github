@@ -36,7 +36,6 @@ type State = {
   name: string;
   year: string;
   month: string;
-  day: string;
   gender: string;
   conds: string[];
   condEtc: string;
@@ -62,7 +61,6 @@ const defaultState: State = {
   name: "",
   year: "",
   month: "",
-  day: "",
   gender: "",
   conds: [],
   condEtc: "",
@@ -117,9 +115,9 @@ const Onboarding = () => {
       id: `c-${Date.now()}`,
       name: s.name.trim(),
       emoji: genderToEmoji(gender),
-      age: calcAge(s.year),
+      age: calcAge(s.year, s.month),
       gender,
-      birth: { year: s.year, month: s.month, day: s.day },
+      birth: { year: s.year, month: s.month },
       conditions: s.conds,
       conditionEtc: s.condEtc,
       cold: s.cold,
@@ -162,7 +160,7 @@ const Onboarding = () => {
 
   const next = () => {
     if (step === 1 && !s.name.trim()) return toast.error("아이 이름을 입력해주세요");
-    if (step === 2 && (!s.year || !s.month || !s.day)) return toast.error("생년월일을 모두 선택해주세요");
+    if (step === 2 && (!s.year || !s.month)) return toast.error("태어난 연도와 월을 선택해주세요");
     if (step === 3 && !s.gender) return toast.error("성별을 선택해주세요");
     if (step === 4 && s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
     if (step === 5 && (!s.cold || !s.hot || !s.sweat)) return toast.error("세 항목 모두 선택해주세요");
@@ -226,7 +224,7 @@ const Onboarding = () => {
       q: `${nm}는 언제 태어났나요? 🎂`,
       hint: "월령에 따라 적절한 건강 정보가 달라져요",
       node: (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Select value={s.year} onValueChange={(v) => update({ year: v })}>
             <SelectTrigger className="h-12"><SelectValue placeholder="년" /></SelectTrigger>
             <SelectContent>
@@ -241,14 +239,6 @@ const Onboarding = () => {
             <SelectContent>
               {Array.from({ length: 12 }).map((_, i) => (
                 <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}월</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={s.day} onValueChange={(v) => update({ day: v })}>
-            <SelectTrigger className="h-12"><SelectValue placeholder="일" /></SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 31 }).map((_, i) => (
-                <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}일</SelectItem>
               ))}
             </SelectContent>
           </Select>
