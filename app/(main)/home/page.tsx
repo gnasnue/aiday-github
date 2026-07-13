@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
+import { buildTimeline, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
+import { buildPrepKeywords } from "@/lib/prep";
 
 const items: { art: ItemArt; name: string; price: string }[] = [
   { art: "muffler", name: "유아 면 목수건", price: "9,900원" },
@@ -42,12 +44,17 @@ const GOOD_VALUES = ["좋음", "낮음", "적정"];
 const badgeTone = (tone: "ok" | "warn", value: string): StatusTone =>
   tone === "warn" ? "warn" : GOOD_VALUES.includes(value) ? "good" : "neutral";
 
-/* ---- 이모지 → 라인 아이콘 매핑 (표시 계층 전용) ---- */
+/* ---- 하늘상태(SKY/PTY) → 날씨 아이콘 (표시 계층 전용) ---- */
 
-// 시간대 날씨 아이콘 (mock 데이터의 이모지는 유지, 표시만 교체)
-const weatherIcon = (emoji: string) => (
-  <LineIcon name={emoji.includes("☀") ? "sun" : "cloudsun"} size={24} className="text-muted-foreground" />
-);
+// 시간대별 카드 아이콘: 실제 예보의 SKY/PTY를 반영해 슬롯마다 다르게 표시
+// SKY 1=맑음 3=구름많음 4=흐림 / PTY 0=없음 1=비 2=비/눈 3=눈 4=소나기
+const skySlotIcon = (sky: number | null, pty: number | null) => {
+  const props = { size: 24, strokeWidth: 1.5, className: "text-muted-foreground" } as const;
+  if (pty && pty > 0) return pty === 3 ? <CloudSnow {...props} /> : <CloudRain {...props} />;
+  if (sky === 1) return <Sun {...props} />;
+  if (sky === 4) return <Cloud {...props} />;
+  return <CloudSun {...props} />; // 구름많음(3) 및 기본값
+};
 
 // 체크리스트 아이콘: AI가 "☂️ 우산" 형태로 동적 생성하므로 키워드 매핑 + fallback
 const checklistIcon = (icon: string, text: string) => {
@@ -113,9 +120,24 @@ const Home = () => {
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  const [envRaw, setEnvRaw] = useState<EnvRaw | null>(null);
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
+  const [aiPrep, setAiPrep] = useState<Record<string, string[]>>({});
+  // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지
+  const [prepVariant] = useState<"rule" | "ai">(() => {
+    try {
+      const q = new URLSearchParams(window.location.search).get("prep");
+      if (q === "ai" || q === "rule") {
+        localStorage.setItem("aiday:prepVariant", q);
+        return q;
+      }
+      return localStorage.getItem("aiday:prepVariant") === "ai" ? "ai" : "rule";
+    } catch {
+      return "rule";
+    }
+  });
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(false);
   const weatherRawRef = useRef<object | null>(null);
@@ -149,17 +171,29 @@ const Home = () => {
     const fetchEnv = async () => {
       setLoading(true);
       try {
-        const [weatherRes, airRes] = await Promise.allSettled([
+        const [weatherRes, airRes, uvRes, pollenRes] = await Promise.allSettled([
           fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
           fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+          fetch("/api/uv?region=서울").then((r) => r.json()),
+          fetch("/api/pollen?region=서울").then((r) => r.json()),
         ]);
 
         const w = weatherRes.status === "fulfilled" ? weatherRes.value : null;
         const a = airRes.status === "fulfilled" ? airRes.value : null;
+        const u = uvRes.status === "fulfilled" ? uvRes.value : null;
+        const po = pollenRes.status === "fulfilled" ? pollenRes.value : null;
 
         // Cache raw API responses for use in fetchReport (T4: avoid duplicate fetch)
         weatherRawRef.current = w;
         airRawRef.current = a;
+
+        // 시간대별 카드용 원시 환경 데이터 (error 응답은 null 처리 → 슬롯 기본값)
+        setEnvRaw({
+          weather: w && !w.error ? w : null,
+          air: a && !a.error ? a : null,
+          uv: u && !u.error ? u : null,
+          pollen: po && !po.error ? po : null,
+        });
 
         if (w && !w.error) {
           const dustGrade = a?.pm10Grade ?? 1;
@@ -194,8 +228,8 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     const today = new Date().toISOString().slice(0, 10);
-    // v7: 모델 전환(Haiku→Sonnet 5) — 구모델 캐시 무효화
-    const cacheKey = `aiday:report:v7:${cur.id}:${today}`;
+    // v8: 시간대별 준비물(prep) 필드 추가 — 구스키마 캐시 무효화
+    const cacheKey = `aiday:report:v8:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
@@ -204,6 +238,7 @@ const Home = () => {
           setAiHook(cached.hook ?? "");
           setAiMessage(cached.message);
           if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
+          setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
           setAiLoading(false);
           return;
         }
@@ -251,8 +286,9 @@ const Home = () => {
           if (Array.isArray(data.checklist) && data.checklist.length > 0) {
             setAiChecklist(data.checklist);
           }
+          setAiPrep(data.prep && typeof data.prep === "object" ? data.prep : {});
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], ts: Date.now() }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], prep: data.prep ?? {}, ts: Date.now() }));
           } catch {}
         } else {
           // 200이지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
@@ -277,6 +313,7 @@ const Home = () => {
     if (!loading) {
       setAiLoading(true);
       setAiHook("");
+      setAiPrep({});
       setAiError(false);
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -285,6 +322,47 @@ const Home = () => {
     () => buildRecommendation(cur, weatherData),
     [cur, weatherData]
   );
+
+  // 시간대별 환경: 활성 프로필의 일과 + 실측 데이터로 구성. 실데이터가 없으면 mock.
+  const timeline = useMemo<HomeTimeSlot[] | null>(
+    () => (envRaw ? buildTimeline(cur?.schedule, envRaw) : null),
+    [envRaw, cur?.schedule]
+  );
+
+  // 렌더용 슬롯: 실데이터 없으면 mock을 동일 형태(sky/pty=null)로 변환해 폴백
+  const displaySlots = useMemo<HomeTimeSlot[]>(() => {
+    if (timeline) return timeline;
+    return mockWeather.timeline.map((t) => ({
+      time: t.time,
+      hour: t.hour,
+      sky: null,
+      pty: null,
+      pop: null,
+      temp: t.temp,
+      feels: t.feels,
+      dust: t.dust,
+      uv: t.uv,
+      pollen: t.pollen,
+      humidity: t.humidity,
+      wind: t.wind,
+    }));
+  }, [timeline]);
+
+  // 슬롯별 준비물 키워드 (A/B): rule=로컬 규칙 엔진, ai=Claude prep 필드
+  // AI 변형에서 prep이 비면(로딩 중·미지원 응답) 규칙 기반으로 폴백해 빈 화면을 막는다
+  const AI_PREP_KEY: Record<string, string> = { 등원시간: "등원", 야외활동: "야외활동", 하원시간: "하원", 저녁: "저녁" };
+  const slotPrep = useMemo<Record<string, string[]>>(() => {
+    const map: Record<string, string[]> = {};
+    displaySlots.forEach((slot, i) => {
+      const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
+      map[slot.time] =
+        prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
+          ? fromAi.slice(0, 2)
+          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions);
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displaySlots, aiPrep, prepVariant, cur?.conditions]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;
@@ -531,7 +609,7 @@ const Home = () => {
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-44 w-[150px] shrink-0 rounded-2xl" />
                   ))
-                : mockWeather.timeline.map((t) => (
+                : displaySlots.map((t) => (
                     <article
                       key={t.time}
                       className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 transition-smooth hover:border-foreground/30 hover:shadow-soft"
@@ -541,7 +619,7 @@ const Home = () => {
                           <p className="text-sm font-semibold tracking-[-0.01em]">{t.time}</p>
                           <p className="text-[11px] tabular text-muted-foreground">{t.hour}</p>
                         </div>
-                        {weatherIcon(t.icon)}
+                        {skySlotIcon(t.sky, t.pty)}
                       </div>
                       <div className="mt-3 flex items-baseline gap-1">
                         <span className="num text-[26px] leading-none">{t.temp}°</span>
@@ -557,6 +635,10 @@ const Home = () => {
                           // 수치는 임계값 초과 시에만 warn, 아니면 neutral (good 없음)
                           ["습도", `${t.humidity}%`, t.humidity <= 40 ? "warn" : "neutral"],
                           ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],
+                          // 강수확률: 우산 키워드의 근거 지표 — 데이터 있을 때만 노출
+                          ...(t.pop != null
+                            ? [["강수확률", `${t.pop}%`, t.pop >= 60 ? "warn" : "neutral"] as [string, string, StatusTone]]
+                            : []),
                         ] as [string, string, StatusTone][]).map(([k, v, tone]) => (
                           <div key={k} className="flex items-center justify-between">
                             <dt className="text-muted-foreground">{k}</dt>
@@ -573,6 +655,23 @@ const Home = () => {
                           </div>
                         ))}
                       </dl>
+                      {/* 준비물 키워드 — 튀는 환경이 있는 슬롯에만 표시 (A/B: 규칙/AI) */}
+                      {(slotPrep[t.time]?.length ?? 0) > 0 && (
+                        <>
+                          <div className="my-3 h-px bg-border/60" />
+                          <div className="flex flex-wrap gap-1">
+                            {slotPrep[t.time].map((k) => (
+                              <span
+                                key={k}
+                                className="inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[10px] font-semibold chip-warn"
+                              >
+                                <span className="h-1 w-1 shrink-0 rounded-full bg-current" aria-hidden="true" />
+                                {k}
+                              </span>
+                            ))}
+                          </div>
+                        </>
+                      )}
                     </article>
                   ))}
             </div>

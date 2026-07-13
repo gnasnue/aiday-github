@@ -85,7 +85,9 @@ export async function GET(request: NextRequest) {
 
   const params = new URLSearchParams({
     serviceKey: apiKey,
-    numOfRows: "100",
+    // 이른 발표 시각(예: 0200)에서도 당일 21시까지 전 시간대 예보를 확보하려면
+    // 넉넉한 행 수가 필요하다. 100행은 ~7시간분이라 오후 슬롯이 잘린다.
+    numOfRows: "1000",
     pageNo: "1",
     dataType: "JSON",
     base_date,
