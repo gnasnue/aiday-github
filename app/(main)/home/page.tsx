@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -23,6 +23,49 @@ import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
 import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
+
+/* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
+
+// 로컬(기기) 기준 YYYY-MM-DD — toISOString은 UTC 기준이라 KST 자정~09시 사이에
+// 어제 날짜가 되어 캐시가 오전 9시에 엉뚱하게 갈리는 문제를 피한다
+const localDateStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+// 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
+type EnvSignature = {
+  rain: string; // 시각별 강수 형태 유무 ("06:00:0,09:00:1,...")
+  maxPop: number; // 하루 최대 강수확률
+  dustBad: boolean; // 미세먼지 나쁨(3) 이상 여부
+  temps: Record<string, number>; // 시각별 기온
+};
+
+const envSignature = (
+  w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null }[] } | null,
+  a: { pm10Grade?: number | null } | null
+): EnvSignature => {
+  const hours = w?.hourlyForecast ?? [];
+  return {
+    rain: hours.map((h) => `${h.hour}:${h.pty && h.pty > 0 ? 1 : 0}`).join(","),
+    maxPop: hours.reduce((m, h) => Math.max(m, h.pop ?? 0), 0),
+    dustBad: (a?.pm10Grade ?? 1) >= 3,
+    temps: Object.fromEntries(hours.map((h) => [h.hour, h.temp])),
+  };
+};
+
+// 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 미세먼지 나쁨 경계 통과 ·
+// 같은 시각 기온 예보 3°C 이상 변동. 스냅샷이 없는 구캐시는 급변 아님으로 취급.
+const envChanged = (prev: EnvSignature | undefined, cur: EnvSignature): boolean => {
+  if (!prev) return false;
+  if (prev.rain !== cur.rain) return true;
+  if (Math.abs((prev.maxPop ?? 0) - cur.maxPop) >= 30) return true;
+  if (!!prev.dustBad !== cur.dustBad) return true;
+  return Object.entries(cur.temps).some(([h, t]) => {
+    const pt = prev.temps?.[h];
+    return typeof pt === "number" && Math.abs(pt - t) >= 3;
+  });
+};
 
 /* ---- 상태 3단계 (good/neutral/warn) — 표시 계층 전용 매핑 ---- */
 type StatusTone = "good" | "neutral" | "warn";
@@ -146,6 +189,10 @@ const Home = () => {
   });
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState(false);
+  // 현재 표시 중인 리포트의 생성 시각 — 헤더에 "7월 13일 (월) 07:30" 형태로 노출
+  const [reportTs, setReportTs] = useState<number | null>(null);
+  const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
+  const lastManualRefreshRef = useRef(0);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
 
@@ -234,9 +281,7 @@ const Home = () => {
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
 
   // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
-  const prepFrozenKey = cur
-    ? `aiday:prepFrozen:v1:${cur.id}:${new Date().toISOString().slice(0, 10)}`
-    : null;
+  const prepFrozenKey = cur ? `aiday:prepFrozen:v1:${cur.id}:${localDateStr()}` : null;
   useEffect(() => {
     if (!prepFrozenKey) return;
     try {
@@ -246,31 +291,43 @@ const Home = () => {
     }
   }, [prepFrozenKey]);
 
-  const REPORT_CACHE_TTL = 5 * 60 * 1000;
+  // 수동 새로고침 쿨다운 — 중복 탭으로 인한 불필요한 Claude 호출(비용) 방지
+  const REFRESH_COOLDOWN = 60 * 1000;
 
-  // Claude AI 리포트 (T5: 5분 localStorage 캐시)
+  // Claude AI 리포트 — 당일 고정 캐시. 아침에 만든 브리핑을 하루 내내 유지하고,
+  // 환경 급변(envChanged) 또는 수동 새로고침일 때만 재생성한다 (일관성 + 비용).
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    const today = new Date().toISOString().slice(0, 10);
-    // v8: 시간대별 준비물(prep) 필드 추가 — 구스키마 캐시 무효화
-    const cacheKey = `aiday:report:v9:${cur.id}:${today}`;
+    // v10: 5분 TTL → 당일 고정 + 환경 스냅샷(env)·생성시각(ts) 추가 — 구스키마 캐시 무효화
+    const cacheKey = `aiday:report:v10:${cur.id}:${localDateStr()}`;
 
     const fetchReport = async () => {
+      const force = forceRefreshRef.current;
+      forceRefreshRef.current = false;
+      let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
       try {
-        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
-        if (cached && Date.now() - cached.ts < REPORT_CACHE_TTL && cached.message && Array.isArray(cached.checklist)) {
-          setAiHook(cached.hook ?? "");
-          setAiMessage(cached.message);
-          if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-          setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
-          setAiLoading(false);
-          return;
-        }
-
         // T4: use cached weather/air from fetchEnv instead of re-fetching
         const w = weatherRawRef.current ?? {};
         const a = airRawRef.current as { error?: string; pm10Grade?: number } | null;
+        const sig = envSignature(
+          w as Parameters<typeof envSignature>[0],
+          a?.error ? null : a
+        );
+
+        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+        if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
+          if (!envChanged(cached.env, sig)) {
+            setAiHook(cached.hook ?? "");
+            setAiMessage(cached.message);
+            if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
+            setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
+            setReportTs(typeof cached.ts === "number" ? cached.ts : null);
+            setAiLoading(false);
+            return;
+          }
+          regenerating = true;
+        }
 
         const res = await fetch("/api/report", {
           method: "POST",
@@ -312,9 +369,12 @@ const Home = () => {
             setAiChecklist(data.checklist);
           }
           setAiPrep(data.prep && typeof data.prep === "object" ? data.prep : {});
+          const now = Date.now();
+          setReportTs(now);
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], prep: data.prep ?? {}, ts: Date.now() }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], prep: data.prep ?? {}, ts: now, env: sig }));
           } catch {}
+          if (regenerating) toast("날씨가 바뀌어 브리핑을 새로 썼어요");
         } else {
           // 200이지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
           console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
@@ -342,6 +402,21 @@ const Home = () => {
       setAiError(false);
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 수동 새로고침 — 당일 캐시를 건너뛰고 즉시 재생성
+  const refreshReport = () => {
+    if (aiLoading || loading) return;
+    const now = Date.now();
+    if (now - lastManualRefreshRef.current < REFRESH_COOLDOWN) {
+      toast("방금 갱신했어요");
+      return;
+    }
+    lastManualRefreshRef.current = now;
+    forceRefreshRef.current = true;
+    setAiHook("");
+    setAiError(false);
+    setAiLoading(true);
+  };
 
   const recommendation = useMemo(
     () => buildRecommendation(cur, weatherData),
@@ -551,7 +626,18 @@ const Home = () => {
                     )}
                     <span className="num text-[11px] text-muted-foreground">
                       {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
+                      {/* 브리핑 생성 시각 — "이 브리핑이 언제 작성됐는지" 신뢰 단서 */}
+                      {reportTs != null &&
+                        ` ${new Date(reportTs).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })}`}
                     </span>
+                    <button
+                      onClick={refreshReport}
+                      disabled={aiLoading}
+                      aria-label="리포트 새로고침"
+                      className="-my-3 -mr-2.5 rounded-full p-3 text-muted-foreground transition-smooth hover:bg-muted disabled:opacity-40"
+                    >
+                      <RefreshCw className="h-5 w-5" strokeWidth={1.75} />
+                    </button>
                   </div>
                 </div>
 

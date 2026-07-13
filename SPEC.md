@@ -412,7 +412,7 @@ components/CharacterReport.tsx와 /images/character-*.png는 보존 — 베타 �
   - `checklist`: 3~4개, "이모지 짧은이름" 형식
 - **입력 컨텍스트:** 아이 정보(이름·나이·성별·건강 특이사항·체온 민감도) + 오늘 일정별 날씨(등원/야외활동/하원/저녁 시간대 매핑) + 현재 대기질(PM10/PM2.5/통합대기 등급)
 - **파싱 안전장치:** 코드블록 제거 → JSON.parse, 실패 시 `{}` 블록 직접 추출 재시도, 최종 실패 시 빈 응답 반환 → 클라이언트가 `lib/recommendation-engine.ts`의 규칙 기반 fallback 사용
-- **캐싱:** 클라이언트에서 아이 ID + 날짜별로 localStorage 5분 캐시 (`app/(main)/home/page.tsx: REPORT_CACHE_TTL`)
+- **캐싱:** 클라이언트에서 아이 ID + 날짜별 localStorage **당일 고정** 캐시 (`aiday:report:v10:{childId}:{YYYY-MM-DD}`). 아침 첫 생성본을 하루 내내 유지하고, 생성 시점 환경 스냅샷(`env`) 대비 **급변**(비 소식 생김/사라짐, 강수확률 ±30%p, 미세먼지 나쁨 경계 통과, 같은 시각 기온 ±3°C)일 때만 자동 재생성. 헤더에 생성 시각 표시 + 수동 새로고침 버튼(60초 쿨다운) 제공 (`app/(main)/home/page.tsx: envSignature/envChanged/refreshReport`)
 
 ---
 
@@ -692,7 +692,7 @@ Today's OOTD
 | `/api/air` | GET | `station`(종로구) | `pm10, pm25, pm10Grade, pm25Grade, khai, khaiGrade, o3, no2, stationName, dataTime` (등급: 1좋음~4매우나쁨) | 1시간 |
 | `/api/pollen` | GET | `region`(서울, 시/도명) | `oak, pine, weed, region, date` — ⚠️ `weed`는 **항상 null** (기상청 V3에 잡초 오퍼레이션 없음) | 6시간 |
 | `/api/uv` | GET | `region`(서울) | `uvi, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산, 당일 자료 없으면 24시간 전 fallback | 1시간 |
-| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 5분) |
+| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
 
 - 공통 에러: API 키 미설정 503 / 업스트림 오류 502 / 파싱·기타 500 (+ air는 측정 데이터 없음 404). 클라이언트는 `error` 필드 유무로 판별
 - 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), `ANTHROPIC_BASE_URL`(report, 선택 — AI 게이트웨이/프록시 엔드포인트, 미설정 시 기본 주소), Supabase 키
@@ -706,7 +706,8 @@ Today's OOTD
 | `aiweather:profiles` | ChildProfile[] 전체 | `lib/profile.ts` |
 | `aiweather:activeProfileId` | 선택된 아이 ID | 홈/환경/옷차림/팁/마이/온보딩 |
 | `aiweather:onboarding` | 온보딩 진행 상태 (단계+입력값, 완료 시 삭제) | 온보딩 |
-| `aiday:report:v6:{childId}:{YYYY-MM-DD}` | AI 리포트 5분 캐시 (`hook, message, checklist, ts`) | 홈 |
+| `aiday:report:v10:{childId}:{YYYY-MM-DD}` | AI 리포트 당일 고정 캐시 (`hook, message, checklist, prep, ts, env` — env는 급변 판정용 환경 스냅샷) | 홈 |
+| `aiday:prepFrozen:v1:{childId}:{YYYY-MM-DD}` | 지나간 시간대 슬롯의 AI 준비물 고정값 | 홈 |
 
 > ⚠️ 네임스페이스가 `aiweather:`와 `aiday:`로 혼재 — **`aiday:`로 통일하기로 확정** (1회성 마이그레이션 포함, 프로필 포맷 정규화 작업에서 처리 — [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3-4)
 
