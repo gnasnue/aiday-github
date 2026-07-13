@@ -98,28 +98,46 @@ export async function GET(request: NextRequest) {
     const item = items[0];
 
     // item.date(YYYYMMDDHH)는 실제 발표 시각. h0/h3/h6...h75는 발표 시각 기준
-    // 3시간 단위 오프셋 필드라 h22 같은 키는 존재하지 않음 — "지금"이 발표
+    // 3시간 단위 오프셋 필드라 h22 같은 키는 존재하지 않음 — 특정 시각이 발표
     // 시각으로부터 몇 시간 지났는지 계산해 가장 가까운 3시간 배수로 내림
     const announced = item.date ?? "";
     const announcedDateStr = announced.slice(0, 8);
     const announcedHour = parseInt(announced.slice(8, 10), 10) || 0;
-
-    const nowMs = Date.now() + 9 * 60 * 60 * 1000;
     const announcedMs = Date.UTC(
       Number(announcedDateStr.slice(0, 4)),
       Number(announcedDateStr.slice(4, 6)) - 1,
       Number(announcedDateStr.slice(6, 8)),
       announcedHour
     );
-    const elapsedHours = Math.max(0, Math.round((nowMs - announcedMs) / (60 * 60 * 1000)));
-    const offset = Math.min(75, Math.floor(elapsedHours / 3) * 3);
-    const hourKey = `h${offset}`;
 
-    const raw = item[hourKey];
-    const uvValue = raw && raw !== "-" ? Number(raw) : null;
+    // 임의의 KST 시각(epoch)에 해당하는 자외선지수를 오프셋 필드에서 추출
+    const uviAt = (targetMs: number): number | null => {
+      const elapsed = Math.round((targetMs - announcedMs) / (60 * 60 * 1000));
+      if (elapsed < 0) return null; // 발표 이전(주로 이른 새벽) — 값 없음
+      const offset = Math.min(75, Math.floor(elapsed / 3) * 3);
+      const raw = item[`h${offset}`];
+      const v = raw && raw !== "-" ? Number(raw) : null;
+      return v !== null && !Number.isNaN(v) ? v : null;
+    };
+
+    const nowMs = Date.now() + 9 * 60 * 60 * 1000;
+    const uvValue = uviAt(nowMs);
+
+    // 홈 시간대별 카드용: 오늘 3시간 단위 시각별 지수 맵 ("6" → 값)
+    const todayMidnightMs = Date.UTC(
+      Number(todayStr.slice(0, 4)),
+      Number(todayStr.slice(4, 6)) - 1,
+      Number(todayStr.slice(6, 8)),
+      0
+    );
+    const hourly: Record<string, number | null> = {};
+    for (const h of [0, 3, 6, 9, 12, 15, 18, 21]) {
+      hourly[String(h)] = uviAt(todayMidnightMs + h * 60 * 60 * 1000);
+    }
 
     return NextResponse.json({
-      uvi: uvValue !== null && !Number.isNaN(uvValue) ? uvValue : null,
+      uvi: uvValue,
+      hourly,
       region,
       date: announcedDateStr || todayStr,
     });

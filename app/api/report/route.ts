@@ -193,32 +193,31 @@ export async function POST(req: NextRequest) {
     const raw =
       response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
 
+    // 파싱 결과 → 응답 페이로드 (prep: 시간대별 준비물 키워드, 슬롯명 → 키워드[])
+    type Parsed = { hook?: string; message?: string; checklist?: string[]; prep?: Record<string, string[]> };
+    const toPayload = (parsed: Parsed) => ({
+      hook: parsed.hook ?? "",
+      message: parsed.message ?? "",
+      checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+      prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
+    });
+
     // 1차: 코드블록 제거 후 JSON 파싱
     try {
       const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
       const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw;
-      const parsed = JSON.parse(jsonStr) as { hook?: string; message?: string; checklist?: string[] };
-      return NextResponse.json({
-        hook: parsed.hook ?? "",
-        message: parsed.message ?? "",
-        checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
-      });
+      return NextResponse.json(toPayload(JSON.parse(jsonStr) as Parsed));
     } catch {
       // 2차: { } 블록 직접 추출
       const braceMatch = raw.match(/\{[\s\S]*\}/);
       if (braceMatch) {
         try {
-          const parsed = JSON.parse(braceMatch[0]) as { hook?: string; message?: string; checklist?: string[] };
-          return NextResponse.json({
-            hook: parsed.hook ?? "",
-            message: parsed.message ?? "",
-            checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
-          });
+          return NextResponse.json(toPayload(JSON.parse(braceMatch[0]) as Parsed));
         } catch {}
       }
       // 최후: 빈 응답 → 클라이언트가 recommendation-engine 사용
       console.error("[AI report] JSON 파싱 실패 — 모델 원문(앞 500자):", raw.slice(0, 500));
-      return NextResponse.json({ hook: "", message: "", checklist: [] });
+      return NextResponse.json({ hook: "", message: "", checklist: [], prep: {} });
     }
   } catch (err) {
     // 어떤 엔드포인트로 호출했는지 로그에 남겨 게이트웨이 설정 문제와 일반 장애를 즉시 구분한다.
