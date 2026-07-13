@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
   const client = new Anthropic({ apiKey, baseURL });
 
   const body = await req.json();
-  const { child, weather, air } = body as {
+  const { child, weather, air, uv, pollen } = body as {
     child: {
       name: string;
       age: string;
@@ -110,12 +110,33 @@ export async function POST(req: NextRequest) {
       pm25Grade: number | null;
       khaiGrade: number | null;
     } | null;
+    uv: { uvi: number | null; hourly?: Record<string, number | null> } | null;
+    pollen: { oak: number | null; pine: number | null; weed: number | null } | null;
   };
 
   // ── 환경 요약 ──────────────────────────────────────────────
   const airSummary = air
     ? `PM10 ${air.pm10 ?? "?"}μg/m³(${gradeLabel(air.pm10Grade)}), PM2.5 ${air.pm25 ?? "?"}μg/m³(${gradeLabel(air.pm25Grade)}), 통합대기 ${gradeLabel(air.khaiGrade)}`
     : "대기질 데이터 없음";
+
+  // 자외선지수(UVI) → 라벨 (홈 시간대 카드와 동일 임계값). 오늘 최댓값 기준으로 요약해
+  // "야외활동 시간에 강해지는지"를 리포트가 판단할 수 있게 한다.
+  const uvLabel = (v: number | null) =>
+    v == null ? null : v >= 8 ? "매우강함" : v >= 6 ? "강함" : v >= 3 ? "보통" : "낮음";
+  const uvHourly = uv?.hourly ? Object.values(uv.hourly).filter((v): v is number => v != null) : [];
+  const uvPeak = uvHourly.length ? Math.max(...uvHourly) : uv?.uvi ?? null;
+  const uvSummary =
+    uvPeak != null ? `자외선지수 ${uvPeak} (${uvLabel(uvPeak)})` : "자외선 데이터 없음";
+
+  // 꽃가루 위험지수(0~4) → 라벨. 참나무·소나무·잡초 중 최댓값 기준.
+  const pollenLabel = (g: number | null) =>
+    g == null ? null : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+  const pollenVals = pollen
+    ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
+    : [];
+  const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
+  const pollenSummary =
+    pollenMax != null ? `꽃가루 위험지수 ${pollenMax} (${pollenLabel(pollenMax)})` : "꽃가루 데이터 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
@@ -181,6 +202,8 @@ export async function POST(req: NextRequest) {
     tempSensitivity,
     scheduleSummary,
     airSummary,
+    uvSummary,
+    pollenSummary,
   });
 
   try {
