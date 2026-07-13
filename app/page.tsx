@@ -138,6 +138,25 @@ export default function IndexPage() {
           </div>
         </section>
 
+        {/* Closing CTA */}
+        <section className="bg-secondary py-12">
+          <div className="container-mobile text-center">
+            <h2 className="text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              내일 아침부터,<br />첫 판단은 아이데이에게 맡겨보세요
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
+              가입은 1분이면 충분해요. 우리 아이 체질만 알려주세요.
+            </p>
+            <div className="mt-6">
+              <Link href="/signup" className="block">
+                <Button size="lg" className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft">
+                  무료로 시작하기
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+
         {/* Footer */}
         <footer className="border-t border-border bg-background">
           <div className="container-mobile py-8 text-center flex flex-col items-center">
