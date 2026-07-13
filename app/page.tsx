@@ -1,9 +1,7 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Baby, Clock, Smartphone, Sparkles } from "lucide-react";
-
-import type { LucideIcon } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 const pains = [
   "날씨 앱, 미세먼지 앱, 꽃가루, 자외선 정보… 따로따로 확인하기 너무 번거로워요",
@@ -12,11 +10,11 @@ const pains = [
   "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 세심한 케어 가이드 없을까요?",
 ];
 
-const diffs: { icon: LucideIcon; title: string; desc: string }[] = [
-  { icon: RefreshCw, title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 '육아 번역기'처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: Baby, title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
-  { icon: Clock, title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
-  { icon: Smartphone, title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
+const diffs: { title: string; desc: string }[] = [
+  { title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 '육아 번역기'처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
+  { title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
+  { title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
@@ -101,15 +99,13 @@ export default function IndexPage() {
               환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다
             </h2>
             <div className="mt-6 space-y-3">
-              {diffs.map((d) => (
-                <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft flex items-start gap-4">
-                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-soft">
-                    <d.icon size={20} strokeWidth={1.75} className="text-accent" />
+              {diffs.map((d, i) => (
+                <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-xs font-bold tabular-nums text-accent">{String(i + 1).padStart(2, "0")}</span>
+                    <h3 className="text-base font-semibold break-keep">{d.title}</h3>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold break-keep">{d.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground break-keep">{d.desc}</p>
-                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground break-keep">{d.desc}</p>
                 </div>
               ))}
             </div>
