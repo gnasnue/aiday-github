@@ -30,6 +30,17 @@ const Login = () => {
     });
     if (error) {
       setLoading(false);
+      if (error.message === "Email not confirmed") {
+        toast.error("이메일 인증이 아직 완료되지 않았어요.", {
+          description: "가입 시 받은 메일의 인증 링크를 눌러주세요. 메일이 없다면 재발송할 수 있어요.",
+          duration: 8000,
+          action: {
+            label: "인증 메일 재발송",
+            onClick: () => void resendConfirmEmail(),
+          },
+        });
+        return;
+      }
       toast.error(
         error.message === "Invalid login credentials"
           ? "이메일 또는 비밀번호가 올바르지 않아요."
@@ -40,6 +51,18 @@ const Login = () => {
     toast.success("다시 만나서 반가워요!");
     // 홈/온보딩 분기는 인증 후 공통 판단 지점에서 수행
     router.replace("/auth/landing");
+  };
+
+  const resendConfirmEmail = async () => {
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: email.trim(),
+      options: {
+        emailRedirectTo: `${location.origin}/auth/callback?next=/auth/landing`,
+      },
+    });
+    if (error) toast.error(error.message);
+    else toast.success("인증 메일을 다시 보냈어요. 메일함(스팸함 포함)을 확인해주세요.");
   };
 
   const resetPassword = async () => {
