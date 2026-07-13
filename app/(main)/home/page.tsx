@@ -20,7 +20,7 @@ import {
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
-import { buildTimeline, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
+import { buildTimeline, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
 import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
 
@@ -289,6 +289,15 @@ const Home = () => {
             ? { ...prev, uv: u && !u.error ? u : null, pollen: po && !po.error ? po : null }
             : prev
         );
+        // 상단 환경 칩(꽃가루·자외선)도 실데이터로 갱신. 없으면 안전 기본값("낮음"/UV 0)으로
+        // 폴백해 mock 고정값(꽃가루 "높음")이 잘못된 경보로 남지 않게 한다.
+        const pollenVals =
+          po && !po.error
+            ? [po.oak, po.pine, po.weed].filter((v: number | null): v is number => v != null)
+            : [];
+        const pollenLevel = pollenLabel(pollenVals.length ? Math.max(...pollenVals) : null);
+        const uvIndex = u && !u.error && typeof u.uvi === "number" ? u.uvi : 0;
+        setWeatherData((prev) => ({ ...prev, pollenLevel, uvIndex }));
         if (w && !w.error) {
           setAiLoading(true);
           setAiHook("");

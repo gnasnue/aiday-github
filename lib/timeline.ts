@@ -65,8 +65,8 @@ const parseHour = (t?: string): number | null => {
 const dustLabel = (g: number | null): DustLevel =>
   g === 1 ? "좋음" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "보통";
 
-// 꽃가루 위험지수(0~4) → 라벨
-const pollenLabel = (g: number | null): PollenLevel =>
+// 꽃가루 위험지수(0~4) → 라벨 (홈 상단 환경 칩·시간대 카드 공용)
+export const pollenLabel = (g: number | null): PollenLevel =>
   g == null ? "낮음" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
 
 // 자외선지수(UVI) → 라벨 (홈 카드 표시 계층 4단계)

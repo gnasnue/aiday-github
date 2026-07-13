@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.2.0] - 2026-07-13
+
+### Fixed
+- **홈 상단 환경 칩의 꽃가루·자외선이 mock 고정값 표시** — `setWeatherData`가 두 값을 실데이터로 갱신하지 않아, 실제 API 응답과 무관하게 꽃가루 "높음"·자외선 "보통"이 고정 노출되던 문제. 자외선·꽃가루 응답 도착 시 실데이터로 칩을 갱신(없으면 안전 기본값 "낮음"/UV 0). AI 리포트·시간대 카드는 이미 실데이터 반영 중 (`app/(main)/home/page.tsx`, `lib/timeline.ts`)
+
+### Added
+- **환경정보 꽃가루 "제공 기간 아님" 안내** — 기상청 꽃가루농도위험지수 비제공 기간(참나무·소나무 4~6월, 잡초 8~10월 외)에 세 카드가 "--"로만 떠 오류처럼 보이던 것을, 제공 월을 안내하는 카드로 대체. 조회 실패("불러오지 못했어요")와 구분 (`app/(main)/env/page.tsx`)
+
+### Changed
+- **`.env.example`에 자외선(생활기상지수) 서비스 명시** — `/api/uv`가 `KMA_API_KEY`로 호출하는 기상청 생활기상지수(3.0) 승인이 필요한데 목록에서 빠져 있어, 4개 서비스·키·라우트 매핑을 함께 표기 (동작 변경 없음)
+
 ## [0.3.1.0] - 2026-07-13
 
 ### Changed
