@@ -141,7 +141,7 @@ export default function IndexPage() {
               내일 아침부터,<br />첫 판단은 아이데이에게 맡겨보세요
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
-              정보만 입력하면, 오늘의 가이드를 받아볼 수 있어요.
+              정보만 입력하면, 매일 가이드를 받아볼 수 있어요.
             </p>
             <div className="mt-6">
               <Link href="/signup" className="block">
