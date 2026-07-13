@@ -236,7 +236,7 @@ const Home = () => {
 
     const today = new Date().toISOString().slice(0, 10);
     // v8: 시간대별 준비물(prep) 필드 추가 — 구스키마 캐시 무효화
-    const cacheKey = `aiday:report:v8:${cur.id}:${today}`;
+    const cacheKey = `aiday:report:v9:${cur.id}:${today}`;
 
     const fetchReport = async () => {
       try {
