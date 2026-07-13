@@ -366,7 +366,7 @@ const Environment = () => {
             </div>
             {loading ? (
               <Skeleton className="mt-3 h-20 w-full rounded-2xl" />
-            ) : pollen ? (
+            ) : pollen && (pollen.oak !== null || pollen.pine !== null || pollen.weed !== null) ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[
                   { k: "참나무", v: pollen.oak, emoji: "🌳" },
@@ -385,6 +385,12 @@ const Environment = () => {
                     </div>
                   );
                 })}
+              </div>
+            ) : pollen ? (
+              // 모든 종이 null = 200 응답이지만 제공 기간이 아님 (참나무·소나무 4~6월, 잡초 8~10월)
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                🌳 지금은 꽃가루 예보 제공 기간이 아니에요
+                <p className="mt-1 text-xs">참나무·소나무는 4~6월, 잡초는 8~10월에 제공돼요</p>
               </div>
             ) : (
               <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
