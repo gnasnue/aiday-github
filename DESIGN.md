@@ -31,29 +31,34 @@
 
 ## Color
 - **Approach:** restrained — 오렌지 하나가 전부를 이끈다. 색이 드물수록 오렌지가 빛난다.
+- **웜 뉴트럴 원칙 (2026-07 홈 리스타일 v2):** 모든 중립색은 웜톤(24~36 hue). 무채색 그레이 금지 — 오렌지가 "붙인 색"이 아니라 "원래 있던 색"처럼 느껴지게. 원본 토큰은 `app/globals.css`가 단일 진실이며 아래 hex는 근사값.
 
 ### Light Mode
-| 변수 | hex | 용도 |
-|------|-----|------|
-| primary | `#F5A623` | 브랜드 오렌지. 버튼 CTA, 활성 상태 |
-| primary-foreground | `#1A0F00` | primary 위 텍스트 (어두운 갈색, 대비 ≥ 4.5:1) |
-| accent | `#D45A00` | 강조 (경고, 중요 정보), hover 상태 |
-| background | `#FAFAFA` | 페이지 배경 |
-| card | `#FFFFFF` | 카드·시트 배경 |
-| secondary | `#FFF3E0` | 따뜻한 크림 (카드 배경 변형, 태그) |
-| soft | `#FFF8F0` | 가장 연한 크림 (섹션 구분) |
-| foreground | `#1A1A1A` | 기본 본문 텍스트 |
-| muted-foreground | `#666666` | 보조 텍스트 |
-| border | `#E8E8E8` | 구분선 |
-| muted | `#F5F5F5` | 비활성 배경 |
+| 변수 | hsl 토큰 | hex(근사) | 용도 |
+|------|----------|-----------|------|
+| primary | `38 91% 55%` | `#F5A623` | 브랜드 오렌지. 버튼 CTA, 활성 상태 |
+| primary-foreground | `24 100% 6%` | `#1F0C00` | primary 위 텍스트 (어두운 갈색, 대비 ≥ 4.5:1) |
+| primary-hover | `38 91% 48%` | `#EA980B` | primary hover |
+| accent | `25 100% 40%` | `#CC5500` | 강조 (경고성 정보, 컬러 텍스트) |
+| background | `36 45% 98%` | `#FCFAF8` | 페이지 배경 (웜 페이퍼) |
+| card | `0 0% 100%` | `#FFFFFF` | 카드·시트 배경 |
+| secondary | `35 100% 94%` | `#FFF2E0` | 따뜻한 크림 (강조 섹션 배경, 태그) |
+| soft | `33 100% 97%` | `#FFF8F0` | 가장 연한 크림 (섹션 구분, 아이콘 컨테이너) |
+| foreground | `24 30% 12%` | `#281D15` | 기본 본문 텍스트 (웜 잉크) |
+| muted-foreground | `24 10% 42%` | `#766960` | 보조 텍스트 |
+| border | `32 24% 89%` | `#EAE3DC` | 구분선 (웜 보더) |
+| muted | `33 25% 95%` | `#F5F3EF` | 비활성 배경 |
 
-### Semantic
-| 상태 | hex | 용도 |
-|------|-----|------|
-| success | `#2E7D32` | 좋음, 완료 |
-| warning | `#E65100` | 주의, 오염 경고 |
-| error | `#C62828` | 위험, 심한 오염 |
-| info | `#1565C0` | 일반 정보 |
+### Semantic (환경 상태 — 홈 리스타일 1b 기준)
+3단계 원칙: good(좋음·낮음·적정) / neutral(보통·약함 = 특이사항 없음) / warn·bad(주의·나쁨). 상태 용도 오렌지는 항상 "컬러 텍스트 + 도트" — solid 채움은 브랜드 전용.
+
+| 상태 | hex(근사) | 용도 |
+|------|-----------|------|
+| status-good | `#3D8B5F` | 좋음, 완료 |
+| status-neutral | `#756A5F` | 보통·특이사항 없음 (색 없음이 곧 정보) |
+| status-warn | `#D4622A` | 주의, 오염 경고 |
+| status-bad | `#BF2C22` | 위험, 심한 오염 |
+| status-info | `#295EA3` | 일반 정보 |
 
 ### Dark Mode
 - primary: 동일 `#F5A623` 유지
@@ -87,14 +92,14 @@
 - **Grid:** 단일 컬럼 (모바일 전용 앱)
 - **Max content width:** 390px
 - **Horizontal padding:** 20px (px-5)
-- **Border radius:**
-  | 이름 | px | 용도 |
+- **Border radius:** (기준 토큰 `--radius: 0.875rem` = 14px, Tailwind 매핑 실측 기준)
+  | 클래스 | px | 용도 |
   |------|-----|------|
-  | sm | 6px | 뱃지, 태그 |
-  | md | 10px | 인풋, 소형 카드 |
-  | lg | 14px | 카드, 버튼 |
-  | xl | 20px | 바텀시트, 대형 카드 |
-  | full | 9999px | 알약형 버튼, 아바타 |
+  | rounded-sm | 10px | 뱃지, 태그 |
+  | rounded-md | 12px | 인풋, 버튼, 소형 카드 |
+  | rounded-lg | 14px | 기준 radius (`--radius`) |
+  | rounded-2xl | 16px | **카드 표준** (홈·랜딩 공통) |
+  | rounded-full | 9999px | 알약형 버튼, 아바타 |
 
 ## Icons
 - **라이브러리:** Lucide React (이미 설치됨)
@@ -134,3 +139,5 @@
 | 2026-06-06 | BottomNav Lucide 아이콘 교체 권장 | OS별 이모지 렌더링 불일치 해소 |
 | 2026-06-06 | 타이포그래피 스케일 6단계 정의 | Tailwind 기본값 의존 탈피, 일관성 확보 |
 | 2026-07-01 | CharacterReport 캐릭터 일러스트를 "일러스트 없음" 규칙의 유일한 예외로 인정 | /design-review — 신체 부위 매핑 안내는 일러스트가 아이콘보다 직관적. 단, calloutsData가 실제 weather/conditions와 무관한 고정값이었던 버그를 같은 세션에서 수정 (지금은 실데이터 연동) |
+| 2026-07-13 | 카드 표준 문법 확정: `rounded-2xl border border-border/60 bg-card p-5 shadow-soft` | /design-review 랜딩 일관성 감사 — 한 페이지 카드 3종 문법을 홈 리스타일 실사용 표준으로 단일화. Color 테이블을 globals.css 웜 뉴트럴 v2에 동기화 (문서 부채 해소) |
+| 2026-07-13 | 랜딩 섹션 템플릿: eyebrow(`normal-case tracking-[0.06em]`) + H2 22px + 배경 위계(기본 background, 강조 1곳만 soft, 히어로·클로징 CTA만 secondary) | /design-review — 쿠키커터 리듬 제거, 홈과 섹션 어휘 통일 |
