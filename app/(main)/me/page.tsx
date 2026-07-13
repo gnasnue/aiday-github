@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   ChildProfile,
+  defaultProfiles,
   loadProfiles,
   removeProfile,
   removeProfileFromDb,
@@ -124,21 +125,22 @@ const ProfileCard = ({
 const My = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const [active, setActive] = useState<string>(() => {
-    try {
-      return (
-        localStorage.getItem("aiweather:activeProfileId") ||
-        loadProfiles()[0]?.id ||
-        ""
-      );
-    } catch {
-      return loadProfiles()[0]?.id || "";
-    }
-  });
+  // 초기값은 서버 프리렌더와 동일해야 한다 — localStorage는 마운트 후 useEffect에서만 읽는다 (hydration 오류 방지)
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [active, setActive] = useState<string>(defaultProfiles[0]?.id ?? "");
 
   useEffect(() => {
-    setProfiles(loadProfiles());
+    const list = loadProfiles();
+    setProfiles(list);
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("aiweather:activeProfileId"); } catch {}
+    setActive((prev) =>
+      saved && list.some((p) => p.id === saved)
+        ? saved
+        : list.some((p) => p.id === prev)
+          ? prev
+          : list[0]?.id ?? ""
+    );
   }, [pathname]);
 
   // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)

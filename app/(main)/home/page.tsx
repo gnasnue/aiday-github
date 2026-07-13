@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import ItemIllustration, { type ItemArt } from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
-import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
+import { ChildProfile, defaultProfiles, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
@@ -102,14 +102,9 @@ const renderRich = (text: string) => {
 const Home = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const [active, setActive] = useState<string>(() => {
-    try {
-      return localStorage.getItem("aiweather:activeProfileId") || loadProfiles()[0].id;
-    } catch {
-      return loadProfiles()[0].id;
-    }
-  });
+  // 초기값은 서버 프리렌더와 동일해야 한다 — localStorage는 마운트 후 useEffect에서만 읽는다 (hydration 오류 방지)
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [active, setActive] = useState<string>(defaultProfiles[0].id);
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
@@ -121,14 +116,20 @@ const Home = () => {
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
 
-  // Refresh profiles when returning from onboarding
+  // 저장된 프로필·활성 아이 복원 + 온보딩 복귀 시 갱신
   useEffect(() => {
     const list = loadProfiles();
     setProfiles(list);
-    if (!list.find((p) => p.id === active)) {
-      setActive(list[0].id);
-    }
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+    let saved: string | null = null;
+    try { saved = localStorage.getItem("aiweather:activeProfileId"); } catch {}
+    setActive((prev) =>
+      saved && list.some((p) => p.id === saved)
+        ? saved
+        : list.some((p) => p.id === prev)
+          ? prev
+          : list[0].id
+    );
+  }, [pathname]);
 
   // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)
   useEffect(() => {
