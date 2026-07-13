@@ -1,9 +1,9 @@
 /**
- * 추천 아이템 일러스트 4종 — 캐릭터 일러스트와 동일한 작가 톤
+ * 추천 아이템 일러스트 8종 — 캐릭터 일러스트와 동일한 작가 톤
  * (파스텔 필 + 2.5px 라운드 스트로크). 디자인 핸드오프 HTML에서 추출.
  * 일러스트 에셋이므로 색은 토큰이 아닌 고정값 (DESIGN.md 캐릭터 예외와 동일 취급).
  */
-export type ItemArt = "muffler" | "mask" | "lotion" | "cardigan";
+export type ItemArt = "muffler" | "mask" | "lotion" | "cardigan" | "umbrella" | "sunscreen" | "cap" | "bottle";
 
 const ART: Record<ItemArt, JSX.Element> = {
   muffler: (
@@ -70,6 +70,76 @@ const ART: Record<ItemArt, JSX.Element> = {
       <circle cx="66" cy="44" r="2" fill="#C9AE85" />
       <circle cx="66" cy="54" r="2" fill="#C9AE85" />
       <circle cx="66" cy="64" r="2" fill="#C9AE85" />
+    </>
+  ),
+  umbrella: (
+    <>
+      {/* 캐노피 — 아래 가장자리 스캘럽 */}
+      <path
+        d="M26 52 C26 30 42 18 60 18 C78 18 94 30 94 52 Q87 60 80 52 Q72.5 60 65 52 Q60 59 55 52 Q47.5 60 40 52 Q33 60 26 52 Z"
+        fill="#A9CBE3"
+        stroke="#6E9BBB"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path d="M60 18 V52 M60 22 Q45 30 40 53 M60 22 Q75 30 80 53" stroke="#6E9BBB" strokeWidth="1.6" fill="none" />
+      <path d="M60 12 v6" stroke="#6E9BBB" strokeWidth="2.5" strokeLinecap="round" />
+      {/* 손잡이 */}
+      <path d="M60 52 V74 C60 80 51 80 51 73" stroke="#C99A6E" strokeWidth="2.6" strokeLinecap="round" fill="none" />
+    </>
+  ),
+  sunscreen: (
+    <>
+      <rect x="50" y="20" width="20" height="12" rx="2.5" fill="#E9C6A0" stroke="#C89A6A" strokeWidth="2.5" />
+      <path
+        d="M46 32 h28 c4 0 6 3 6 7 v33 c0 6-4 10-10 10 H50 c-6 0-10-4-10-10 V39 c0-4 2-7 6-7 Z"
+        fill="#FFE7A6"
+        stroke="#E0B24E"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="60" cy="58" r="8" fill="#F6B24E" />
+      <path
+        d="M60 44 v4 M60 68 v4 M46 58 h4 M70 58 h4 M50 48 l3 3 M70 48 l-3 3 M50 68 l3-3 M70 68 l-3-3"
+        stroke="#F6B24E"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+      />
+    </>
+  ),
+  cap: (
+    <>
+      <path
+        d="M30 58 C30 38 43 30 60 30 C77 30 90 38 90 58 Z"
+        fill="#9FCDAA"
+        stroke="#5F9C74"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M88 56 C102 55 108 61 104 66 C96 68 88 65 84 61 Z"
+        fill="#8ABF98"
+        stroke="#5F9C74"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path d="M60 30 V58 M45 33 Q42 46 44 58 M75 33 Q78 46 76 58" stroke="#5F9C74" strokeWidth="1.6" fill="none" />
+      <circle cx="60" cy="31" r="3" fill="#8ABF98" stroke="#5F9C74" strokeWidth="1.6" />
+    </>
+  ),
+  bottle: (
+    <>
+      <rect x="51" y="14" width="18" height="10" rx="2.5" fill="#8FB9D6" stroke="#5E8CAD" strokeWidth="2.5" />
+      <path d="M54 24 v6 M66 24 v6" stroke="#5E8CAD" strokeWidth="2.5" strokeLinecap="round" />
+      <path
+        d="M50 30 c-5 1-8 5-8 10 v33 c0 5 4 9 9 9 h18 c5 0 9-4 9-9 V40 c0-5-3-9-8-10 Z"
+        fill="#BEE3DC"
+        stroke="#63AC9F"
+        strokeWidth="2.5"
+        strokeLinejoin="round"
+      />
+      <path d="M42 54 v19 c0 5 4 9 9 9 h18 c5 0 9-4 9-9 V54 Z" fill="#9FD6CC" opacity="0.5" />
+      <path d="M42 54 h36" stroke="#63AC9F" strokeWidth="1.8" strokeLinecap="round" />
     </>
   ),
 };
