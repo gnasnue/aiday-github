@@ -1,28 +1,26 @@
 import Link from "next/link";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
-import { RefreshCw, Baby, Clock, Smartphone, Sparkles } from "lucide-react";
-
-import type { LucideIcon } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 const pains = [
   "날씨 앱, 미세먼지 앱, 꽃가루, 자외선 정보… 따로따로 확인하기 너무 번거로워요",
-  "일교차가 심한 날 아이 옷차림을 어떻게 해야 할지 매번 헷갈려요",
-  "바쁜 아침에 이것저것 고민하고 챙길 시간이 없어요",
+  "일교차가 심한 날 아이 옷을 어떻게 입혀 보내야 할지 매번 헷갈려요",
+  "등원 준비에 출근 준비까지… 바쁜 아침에 이것저것 고민하고 챙길 시간이 없어요",
   "비염, 아토피, 감기에 잘 걸리는 아이… 민감한 우리 아이 체질에 맞는 세심한 케어 가이드 없을까요?",
 ];
 
-const diffs: { icon: LucideIcon; title: string; desc: string }[] = [
-  { icon: RefreshCw, title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 '육아 번역기'처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: Baby, title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요" },
-  { icon: Clock, title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
-  { icon: Smartphone, title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
+const diffs: { title: string; desc: string }[] = [
+  { title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 '육아 번역기'처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { title: "우리 아이 맞춤형 육아 가이드", desc: "비염, 아토피, 열 많은 아이… 같은 날씨에도 우리 아이 건강 상태와 생활 패턴에 따라 다른 준비와 케어가 필요할 수 있어요" },
+  { title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
+  { title: "미리 받아보는 육아 가이드", desc: "생활패턴에 따라 전날 밤 · 아침 준비 전, 앱을 열지 않아도 필요한 데일리 육아 가이드를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
-  { text: "미세먼지 수치만 봐서는 감이 안 왔는데,\n우리 아이 기준으로 알려주니까\n오늘 어떻게 준비해야 할지 훨씬 쉬워졌어요.", who: "6세 아들 엄마 · 비염 아이" },
-  { text: "아침엔 괜찮아 보여서 얇게 입혔다가\n하원 때 추워했던 적이 많았는데,\n이제 겉옷 챙기는 걸 놓치지 않게 됐어요.", who: "7세 딸 엄마 · 열 많은 아이" },
-  { text: "등원 준비만으로 정신없는데,\n오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까\n마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
+  { text: "우리 아이 기준으로 알려주니까 오늘 어떻게 준비해야 할지 판단이 훨씬 쉬워졌어요.", who: "6세 아들 엄마 · 비염 아이" },
+  { text: "아침에 얇게 입혀 보냈다가 하원 때 추워했던 적이 많았는데, 이제 겉옷 챙기는 걸 놓치지 않게 됐어요.", who: "7세 딸 엄마 · 열 많은 아이" },
+  { text: "등원 준비만으로 정신없는데, 오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까 마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
 ];
 
 export default function IndexPage() {
@@ -79,12 +77,13 @@ export default function IndexPage() {
         {/* Pain points */}
         <section className="py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight">
-              매일 아침 이런 고민<br />하고 계신가요?
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">매일 아침</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              이런 고민 하고 계신가요?
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-border bg-card shadow-soft px-5 py-4">
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
                   <p className="text-sm font-medium leading-relaxed text-foreground break-keep">{p}</p>
                 </div>
               ))}
@@ -95,19 +94,18 @@ export default function IndexPage() {
         {/* Differentiators */}
         <section className="bg-soft py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight break-keep">
-              아이데이는 환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다.
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">아이데이의 방식</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다
             </h2>
             <div className="mt-6 space-y-3">
-              {diffs.map((d) => (
-                <div key={d.title} className="rounded-2xl bg-background p-5 shadow-soft flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-0.5">
-                    <d.icon size={20} strokeWidth={1.75} className="text-accent" />
+              {diffs.map((d, i) => (
+                <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-xs font-bold tabular-nums text-accent">{String(i + 1).padStart(2, "0")}</span>
+                    <h3 className="text-base font-semibold break-keep">{d.title}</h3>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold break-keep">{d.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
-                  </div>
+                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground break-keep">{d.desc}</p>
                 </div>
               ))}
             </div>
@@ -115,23 +113,42 @@ export default function IndexPage() {
         </section>
 
         {/* Reviews */}
-        <section className="bg-secondary py-12">
+        <section className="py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight">
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">사용 후기</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight">
               부모님들의 이야기
             </h2>
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
-                <div key={i} className="rounded-2xl bg-background p-6 shadow-soft flex flex-col py-[14px]">
-                  <div className="text-2xl text-primary font-serif self-start mb-1">&ldquo;</div>
-                  <p className="text-sm leading-relaxed text-foreground text-center break-keep whitespace-pre-line px-2">
+                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                  <p className="text-sm leading-relaxed text-foreground break-keep">
                     {r.text}
                   </p>
-                  <p className="mt-4 text-xs text-muted-foreground self-end">
-                    — {r.who}
+                  <p className="mt-3 text-right text-xs text-muted-foreground">
+                    - {r.who}
                   </p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Closing CTA */}
+        <section className="bg-secondary py-12">
+          <div className="container-mobile text-center">
+            <h2 className="text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              매일 아침 육아의 시작,<br />첫 판단은 아이데이에게 맡겨보세요
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
+              아이 프로필 입력 후, 매일 가이드를 받아볼 수 있어요.
+            </p>
+            <div className="mt-6">
+              <Link href="/signup" className="block">
+                <Button size="lg" className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft">
+                  무료로 시작하기
+                </Button>
+              </Link>
             </div>
           </div>
         </section>
@@ -141,8 +158,8 @@ export default function IndexPage() {
           <div className="container-mobile py-8 text-center flex flex-col items-center">
             <Logo />
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-              <a href="#" className="hover:text-foreground">이용약관</a>
-              <a href="#" className="hover:text-foreground">개인정보처리방침</a>
+              <Link href="/terms" className="hover:text-foreground">이용약관</Link>
+              <Link href="/privacy" className="hover:text-foreground">개인정보처리방침</Link>
               <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
             </div>
             <p className="mt-4 text-[11px] text-muted-foreground/70">
