@@ -135,11 +135,15 @@ export async function POST(req: NextRequest) {
     if (!time || !hourly.length) return null;
     const [hh] = time.split(":");
     const targetH = parseInt(hh, 10);
-    return hourly.reduce((best, s) => {
+    const best = hourly.reduce((a, s) => {
       const sh = parseInt(s.hour.split(":")[0], 10);
-      const bh = parseInt(best.hour.split(":")[0], 10);
-      return Math.abs(sh - targetH) < Math.abs(bh - targetH) ? s : best;
+      const bh = parseInt(a.hour.split(":")[0], 10);
+      return Math.abs(sh - targetH) < Math.abs(bh - targetH) ? s : a;
     });
+    // 예보는 3시간 해상도 — 2시간 넘게 떨어진 예보를 해당 일정의 날씨인 것처럼
+    // 프롬프트에 넣지 않는다 (해당 줄은 생략됨)
+    const bestH = parseInt(best.hour.split(":")[0], 10);
+    return Math.abs(bestH - targetH) > 2 ? null : best;
   };
 
   const slotLine = (label: string, time?: string, endTime?: string) => {
