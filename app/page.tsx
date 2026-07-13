@@ -13,16 +13,16 @@ const pains = [
 ];
 
 const diffs: { icon: LucideIcon; title: string; desc: string }[] = [
-  { icon: RefreshCw, title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를\n바쁜 엄마아빠를 위한 '육아 번역기'처럼\n오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
-  { icon: Baby, title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이…\n같은 날씨도 우리 아이 상태에 따라\n다른 준비가 필요할 수 있어요" },
+  { icon: RefreshCw, title: "복잡한 수치를 육아 언어로", desc: "미세먼지·꽃가루·습도 같은 정보를 바쁜 엄마아빠를 위한 '육아 번역기'처럼 오늘 어떤 준비가 필요한지 쉽게 알려드려요" },
+  { icon: Baby, title: "우리 아이 맞춤 해석", desc: "비염, 아토피, 열 많은 아이… 같은 날씨도 우리 아이 상태에 따라 다른 준비가 필요할 수 있어요" },
   { icon: Clock, title: "시간대별 준비 가이드", desc: "등원 때는 괜찮아도, 하원 시간엔 추워질 수 있어요. 아이의 하루 일과에 맞춰 시간대별 준비를 미리 알려드려요" },
   { icon: Smartphone, title: "미리 받아보는 육아 가이드", desc: "앱을 열지 않아도, 아침마다 오늘 필요한 준비를 미리 받아볼 수 있어요" },
 ];
 
 const reviews = [
-  { text: "미세먼지 수치만 봐서는 감이 안 왔는데,\n우리 아이 기준으로 알려주니까\n오늘 어떻게 준비해야 할지 훨씬 쉬워졌어요.", who: "6세 아들 엄마 · 비염 아이" },
-  { text: "아침엔 괜찮아 보여서 얇게 입혔다가\n하원 때 추워했던 적이 많았는데,\n이제 겉옷 챙기는 걸 놓치지 않게 됐어요.", who: "7세 딸 엄마 · 열 많은 아이" },
-  { text: "등원 준비만으로 정신없는데,\n오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까\n마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
+  { text: "미세먼지 수치만 봐서는 감이 안 왔는데, 우리 아이 기준으로 알려주니까 오늘 어떻게 준비해야 할지 훨씬 쉬워졌어요.", who: "6세 아들 엄마 · 비염 아이" },
+  { text: "아침엔 괜찮아 보여서 얇게 입혔다가 하원 때 추워했던 적이 많았는데, 이제 겉옷 챙기는 걸 놓치지 않게 됐어요.", who: "7세 딸 엄마 · 열 많은 아이" },
+  { text: "등원 준비만으로 정신없는데, 오늘 뭘 챙겨야 하는지 먼저 정리돼 있으니까 마음이 훨씬 편해요.", who: "5세 아들 엄마 · 맞벌이" },
 ];
 
 export default function IndexPage() {
@@ -103,12 +103,12 @@ export default function IndexPage() {
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
                 <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft flex items-start gap-4">
-                  <div className="flex-shrink-0 mt-0.5">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-soft">
                     <d.icon size={20} strokeWidth={1.75} className="text-accent" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold break-keep">{d.title}</h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground break-keep whitespace-pre-line">{d.desc}</p>
+                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground break-keep">{d.desc}</p>
                   </div>
                 </div>
               ))}
@@ -126,7 +126,7 @@ export default function IndexPage() {
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
                 <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
-                  <p className="text-sm leading-relaxed text-foreground break-keep whitespace-pre-line">
+                  <p className="text-sm leading-relaxed text-foreground break-keep">
                     {r.text}
                   </p>
                   <p className="mt-3 text-xs text-muted-foreground">
@@ -162,8 +162,8 @@ export default function IndexPage() {
           <div className="container-mobile py-8 text-center flex flex-col items-center">
             <Logo />
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-              <a href="#" className="hover:text-foreground">이용약관</a>
-              <a href="#" className="hover:text-foreground">개인정보처리방침</a>
+              <Link href="/terms" className="hover:text-foreground">이용약관</Link>
+              <Link href="/privacy" className="hover:text-foreground">개인정보처리방침</Link>
               <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
             </div>
             <p className="mt-4 text-[11px] text-muted-foreground/70">
