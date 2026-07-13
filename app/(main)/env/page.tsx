@@ -6,7 +6,7 @@ import { ArrowLeft, MapPin, ChevronDown, RefreshCw, Info } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ChildProfile, loadProfiles } from "@/lib/profile";
+import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
 import { withSubjectSuffix } from "@/lib/korean";
 
 /* ----------------------------- helpers ----------------------------- */
@@ -87,14 +87,18 @@ const humidityLabel = (h: number) =>
 const Environment = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const activeId = (() => {
+  // 초기값은 서버 프리렌더와 동일해야 한다 — localStorage는 마운트 후 useEffect에서만 읽는다 (hydration 오류 방지)
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [activeId, setActiveId] = useState<string | undefined>(defaultProfiles[0]?.id);
+  useEffect(() => {
+    const list = loadProfiles();
+    setProfiles(list);
     try {
-      return localStorage.getItem("aiweather:activeProfileId") || profiles[0]?.id;
+      setActiveId(localStorage.getItem("aiweather:activeProfileId") || list[0]?.id);
     } catch {
-      return profiles[0]?.id;
+      setActiveId(list[0]?.id);
     }
-  })();
+  }, []);
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
   const [loading, setLoading] = useState(true);
 

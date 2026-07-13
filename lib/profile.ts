@@ -43,7 +43,8 @@ export type ChildProfile = {
 
 export const PROFILES_KEY = "aiweather:profiles";
 
-const defaultProfiles: ChildProfile[] = [
+// SSR 프리렌더와 클라이언트 첫 렌더의 초기 상태로도 쓰인다 — localStorage 값은 마운트 후 useEffect에서만 반영
+export const defaultProfiles: ChildProfile[] = [
   {
     id: "demo-1",
     name: "지우",
