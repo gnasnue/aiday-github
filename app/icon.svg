@@ -5,7 +5,7 @@
       <stop offset="1" stop-color="#EFAA35"/>
     </linearGradient>
   </defs>
-  <g transform="translate(-8 16)" fill="none" stroke-linecap="round">
+  <g transform="translate(0 12.5)" fill="none" stroke-linecap="round">
     <!-- rays -->
     <g stroke="#EDB94A" stroke-width="3">
       <line x1="60" y1="33" x2="60" y2="25"/>
@@ -19,6 +19,6 @@
     <!-- hill -->
     <path d="M20 70 Q60 56 100 70" stroke="#7FB4A6" stroke-width="5"/>
     <!-- sparkle -->
-    <path d="M98 13 Q101.5 20.5 109 24 Q101.5 27.5 98 35 Q94.5 27.5 87 24 Q94.5 20.5 98 13 Z" fill="#6FB0A0"/>
+    <path d="M98 17 Q100.3 21.7 105 24 Q100.3 26.3 98 31 Q95.7 26.3 91 24 Q95.7 21.7 98 17 Z" fill="#6FB0A0"/>
   </g>
 </svg>
