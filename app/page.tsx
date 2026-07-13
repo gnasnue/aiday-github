@@ -138,7 +138,7 @@ export default function IndexPage() {
         <section className="bg-secondary py-12">
           <div className="container-mobile text-center">
             <h2 className="text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
-              내일 아침부터,<br />첫 판단은 아이데이에게 맡겨보세요
+              매일 아침 육아의 시작,<br />첫 판단은 아이데이에게 맡겨보세요
             </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
               아이 프로필 입력 후, 매일 가이드를 받아볼 수 있어요.
