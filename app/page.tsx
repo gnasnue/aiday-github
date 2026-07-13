@@ -79,8 +79,9 @@ export default function IndexPage() {
         {/* Pain points */}
         <section className="py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight">
-              매일 아침 이런 고민<br />하고 계신가요?
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">매일 아침</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              이런 고민 하고 계신가요?
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
@@ -95,8 +96,9 @@ export default function IndexPage() {
         {/* Differentiators */}
         <section className="bg-soft py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight break-keep">
-              아이데이는 환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다.
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">아이데이의 방식</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight break-keep">
+              환경 정보를<br />&ldquo;우리 아이 기준&rdquo;으로 해석합니다
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d) => (
@@ -115,9 +117,10 @@ export default function IndexPage() {
         </section>
 
         {/* Reviews */}
-        <section className="bg-secondary py-12">
+        <section className="py-12">
           <div className="container-mobile">
-            <h2 className="text-center text-2xl font-bold tracking-tight">
+            <p className="eyebrow normal-case tracking-[0.06em] text-center">사용 후기</p>
+            <h2 className="mt-2 text-center text-[1.375rem] font-bold leading-snug tracking-tight">
               부모님들의 이야기
             </h2>
             <div className="mt-6 space-y-4">
