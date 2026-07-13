@@ -23,6 +23,7 @@ import {
   calcAge,
   genderToEmoji,
   koreanGenderToCode,
+  markBrowseHome,
   saveProfile,
   saveProfileToDb,
 } from "@/lib/profile";
@@ -198,6 +199,7 @@ const Onboarding = () => {
 
   const prev = () => (step > 1 ? setStep(step - 1) : router.back());
   const saveLater = () => {
+    markBrowseHome(); // 홈 진입 가드가 온보딩으로 되돌려보내지 않도록
     toast.success("진행 상태가 저장됐어요. 나중에 이어서 할 수 있어요.");
     router.push("/home");
   };
@@ -648,6 +650,7 @@ const Onboarding = () => {
             </Button>
             <Link
               href="/home"
+              onClick={markBrowseHome}
               className="mt-3 block text-center text-xs text-muted-foreground hover:text-foreground"
             >
               먼저 둘러볼게요

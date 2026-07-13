@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.3.0] - 2026-07-13
+
+### Fixed
+- **구글 로그인 시 유저 프로필 대신 데모 목업(지우·도윤) 화면 표시** — 원인: 구글 OAuth 경로가 프로필 유무 확인 없이 `next=/home` 하드코딩이라 신규 사용자가 온보딩을 건너뛰고 localStorage 데모 fallback을 보게 됨. 인증 성공(이메일·구글, 로그인/가입 페이지 공통) 후 공통 판단 지점 `/auth/landing` 신설 — DB 프로필 있으면 `/home`(복원), 없으면 `/onboarding` (`app/auth/landing/page.tsx`, `app/login/page.tsx`, `app/signup/page.tsx`, `app/auth/callback/route.ts`)
+- **온보딩 프로필 DB 저장이 조용히 실패** — 원인: 로컬 생성 id(`c-<timestamp>`)를 `children.id`(uuid PK)에 그대로 upsert해 uuid 파싱 오류. UUID 형식 id만 전달하고 그 외엔 DB가 생성하도록 수정 (`lib/profile.ts: profileToRow`)
+- **가입 페이지 구글 버튼으로 기존 사용자가 재온보딩(아이 중복 등록)** — 판단 지점 통일로 해소
+
+### Added
+- **접속 흐름 상태 기반 재정의** (SPEC.md) — 도착지를 진입 경로가 아니라 사용자 상태(로그인 × 프로필 유무)로 결정. `lib/profile.ts`에 `fetchProfilesFromDb()`(no-auth/error/ok 구분 — 조회 실패를 빈 계정으로 오판 방지) 신설
+- **게스트 → 가입 전환 시 로컬 프로필 DB 이전** (PRODUCT-DECISIONS §3 구현) — 판단 지점에서 DB가 비어 있으면 게스트 시절 로컬 프로필(데모 제외)을 1회 업로드 (`uploadLocalProfilesToDb`)
+- **홈 진입 가드** — 로그인 상태 + 실프로필 없음이면 데모 대신 온보딩으로 유도. 온보딩의 "나중에 이어서 하기/먼저 둘러볼게요"는 탭 세션 동안 예외(sessionStorage). 데모 프로필은 비로그인 게스트 전용이 됨. 가짜 Supabase 목서버 + Chromium E2E 9개 시나리오(14개 체크)로 검증
+
 ## [0.2.2.0] - 2026-07-13
 
 ### Added
