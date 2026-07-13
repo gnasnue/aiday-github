@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.2.3.1] - 2026-07-13
+
+### Fixed
+- **이메일 가입 후 재로그인 시 "Email not confirmed" 오류에 사용자가 갇힘** — 원인: Supabase 이메일 인증이 활성인데 앱에 인증 흐름이 부재 — ① `signUp`에 `emailRedirectTo` 미지정(인증 링크가 Site URL 기본값으로 이동) ② 가입 후 "메일 인증 필요" 안내 없음 ③ 로그인의 미인증 오류가 영어 원문 노출 + 재발송 수단 없음. `emailRedirectTo`를 `/auth/callback?next=/auth/landing`으로 지정, 인증 대기 가입 시 안내 토스트 추가, 로그인에서 한국어 안내 + "인증 메일 재발송"(`supabase.auth.resend`) 액션 추가 (`app/signup/page.tsx`, `app/login/page.tsx`)
+
+### Changed
+- **이메일 인증 정책 확정** (PRODUCT-DECISIONS) — 최종 인증 활성 + 커스텀 SMTP, 지인 테스트 기간만 임시 비활성. 인증 재활성화 + SMTP 연결을 출시 Blocker에 추가
+
 ## [0.2.3.0] - 2026-07-13
 
 ### Fixed
