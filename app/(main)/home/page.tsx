@@ -6,7 +6,7 @@ import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbr
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import ItemIllustration, { type ItemArt } from "@/components/ItemIllustration";
+import ItemIllustration from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
 import { ChildProfile, loadProfiles, syncProfilesFromDb } from "@/lib/profile";
@@ -15,13 +15,7 @@ import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
-
-const items: { art: ItemArt; name: string; price: string }[] = [
-  { art: "muffler", name: "유아 면 목수건", price: "9,900원" },
-  { art: "mask", name: "키즈 KF94 마스크", price: "12,500원" },
-  { art: "lotion", name: "민감 피부 보습로션", price: "18,000원" },
-  { art: "cardigan", name: "얇은 가디건", price: "29,900원" },
-];
+import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
 
 /* ---- 상태 3단계 (good/neutral/warn) — 표시 계층 전용 매핑 ---- */
 type StatusTone = "good" | "neutral" | "warn";
@@ -380,6 +374,18 @@ const Home = () => {
     return baseChecklist;
   }, [aiChecklist, baseChecklist]);
 
+  // 오늘의 추천 아이템 — 상단 신호(체크리스트 > 시간대 준비물 > 체질)의 파생.
+  // 독립 추천이 아니라 위 결론과 일치하도록 규칙 엔진으로 도출한다.
+  const recommendedItems = useMemo<RecommendedItem[]>(
+    () =>
+      buildItemRecommendations({
+        checklist: activeChecklist.map((c) => `${c.icon} ${c.text}`),
+        prepBySlot: slotPrep,
+        conditions: cur?.conditions ?? [],
+      }),
+    [activeChecklist, slotPrep, cur?.conditions]
+  );
+
   const allDone = checked.length === activeChecklist.length;
 
   // 오늘의 판단 상태 — 배지 tone에서 도출 (기능 변경 없음, 표현만)
@@ -687,14 +693,18 @@ const Home = () => {
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-44 w-[130px] shrink-0 rounded-2xl" />
                   ))
-                : items.map((it) => (
+                : recommendedItems.map((it) => (
                     <button
-                      key={it.name}
+                      key={it.art}
                       onClick={() => toast("외부 구매 페이지로 이동합니다")}
                       className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left transition-smooth hover:border-foreground/30 hover:shadow-soft"
                     >
-                      <div className="flex h-24 items-center justify-center rounded-xl bg-soft">
+                      <div className="relative flex h-24 items-center justify-center rounded-xl bg-soft">
                         <ItemIllustration art={it.art} />
+                        {/* 추천 근거 — 왜 이 아이템인지 (상단 신호와의 연결) */}
+                        <span className="absolute left-1.5 top-1.5 max-w-[112px] truncate rounded-full bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold text-accent shadow-sm">
+                          {it.reason}
+                        </span>
                       </div>
                       <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-medium leading-snug">{it.name}</p>
                       <p className="num mt-1 px-0.5 text-xs text-foreground">{it.price}</p>
