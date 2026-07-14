@@ -209,58 +209,114 @@ export async function POST(req: NextRequest) {
     pollenSummary,
   });
 
-  try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-5",
-      max_tokens: 1000,
-      // Sonnet 5는 기본 thinking 활성 — 리포트는 저지연이 우선이므로 비활성화.
-      // thinking 비활성 시 temperature 지정 불가(기본값 사용).
-      thinking: { type: "disabled" },
-      messages: [{ role: "user", content: prompt }],
-      system: REPORT_SYSTEM_PROMPT,
-    });
+  // 파싱 결과 → 응답 페이로드 (prep: 시간대별 준비물 키워드, 슬롯명 → 키워드[])
+  type Parsed = { hook?: string; message?: string; checklist?: string[]; prep?: Record<string, string[]> };
+  const toPayload = (parsed: Parsed) => ({
+    hook: parsed.hook ?? "",
+    message: parsed.message ?? "",
+    checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+    prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
+  });
 
-    const raw =
-      response.content[0]?.type === "text" ? response.content[0].text.trim() : "";
-
-    // 파싱 결과 → 응답 페이로드 (prep: 시간대별 준비물 키워드, 슬롯명 → 키워드[])
-    type Parsed = { hook?: string; message?: string; checklist?: string[]; prep?: Record<string, string[]> };
-    const toPayload = (parsed: Parsed) => ({
-      hook: parsed.hook ?? "",
-      message: parsed.message ?? "",
-      checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
-      prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
-    });
-
-    // 1차: 코드블록 제거 후 JSON 파싱
+  // 모델 원문(전체) → 최종 페이로드. 코드블록 제거 → 직접 파싱 → { } 블록 추출 순으로 시도.
+  const parseFinal = (raw: string) => {
+    const trimmed = raw.trim();
     try {
-      const codeBlockMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
-      const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : raw;
-      return NextResponse.json(toPayload(JSON.parse(jsonStr) as Parsed));
+      const codeBlockMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+      const jsonStr = codeBlockMatch ? codeBlockMatch[1].trim() : trimmed;
+      return toPayload(JSON.parse(jsonStr) as Parsed);
     } catch {
-      // 2차: { } 블록 직접 추출
-      const braceMatch = raw.match(/\{[\s\S]*\}/);
+      const braceMatch = trimmed.match(/\{[\s\S]*\}/);
       if (braceMatch) {
         try {
-          return NextResponse.json(toPayload(JSON.parse(braceMatch[0]) as Parsed));
+          return toPayload(JSON.parse(braceMatch[0]) as Parsed);
         } catch {}
       }
-      // 최후: 빈 응답 → 클라이언트가 recommendation-engine 사용
-      console.error("[AI report] JSON 파싱 실패 — 모델 원문(앞 500자):", raw.slice(0, 500));
-      return NextResponse.json({ hook: "", message: "", checklist: [], prep: {} });
+      console.error("[AI report] JSON 파싱 실패 — 모델 원문(앞 500자):", trimmed.slice(0, 500));
+      return { hook: "", message: "", checklist: [], prep: {} };
     }
-  } catch (err) {
-    // 어떤 엔드포인트로 호출했는지 로그에 남겨 게이트웨이 설정 문제와 일반 장애를 즉시 구분한다.
-    const endpoint = baseURL ?? "https://api.anthropic.com";
-    console.error(`[AI report] Claude API 오류 (endpoint: ${endpoint}):`, err);
-    const isConnectionError = err instanceof Anthropic.APIConnectionError;
-    return NextResponse.json(
-      {
-        error: isConnectionError
-          ? `AI 서버(${endpoint})에 연결하지 못했습니다. ANTHROPIC_BASE_URL 설정과 네트워크를 확인해주세요.`
-          : "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
-      },
-      { status: 503 }
-    );
-  }
+  };
+
+  // 완성된 JSON 문자열 필드만 추출 — 스트리밍 중 닫는 따옴표가 도착했을 때만 매치된다.
+  // 값은 이스케이프를 포함한 원문이므로 따옴표로 감싸 JSON.parse로 디코딩한다.
+  const extractField = (acc: string, field: string): string | null => {
+    const m = acc.match(new RegExp(`"${field}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`));
+    if (!m) return null;
+    try {
+      return JSON.parse(`"${m[1]}"`);
+    } catch {
+      return null;
+    }
+  };
+
+  const endpoint = baseURL ?? "https://api.anthropic.com";
+  const encoder = new TextEncoder();
+
+  // SSE 스트림 — hook·message가 완성되는 즉시 내려보내 히어로를 ~2초에 노출하고,
+  // 완료 시 done 이벤트로 전체 페이로드(checklist·prep)를 전달한다. 클라이언트는
+  // done의 페이로드를 당일 캐시에 저장한다.
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (event: string, data: unknown) => {
+        controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+      };
+      let acc = "";
+      let sentHook = false;
+      let sentMessage = false;
+      try {
+        const modelStream = client.messages.stream({
+          model: "claude-sonnet-5",
+          max_tokens: 1000,
+          // Sonnet 5는 기본 thinking 활성 — 리포트는 저지연이 우선이므로 비활성화.
+          // thinking 비활성 시 temperature 지정 불가(기본값 사용).
+          thinking: { type: "disabled" },
+          messages: [{ role: "user", content: prompt }],
+          system: REPORT_SYSTEM_PROMPT,
+        });
+
+        for await (const event of modelStream) {
+          if (
+            event.type === "content_block_delta" &&
+            event.delta.type === "text_delta"
+          ) {
+            acc += event.delta.text;
+            if (!sentHook) {
+              const hook = extractField(acc, "hook");
+              if (hook !== null) {
+                sentHook = true;
+                send("hook", hook);
+              }
+            }
+            if (!sentMessage) {
+              const message = extractField(acc, "message");
+              if (message !== null) {
+                sentMessage = true;
+                send("message", message);
+              }
+            }
+          }
+        }
+
+        send("done", parseFinal(acc));
+      } catch (err) {
+        console.error(`[AI report] Claude API 오류 (endpoint: ${endpoint}):`, err);
+        const isConnectionError = err instanceof Anthropic.APIConnectionError;
+        send("error", {
+          error: isConnectionError
+            ? `AI 서버(${endpoint})에 연결하지 못했습니다. ANTHROPIC_BASE_URL 설정과 네트워크를 확인해주세요.`
+            : "AI 리포트를 생성하지 못했습니다. 잠시 후 다시 시도해주세요.",
+        });
+      } finally {
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
 }

@@ -254,6 +254,8 @@ const Home = () => {
     }
   });
   const [aiLoading, setAiLoading] = useState(false);
+  // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
+  const [aiStreaming, setAiStreaming] = useState(false);
   const [aiError, setAiError] = useState(false);
   // 현재 표시 중인 리포트의 생성 시각 — 헤더에 "7월 13일 (월) 07:30" 형태로 노출
   const [reportTs, setReportTs] = useState<number | null>(null);
@@ -299,12 +301,18 @@ const Home = () => {
   useEffect(() => {
     const fetchEnv = async () => {
       setLoading(true);
-      // 4개 모두 즉시 병렬 착수 (개별 실패는 null 폴백)
-      const getJson = (url: string) => fetch(url).then((r) => r.json()).catch(() => null);
-      const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780");
-      const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC");
-      const uvP = getJson("/api/uv?region=서울");
-      const pollenP = getJson("/api/pollen?region=서울");
+      // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
+      // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
+      // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게
+      // 짧게(5s) — 초과 시 null로 진행하고(리포트는 "데이터 없음" 처리) 서버 캐시는 다음 진입에 채워진다.
+      const getJson = (url: string, timeoutMs: number) =>
+        fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
+          .then((r) => r.json())
+          .catch(() => null);
+      const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780", 9000);
+      const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC", 9000);
+      const uvP = getJson("/api/uv?region=서울", 5000);
+      const pollenP = getJson("/api/pollen?region=서울", 5000);
 
       try {
         // 1) weather·air 도착 → 화면 셸·상단 카드·시간대 카드를 먼저 표시 (uv·꽃가루는 이후 채움)
@@ -441,7 +449,8 @@ const Home = () => {
           }),
         });
 
-        if (!res.ok) {
+        // 사전 검증 실패(apiKey·baseURL 등)는 여전히 non-2xx JSON으로 온다
+        if (!res.ok || !res.body) {
           setAiError(true);
           // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
           try {
@@ -453,22 +462,71 @@ const Home = () => {
           return;
         }
 
-        const data = await res.json();
-        if (data.message) {
-          setAiHook(data.hook ?? "");
-          setAiMessage(data.message);
-          if (Array.isArray(data.checklist) && data.checklist.length > 0) {
-            setAiChecklist(data.checklist);
+        // SSE 스트림 소비 — hook·message가 도착하는 즉시 히어로를 노출하고,
+        // done 이벤트의 전체 페이로드로 체크리스트·준비물·캐시를 채운다.
+        type ReportPayload = { hook: string; message: string; checklist: string[]; prep: Record<string, string[]> };
+        setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let streamErr: boolean = false;
+        let final: ReportPayload | null = null;
+
+        const handleEvent = (event: string, dataStr: string) => {
+          let data: unknown;
+          try {
+            data = JSON.parse(dataStr);
+          } catch {
+            return;
           }
-          setAiPrep(data.prep && typeof data.prep === "object" ? data.prep : {});
+          if (event === "hook") {
+            setAiHook(typeof data === "string" ? data : "");
+            setAiLoading(false); // 헤드라인(아침의 결론) 즉시 노출 — 본문은 message까지 스켈레톤
+          } else if (event === "message") {
+            setAiMessage(typeof data === "string" ? data : "");
+          } else if (event === "done") {
+            final = data as ReportPayload;
+          } else if (event === "error") {
+            streamErr = true;
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const chunks = buf.split("\n\n");
+          buf = chunks.pop() ?? "";
+          for (const chunk of chunks) {
+            const ev = chunk.match(/^event: (.+)$/m)?.[1]?.trim();
+            const dt = chunk.match(/^data: (.+)$/m)?.[1];
+            if (ev && dt != null) handleEvent(ev, dt);
+          }
+        }
+
+        if (streamErr) {
+          setAiError(true);
+          toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+          setAiLoading(false);
+          return;
+        }
+
+        const done = final as ReportPayload | null;
+        if (done && done.message) {
+          setAiHook(done.hook ?? "");
+          setAiMessage(done.message);
+          if (Array.isArray(done.checklist) && done.checklist.length > 0) {
+            setAiChecklist(done.checklist);
+          }
+          setAiPrep(done.prep && typeof done.prep === "object" ? done.prep : {});
           const now = Date.now();
           setReportTs(now);
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: data.hook ?? "", message: data.message, checklist: data.checklist ?? [], prep: data.prep ?? {}, ts: now, env: sig }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
           } catch {}
           if (regenerating) toast("날씨가 바뀌어 브리핑을 새로 썼어요");
         } else {
-          // 200이지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
+          // done은 왔지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
           console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
           setAiError(true);
           toast("AI 리포트 생성에 실패해 기본 추천을 보여드려요.");
@@ -479,6 +537,7 @@ const Home = () => {
         toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
       } finally {
         setAiLoading(false);
+        setAiStreaming(false);
       }
     };
 
@@ -780,14 +839,22 @@ const Home = () => {
                       ))}
                     </h1>
                   )}
-                  {/* message — 상세 설명 */}
-                  <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
-                    {message.split("\n").filter(Boolean).map((line, i) => (
-                      <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
-                        {renderRich(line)}
-                      </p>
-                    ))}
-                  </div>
+                  {/* message — 상세 설명. 스트리밍 중 본문이 아직 안 온 구간엔 스켈레톤 */}
+                  {aiStreaming && !aiMessage ? (
+                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
+                      <Skeleton className="h-3.5 w-full rounded-full" />
+                      <Skeleton className="h-3.5 w-5/6 rounded-full" />
+                      <Skeleton className="h-3.5 w-4/6 rounded-full" />
+                    </div>
+                  ) : (
+                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
+                      {message.split("\n").filter(Boolean).map((line, i) => (
+                        <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
+                          {renderRich(line)}
+                        </p>
+                      ))}
+                    </div>
+                  )}
                 </>
               )}
 

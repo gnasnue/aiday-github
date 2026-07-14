@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.4.0] - 2026-07-15
+
+### Changed
+- **홈 AI 리포트 스트리밍 전환** (`app/api/report/route.ts`, `app/(main)/home/page.tsx`) — 비스트리밍 one-shot JSON 응답을 SSE 스트리밍으로 교체. 서버가 모델 스트림을 누적하며 `hook`·`message` 필드가 완성되는 즉시 이벤트로 방출하고, 완료 시 `done` 이벤트로 전체 페이로드(checklist·prep) 전송. 클라이언트는 `hook` 도착 즉시 헤드라인(아침의 결론)을 노출하고 본문은 도착까지 스켈레톤 유지. 헤드라인 체감 노출이 전체 생성 완료(~5.5초) 후에서 **~1.9초**로 단축. 당일 localStorage 캐시 재진입은 기존대로 즉시 표시(호출 없음)
+
+### Fixed
+- **외부 환경 API 지연 상한** (`app/api/weather`·`air`·`uv`·`pollen/route.ts`, `app/(main)/home/page.tsx`) — data.go.kr 호출에 타임아웃이 없어 공공 API가 느린 날 AI 리포트 착수가 무한정 지연되던 문제. 서버 fetch에 8초 안전 캡, 클라이언트 env fetch에 타임아웃 추가(weather·air 9초, uv·꽃가루 5초). uv·꽃가루가 상한을 넘으면 null로 진행("데이터 없음" 처리)해 리포트 착수를 막지 않고, 서버 캐시는 다음 진입에 채워짐
+
 ## [0.3.3.0] - 2026-07-14
 
 ### Added

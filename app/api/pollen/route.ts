@@ -51,6 +51,7 @@ async function fetchPollenType(
   try {
     const res = await fetch(`${BASE}/${operation}?${params}`, {
       next: { revalidate: 3600 * 6 },
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const data = await res.json();
