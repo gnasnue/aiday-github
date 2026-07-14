@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, Leaf, Sparkles } from "lucide-react";
 import LineIcon, { type LineIconName } from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
+import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
 import type { WeatherData } from "@/lib/weather-api";
 
 type Gender = "male" | "female" | "unknown";
@@ -28,8 +29,8 @@ const CalloutIcon = ({ name, className }: { name: CalloutIconName; className?: s
 // conditions, mirroring the thresholds in lib/recommendation-engine.ts so
 // the illustration never drifts from what the "오늘 챙길 것" checklist says.
 function buildCallouts(weather: WeatherData, conditions: string[]): Callout[] {
-  const hasRhinitis = conditions.includes("비염");
-  const hasSensitiveSkin = conditions.includes("피부 민감");
+  const hasRhinitis = hasRespiratory(conditions);
+  const hasSensitiveSkin = hasSkin(conditions);
 
   const highPollen = weather.timeline.some((t) => t.pollen === "높음" || t.pollen === "매우높음");
   const badDust = weather.timeline.some((t) => t.dust === "나쁨" || t.dust === "매우나쁨");

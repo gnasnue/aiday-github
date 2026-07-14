@@ -7,7 +7,7 @@
 > **Author**: 이은상 / Claude Code (PDCA 수동 실행)
 > **Date**: 2026-07-07
 > **Status**: Draft
-> **Planning Doc**: [briefing-engine.plan.md](../../01-plan/features/briefing-engine.plan.md)
+> **Planning Doc**: [briefing-engine.plan.md](./briefing-engine.plan.md)
 
 ---
 

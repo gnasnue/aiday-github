@@ -6,7 +6,7 @@
 > **Version**: 0.1.1.0
 > **Analyst**: Claude Code (PDCA 수동 실행, 정적 분석)
 > **Date**: 2026-07-07
-> **Design Doc**: [briefing-engine.design.md](../02-design/features/briefing-engine.design.md)
+> **Design Doc**: [briefing-engine.design.md](./briefing-engine.design.md)
 
 > [!NOTE]
 > 본 CHECK는 **구현(Do) 이전** 시점의 baseline 측정이다. 매치율은 "목표 Design 중 v0.3 기준선에 이미 존재하는 비율"을 뜻하며, 남은 구현 백로그의 크기를 정량화한다. 런타임 테스트(L1~L3)는 dev 서버 미기동으로 미실행 → **정적 전용 공식** 적용.

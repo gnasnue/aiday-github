@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { buildReportPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
+import { sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
 
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
@@ -122,10 +123,12 @@ export async function POST(req: NextRequest) {
   const conditions = child.conditions?.length
     ? child.conditions.join(", ") + (child.conditionEtc ? `, ${child.conditionEtc}` : "")
     : child.conditionEtc || "없음";
+  // cold/hot/sweat는 온보딩에서 코드값("normal" 등)으로 저장되므로 한국어 문구로
+  // 변환해 프롬프트에 넣는다(버그 B). 데모/구형 한국어 문자열은 그대로 통과한다.
   const tempSensitivity = [
-    child.cold ? `추위: ${child.cold}` : null,
-    child.hot ? `더위: ${child.hot}` : null,
-    child.sweat ? `땀: ${child.sweat}` : null,
+    child.cold ? `추위: ${sensitivityPhrase(child.cold)}` : null,
+    child.hot ? `더위: ${sensitivityPhrase(child.hot)}` : null,
+    child.sweat ? `땀: ${sweatPhrase(child.sweat)}` : null,
   ].filter(Boolean).join(", ") || "특이사항 없음";
 
   // ── 시간대별 날씨 → 일정 매핑 ──────────────────────────────

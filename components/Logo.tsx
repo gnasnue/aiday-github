@@ -9,8 +9,9 @@ import Link from "next/link";
  *    한쪽만 바꾸면 탭 파비콘과 인앱 로고가 어긋난다 — 항상 함께 수정할 것.
  */
 const Mark = () => (
-  // viewBox로 icon.svg의 앱 아이콘용 여백을 잘라 마크가 박스를 꽉 채우게 함 (패스는 동일)
-  <svg width="30" height="30" viewBox="17 11 90 90" fill="none" aria-hidden="true">
+  // viewBox로 icon.svg의 앱 아이콘용 여백을 잘라내되, y 시작점은 해+언덕의
+  // 시각적 무게중심이 박스 세로 중앙에 오도록 잡음 — 텍스트와 수직 정렬 기준 (패스는 동일)
+  <svg width="30" height="30" viewBox="17 23 90 90" fill="none" aria-hidden="true">
     <g transform="translate(0 12.5)" fill="none" strokeLinecap="round">
       {/* 빛살 */}
       <g stroke="#EDB94A" strokeWidth="3">
@@ -37,7 +38,7 @@ const Logo = ({ className = "" }: { className?: string }) => (
   <Link
     href="/"
     aria-label="AiDay 아이데이 홈으로"
-    className={`inline-flex items-center gap-1.5 font-bold text-foreground ${className}`}
+    className={`inline-flex items-center gap-2 font-bold text-foreground ${className}`}
   >
     <Mark />
     <span className="text-[17px] tracking-[-0.01em]">AiDay 아이데이</span>

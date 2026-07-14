@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
@@ -14,6 +14,28 @@ const Login = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
+
+  // 인증 콜백 실패로 되돌아온 경우 사유를 안내한다 (예: 재설정 링크 만료).
+  // useSearchParams는 Suspense 경계를 요구하므로 마운트 후 location에서 직접 읽는다.
+  useEffect(() => {
+    const error = new URLSearchParams(window.location.search).get("error");
+    if (!error) return;
+    // 쿼리를 먼저 정리해 Strict Mode 2차 마운트·새로고침 시 중복 노출을 막는다.
+    window.history.replaceState(null, "", "/login");
+    // Toaster 구독이 자리잡은 뒤 표시되도록 한 틱 미룬다(마운트 직후 토스트 유실 방지).
+    // 정리(clearTimeout)를 두지 않는 건 의도적이다 — Strict Mode의 2차 마운트가
+    // 1차에서 예약한 토스트를 취소하지 못하게 한다. 토스트는 외부 상태라 언마운트 후 실행돼도 안전하다.
+    setTimeout(() => {
+      if (error === "recovery") {
+        toast.error("재설정 링크가 만료됐거나 유효하지 않아요.", {
+          description: "아래에서 '비밀번호를 잊으셨나요?'로 다시 요청해주세요.",
+          duration: 8000,
+        });
+      } else {
+        toast.error("인증에 실패했어요. 다시 시도해주세요.");
+      }
+    }, 0);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

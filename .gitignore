@@ -32,3 +32,5 @@ dist-ssr
 
 # 로컬 보관용 (GitHub 미추적)
 Trash Can/
+.vercel
+.env*

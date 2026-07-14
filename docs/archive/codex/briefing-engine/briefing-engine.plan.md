@@ -48,7 +48,7 @@
 
 - PRD: [PRD.md](../../../PRD.md) §05(P0-1)·§07(S-001)·§08(판단 엔진 명세)
 - MANIFESTO: [MANIFESTO.md](../../../MANIFESTO.md)
-- Design: [briefing-engine.design.md](../../02-design/features/briefing-engine.design.md)
+- Design: [briefing-engine.design.md](./briefing-engine.design.md)
 
 ---
 

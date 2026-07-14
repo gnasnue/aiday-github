@@ -7,7 +7,8 @@ import type { DustLevel, PollenLevel, UvLevel, WindLevel } from "./weather-api";
  * 각 슬롯 시각에 가장 가까운 실측/예보 데이터로 채운다.
  * - 기온·체감·습도·바람·하늘상태: 기상청 단기예보(시간대별 실값)
  * - 자외선: 기상청 생활기상지수(3시간 단위 실값)
- * - 미세먼지·꽃가루: 시간 해상도가 없어 오늘의 대푯값을 전 슬롯 공유
+ * - 미세먼지: 지나간 시각은 그 시각의 실측 등급(에어코리아 24시간), 미래는 현재 대푯값
+ * - 꽃가루: 일 단위 지수라 오늘의 대푯값을 전 슬롯 공유
  */
 
 export type HomeTimeSlot = {
@@ -46,7 +47,10 @@ export type ScheduleInput = {
 
 export type EnvRaw = {
   weather: { hourlyForecast?: WeatherHour[] } | null;
-  air: { pm10Grade?: number | null } | null;
+  air: {
+    pm10Grade?: number | null;
+    hourly?: Record<string, number | null>; // 오늘 시각별 pm10 1시간 등급 실측
+  } | null;
   uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null;
   pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null;
 };
@@ -61,13 +65,19 @@ const parseHour = (t?: string): number | null => {
 const dustLabel = (g: number | null): DustLevel =>
   g === 1 ? "좋음" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "보통";
 
-// 꽃가루 위험지수(0~4) → 라벨
-const pollenLabel = (g: number | null): PollenLevel =>
+// 꽃가루 위험지수(0~4) → 라벨 — AI 리포트 환경 칩과 시간대별 카드가 공유
+export const pollenLabel = (g: number | null): PollenLevel =>
   g == null ? "낮음" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
 
-// 자외선지수(UVI) → 라벨 (홈 카드 표시 계층 4단계)
-const uvLevel = (v: number | null): UvLevel =>
+// 자외선지수(UVI) → 라벨 (표시 계층 4단계) — AI 리포트 환경 칩과 시간대별 카드가 공유
+export const uvLevel = (v: number | null): UvLevel =>
   v == null ? "낮음" : v >= 8 ? "매우강함" : v >= 6 ? "강함" : v >= 3 ? "보통" : "낮음";
+
+// 수종별 위험지수 중 최댓값을 오늘의 꽃가루 대푯값으로 사용
+export const maxPollenGrade = (p: EnvRaw["pollen"]): number | null => {
+  const vals = [p?.oak, p?.pine, p?.weed].filter((v): v is number => v != null);
+  return vals.length ? Math.max(...vals) : null;
+};
 
 // 풍속(m/s) → 라벨 (홈 환경 매핑과 동일 임계값)
 const windLevel = (mps: number | null): WindLevel =>
@@ -88,6 +98,22 @@ const nearestWeather = (hours: WeatherHour[], target: number): WeatherHour | nul
   const bh = parseHour(best.hour);
   if (bh == null || Math.abs(bh - target) > MAX_HOUR_GAP) return null;
   return best;
+};
+
+// 미세먼지: 지나간 시각은 그 시각(±1시간)의 실측 등급으로 고정해,
+// 이후 공기질이 변해도 지나간 슬롯의 표시·준비물이 바뀌지 않게 한다.
+// 실측이 없는 시각(미래 슬롯)은 fallback(현재 대푯값)을 그대로 쓴다.
+const dustAt = (
+  hourly: Record<string, number | null> | undefined,
+  target: number,
+  fallback: number | null
+): number | null => {
+  if (!hourly) return fallback;
+  for (const h of [target, target - 1, target + 1]) {
+    const v = hourly[String(h)];
+    if (v != null) return v;
+  }
+  return fallback;
 };
 
 const nearestUv = (
@@ -116,10 +142,7 @@ export function buildTimeline(
   if (!hours.length) return null;
 
   const dustG = env.air?.pm10Grade ?? null;
-  const pollenVals = [env.pollen?.oak, env.pollen?.pine, env.pollen?.weed].filter(
-    (v): v is number => v != null
-  );
-  const pollenG = pollenVals.length ? Math.max(...pollenVals) : null;
+  const pollenG = maxPollenGrade(env.pollen);
 
   // 등원·하원은 일과 미입력 시에도 기본 시각으로 항상 노출.
   // 야외활동·저녁은 사용자가 입력한 경우에만 노출(허구의 슬롯 방지).
@@ -147,7 +170,7 @@ export function buildTimeline(
       pop: w.pop,
       temp: Math.round(w.temp),
       feels: Math.round(w.temp - 0.7 * (wind ?? 0)),
-      dust: dustLabel(dustG),
+      dust: dustLabel(dustAt(env.air?.hourly, th, dustG)),
       uv: uvLevel(nearestUv(env.uv?.hourly, th) ?? env.uv?.uvi ?? null),
       pollen: pollenLabel(pollenG),
       humidity: w.humidity ?? 0,
