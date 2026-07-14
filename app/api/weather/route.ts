@@ -104,9 +104,9 @@ export async function GET(request: NextRequest) {
     // 최신 발표본에서 빠진다. 당일 0200 발표본은 하루 전체를 커버하므로 함께 받아
     // 지나간 시각 슬롯을 그날 아침에 봤던 값 그대로 고정해 채운다.
     const [res, fillRes] = await Promise.all([
-      fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 } }), // 30분 캐시
+      fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }), // 30분 캐시
       base_time !== "0200"
-        ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 } }).catch(() => null)
+        ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null)
         : Promise.resolve(null),
     ]);
     if (!res.ok) {

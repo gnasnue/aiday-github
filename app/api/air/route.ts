@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
   const url = `https://apis.data.go.kr/B552584/ArpltnInforInqireSvc/getMsrstnAcctoRltmMesureDnsty?${params}`;
 
   try {
-    const res = await fetch(url, { next: { revalidate: 3600 } }); // 1시간 캐시
+    const res = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }); // 1시간 캐시
     if (!res.ok) {
       return NextResponse.json(
         { error: `에어코리아 API 오류: ${res.status}` },

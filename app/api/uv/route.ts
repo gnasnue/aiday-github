@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       });
       const res = await fetch(
         `https://apis.data.go.kr/1360000/LivingWthrIdxServiceV5/getUVIdxV5?${params}`,
-        { next: { revalidate: 3600 } }
+        { next: { revalidate: 3600 }, signal: AbortSignal.timeout(8000) }
       );
       if (!res.ok) return null;
       const data = await res.json();
