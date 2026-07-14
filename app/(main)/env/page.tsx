@@ -129,62 +129,100 @@ const Environment = () => {
     fetchAll();
   }, [fetchAll]);
 
-  /* personalized insights based on conditions + env */
+  /* 맞춤 인사이트 — 실측 환경값 + 아이 프로필 조건으로만 생성 (가정값 없음).
+     데이터가 없는 항목은 카드를 만들지 않는다(없는 값을 실제처럼 보이지 않게). */
   const insights = useMemo(() => {
     const list: { icon: string; title: string; body: string; tone: "warn" | "info" | "ok" }[] = [];
     const conds = cur?.conditions ?? [];
     const hasResp = conds.some((c) => c.includes("호흡기"));
     const hasAllergy = conds.some((c) => c.includes("알레르기"));
     const hasSkin = conds.some((c) => c.includes("피부"));
+    const sensitive = hasResp || hasAllergy;
 
-    const pm10Grade = air?.pm10Grade ?? 2;
-    const pm25Grade = air?.pm25Grade ?? 2;
-    const humidity = weather?.humidity ?? 50;
-    const windSpeed = weather?.windSpeed ?? 0;
+    // 1) 미세먼지 — 실측 등급 있을 때만
+    if (air && (air.pm10Grade != null || air.pm25Grade != null)) {
+      const g = Math.max(air.pm10Grade ?? 0, air.pm25Grade ?? 0);
+      if (g >= 3) {
+        list.push({
+          icon: "😷",
+          title: `미세먼지 ${gradeToLabel(air.pm10Grade)} / 초미세 ${gradeToLabel(air.pm25Grade)}`,
+          body: sensitive
+            ? "호흡기·알레르기가 민감한 아이에겐 부담이 큰 수치예요. 장시간 야외활동은 피하고 KF94 마스크를 챙기세요."
+            : "장시간 야외활동은 피하고, 외출 시 마스크·귀가 후 손 씻기를 잊지 마세요.",
+          tone: "warn",
+        });
+      } else if (g >= 1) {
+        list.push({
+          icon: "🌿",
+          title: `미세먼지 ${gradeToLabel(g)}`,
+          body: "야외 활동에 무리 없는 수치예요.",
+          tone: "ok",
+        });
+      }
+    }
 
-    if ((pm10Grade >= 3 || pm25Grade >= 3) ) {
+    // 2) 꽃가루 — 실측 위험지수 반영 (프로필로 강도만 조절)
+    const pollenVals = pollen
+      ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
+      : [];
+    const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
+    if (pollenMax != null && pollenMax >= 2) {
       list.push({
-        icon: "😷",
-        title: `미세먼지 ${gradeToLabel(pm10Grade)} / 초미세 ${gradeToLabel(pm25Grade)}`,
-        body: "장시간 야외활동은 피하고, 외출 시 마스크·외출 후 손 씻기를 잊지 마세요.",
+        icon: "🌳",
+        title: `꽃가루 ${pollenGradeLabel(pollenMax)}`,
+        body: sensitive
+          ? "호흡기·알레르기 민감 아이는 특히 주의하세요. KF94 마스크·모자, 귀가 후 옷 털기·세안·코 세척이 도움됩니다."
+          : "민감한 아이라면 외출 시 마스크·모자를 챙기고 귀가 후 세안·코 세척을 권장해요.",
+        tone: pollenMax >= 3 ? "warn" : "info",
+      });
+    }
+
+    // 3) 자외선 — 실측 지수 높음 이상일 때
+    if (uv?.uvi != null && uv.uvi >= 6) {
+      list.push({
+        icon: "🧴",
+        title: `자외선 ${uvLabel(uv.uvi)} (지수 ${uv.uvi})`,
+        body: hasSkin
+          ? "민감 피부에는 자외선 차단이 중요해요. 자외선차단제·모자·긴소매로 노출을 줄이세요."
+          : "정오~오후 2시 외출은 모자·자외선차단제로 노출을 줄여주세요.",
         tone: "warn",
       });
-    } else {
-      list.push({
-        icon: "🌿",
-        title: "미세먼지 양호",
-        body: "야외 활동에 무리 없는 수치예요. 다만 꽃가루는 별도로 확인하세요.",
-        tone: "ok",
-      });
     }
-    if (humidity <= 35) {
-      list.push({
-        icon: "💧",
-        title: `습도 ${humidityLabel(humidity)} (${humidity}%)`,
-        body: hasSkin
-          ? "민감 피부에는 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
-          : "수분 섭취를 늘리고 실내 가습으로 호흡기·피부 건조를 예방하세요.",
-        tone: "info",
-      });
+
+    // 4) 습도 — 실측값 기준 건조/다습
+    if (weather?.humidity != null) {
+      const h = weather.humidity;
+      if (h <= 35) {
+        list.push({
+          icon: "💧",
+          title: `습도 건조 (${h}%)`,
+          body: hasSkin
+            ? "민감 피부엔 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
+            : "수분 섭취를 늘리고 실내 가습으로 호흡기·피부 건조를 예방하세요.",
+          tone: "info",
+        });
+      } else if (h >= 75) {
+        list.push({
+          icon: "💦",
+          title: `습도 높음 (${h}%)`,
+          body: "땀·습기로 피부 트러블이 생기기 쉬워요. 통풍이 잘 되는 옷을 입히고 자주 환기해주세요.",
+          tone: "info",
+        });
+      }
     }
-    if (windSpeed >= 5) {
+
+    // 5) 바람 — 실측 풍속
+    if (weather?.windSpeed != null && weather.windSpeed >= 5) {
       list.push({
         icon: "🧣",
-        title: `바람 ${windSpeed}m/s`,
+        title: `바람 ${weather.windSpeed}m/s`,
         body: "체감온도가 낮아질 수 있어요. 얇은 바람막이나 목수건을 챙기면 좋아요.",
         tone: "info",
       });
     }
-    if ((hasResp || hasAllergy)) {
-      list.push({
-        icon: "🌳",
-        title: "꽃가루 주의 (호흡기·알레르기 민감)",
-        body: "외출 시 KF94 마스크와 모자를 챙겨주세요. 귀가 후 옷 털기·세안·코 세척이 도움됩니다.",
-        tone: "warn",
-      });
-    }
+
     return list;
-  }, [cur, air, weather]);
+  }, [cur, air, weather, uv, pollen]);
 
   /* 시간대별 날씨 카드 — weather.hourlyForecast(06~21시)에 자외선·미세먼지 등급을 합침 */
   const hourlyCards = useMemo(() => {
@@ -307,26 +345,38 @@ const Environment = () => {
                 ? `${cur.name}의 건강 정보(${cur.conditions.join(", ")})를 반영했어요`
                 : "프로필을 등록하면 더 정확한 추천을 받을 수 있어요"}
             </p>
-            <div className="mt-3 space-y-2.5">
-              {insights.map((it, i) => (
-                <article
-                  key={i}
-                  className={`flex items-start gap-3 rounded-2xl border p-4 shadow-soft ${
-                    it.tone === "warn"
-                      ? "border-accent/30 bg-accent/5"
-                      : it.tone === "ok"
-                        ? "border-border bg-card"
-                        : "border-primary/30 bg-secondary/40"
-                  }`}
-                >
-                  <span className="text-2xl">{it.icon}</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-foreground">{it.title}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
+            {loading ? (
+              <div className="mt-3 space-y-2.5">
+                <Skeleton className="h-20 w-full rounded-2xl" />
+                <Skeleton className="h-20 w-full rounded-2xl" />
+              </div>
+            ) : insights.length > 0 ? (
+              <div className="mt-3 space-y-2.5">
+                {insights.map((it, i) => (
+                  <article
+                    key={i}
+                    className={`flex items-start gap-3 rounded-2xl border p-4 shadow-soft ${
+                      it.tone === "warn"
+                        ? "border-accent/30 bg-accent/5"
+                        : it.tone === "ok"
+                          ? "border-border bg-card"
+                          : "border-primary/30 bg-secondary/40"
+                    }`}
+                  >
+                    <span className="text-2xl">{it.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-foreground">{it.title}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                지금은 특별히 주의할 환경 요인이 없어요
+                <p className="mt-1 text-xs">쾌적한 하루예요 🌿</p>
+              </div>
+            )}
           </section>
 
           {/* Outdoor activity index */}
@@ -348,6 +398,11 @@ const Environment = () => {
               <p className="mt-2 text-xs leading-relaxed text-foreground">
                 {outdoor.comment}
               </p>
+              {outdoor.basis.length > 0 && (
+                <p className="mt-2 border-t border-border/50 pt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  아이데이 종합 지표(공인 지수 아님) · {outdoor.basis.join(" · ")} 기준
+                </p>
+              )}
             </section>
           ) : null}
 
