@@ -332,8 +332,8 @@ const Home = () => {
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    // v11: 리포트 입력에 자외선·꽃가루 추가 + 급변 스냅샷 확장 — 구스키마 캐시 무효화
-    const cacheKey = `aiday:report:v11:${cur.id}:${localDateStr()}`;
+    // v12: 체질 민감도 코드→한국어 변환(버그 B) — 프롬프트 입력 변경으로 구캐시 무효화
+    const cacheKey = `aiday:report:v12:${cur.id}:${localDateStr()}`;
 
     const fetchReport = async () => {
       const force = forceRefreshRef.current;

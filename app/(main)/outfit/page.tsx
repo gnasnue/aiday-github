@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withTopicParticle } from "@/lib/korean";
+import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
 
 
 type Category = "아우터" | "이너" | "하의" | "악세사리";
@@ -61,8 +62,8 @@ function buildOutfit(
   const sweat = profile?.sweat ?? "";
   const cold = profile?.cold ?? "";
   const conditions = profile?.conditions ?? [];
-  const hasRhinitis = conditions.includes("비염");
-  const sensitiveSkin = conditions.includes("피부 민감");
+  const hasRhinitis = hasRespiratory(conditions);
+  const sensitiveSkin = hasSkin(conditions);
 
   const temp = weather?.temperature ?? null;
   const windStrong = (weather?.windSpeed ?? 0) >= 5;
@@ -102,7 +103,7 @@ function buildOutfit(
     items.push({ category: "악세사리", emoji: "☂️", name: "우산", note: "강수 예보" });
   }
   if (hasRhinitis) {
-    items.push({ category: "악세사리", emoji: "😷", name: "KF94 마스크", note: "비염 보호" });
+    items.push({ category: "악세사리", emoji: "😷", name: "KF94 마스크", note: "호흡기 보호" });
   }
   if (sensitiveSkin) {
     items.push({ category: "악세사리", emoji: "🧴", name: "보습 로션", note: "외출 전 도포" });
