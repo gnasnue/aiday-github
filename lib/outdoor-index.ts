@@ -16,10 +16,20 @@ export type OutdoorIndexResult = {
   score: number; // 0~100
   label: "좋음" | "보통" | "주의" | "나쁨";
   comment: string;
+  basis: string[]; // 계산에 쓰인 공인 입력값 (화면 하단 근거 표기용)
 };
 
 const labelOf = (s: number): OutdoorIndexResult["label"] =>
   s >= 80 ? "좋음" : s >= 60 ? "보통" : s >= 40 ? "주의" : "나쁨";
+
+// 통합대기 등급(1~4) → 라벨 (에어코리아 공인 등급)
+const airGradeLabel = (g: number): string =>
+  g === 1 ? "좋음" : g === 2 ? "보통" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "정보없음";
+const uvBandLabel = (v: number): string =>
+  v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
+const uviLabelValue = (v: number): string => `${v}(${uvBandLabel(v)})`;
+const pollenBandLabel = (g: number): string =>
+  g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
 
 export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResult {
   let score = 100;
@@ -96,5 +106,14 @@ export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResul
           : "가급적 실내 활동을 권장해요.";
   const comment = top.length ? `${top.join(", ")}. ${tail}` : `쾌적한 환경이에요. ${tail}`;
 
-  return { score, label, comment };
+  // 계산 근거: 실제로 반영된 공인 입력값만 나열 (화면 하단 표기용)
+  const basis: string[] = [];
+  if (airGrade >= 1) basis.push(`통합대기 ${airGradeLabel(airGrade)}`);
+  if (uvi != null) basis.push(`자외선 ${uviLabelValue(uvi)}`);
+  if (pollen != null) basis.push(`꽃가루 ${pollenBandLabel(pollen)}`);
+  if (pop != null) basis.push(`강수확률 ${pop}%`);
+  if (temp != null) basis.push(`기온 ${Math.round(temp)}°C`);
+  if (wind != null && wind >= 5) basis.push(`바람 ${wind}m/s`);
+
+  return { score, label, comment, basis };
 }
