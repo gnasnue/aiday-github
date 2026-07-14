@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Download, Share2 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ItemIllustration from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
 import { withSubjectSuffix } from "@/lib/korean";
+import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
   ChildProfile,
   PROFILES_KEY,
@@ -118,7 +119,8 @@ const skySlotIcon = (sky: number | null, pty: number | null) => {
 // 체크리스트 아이콘: AI가 "☂️ 우산" 형태로 동적 생성하므로 키워드 매핑 + fallback
 const checklistIcon = (icon: string, text: string) => {
   const s = `${icon} ${text}`;
-  const cls = "shrink-0 text-status-warn";
+  // 색은 부모(아이콘 사각형)의 text-* 를 상속 — 준비물 아이콘은 warn 전용색이 아니다
+  const cls = "shrink-0";
   if (/😷|마스크/.test(s)) return <LineIcon name="mask" className={cls} />;
   if (/🧣|목수건|목도리/.test(s)) return <LineIcon name="scarf" className={cls} />;
   if (/🧥|👕|가디건|외투|긴팔/.test(s)) return <LineIcon name="cardigan" className={cls} />;
@@ -162,6 +164,55 @@ const renderRich = (text: string) => {
       </span>
     );
   });
+};
+
+// AI hook(히어로 헤드라인)을 두 줄로 — "조건, 행동" 또는 "조건 — 행동" 형태를 분리.
+// 구분자(쉼표·대시)가 없으면 한 줄로 두고 자연 줄바꿈에 맡긴다.
+const splitHook = (hook: string): string[] => {
+  const comma = hook.search(/[,，]/);
+  if (comma > 0 && comma < hook.length - 1) {
+    return [hook.slice(0, comma + 1).trim(), hook.slice(comma + 1).trim()];
+  }
+  const dash = hook.match(/\s+[—–-]\s+/);
+  if (dash && dash.index != null) {
+    return [hook.slice(0, dash.index).trim(), hook.slice(dash.index + dash[0].length).trim()];
+  }
+  return [hook];
+};
+
+/* ---- 하루 케어 플랜: 슬롯별 "특이사항" 요약 ---- */
+
+// 환경 보호용 준비물(강수·미세먼지·꽃가루·자외선 대응)은 컬러 강조, 나머지(보습·보온)는 아웃라인.
+const CRITICAL_PREP = new Set(["우산", "마스크", "선크림"]);
+
+// 슬롯 라벨 정리: "등원시간" → "등원", "하원시간" → "하원"
+const careLabel = (label: string) => label.replace(/시간$/, "");
+
+// 온도 옆에 붙일 "특이사항" 지표 — 6개 지표 중 주의 수준만.
+// 아이 프로파일(호흡기·알레르기·피부)에 해당하면 '보통' 단계도 노출해 미리 챙기게 한다.
+const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] => {
+  const watchAir = hasRespiratory(conditions) || hasAllergy(conditions); // 미세먼지·꽃가루 민감
+  const watchUv = hasSkin(conditions); // 자외선 민감
+  const watchDry = hasSkin(conditions); // 건조 민감
+  const out: string[] = [];
+
+  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 60)) out.push("비 소식");
+
+  if (slot.dust === "나쁨" || slot.dust === "매우나쁨") out.push(`미세먼지 ${slot.dust}`);
+  else if (watchAir && slot.dust === "보통") out.push("미세먼지 보통");
+
+  if (slot.pollen === "높음" || slot.pollen === "매우높음") out.push(`꽃가루 ${slot.pollen}`);
+  else if (watchAir && slot.pollen === "보통") out.push("꽃가루 보통");
+
+  if (slot.uv === "강함" || slot.uv === "매우강함") out.push(`자외선 ${slot.uv}`);
+  else if (watchUv && slot.uv === "보통") out.push("자외선 보통");
+
+  if (slot.wind === "강함") out.push("바람 강함");
+
+  if (slot.humidity > 0 && slot.humidity <= 40) out.push("건조");
+  else if (watchDry && slot.humidity > 0 && slot.humidity <= 50) out.push("건조 주의");
+
+  return out;
 };
 
 
@@ -562,8 +613,25 @@ const Home = () => {
 
   const allDone = checked.length === activeChecklist.length;
 
-  // 오늘의 판단 상태 — 배지 tone에서 도출 (기능 변경 없음, 표현만)
-  const hasWarn = badges.some((b) => b.tone === "warn");
+  // 하루 케어 플랜 "지금" 슬롯 — 지나간 마지막 슬롯(진행 중), 아직 없으면 첫 슬롯
+  const careNowIdx = (() => {
+    let idx = -1;
+    displaySlots.forEach((s, i) => {
+      if (slotPassed(s.hour)) idx = i;
+    });
+    return idx >= 0 ? idx : 0;
+  })();
+
+  // 헤더 메타 — "7월 14일 (화) 07:30 생성" (요일 포함·24시간제). 시각은 리포트 생성 시점.
+  const reportMeta = (() => {
+    const d = reportTs != null ? new Date(reportTs) : new Date();
+    const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+    const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd})`;
+    if (reportTs == null) return base;
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${base} ${hh}:${mm} 생성`;
+  })();
 
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
@@ -656,126 +724,145 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 overflow-hidden rounded-[18px] border border-border/60 bg-card shadow-soft animate-fade-up">
-              {/* 카드 헤더 */}
-              <div className="bg-secondary px-5 pt-5 pb-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent">AI Report</span>
-                  <div className="flex items-center gap-2">
-                    {aiError && (
-                      <span className="text-[10px] text-muted-foreground/60">기본 추천</span>
-                    )}
-                    <span className="num text-[11px] text-muted-foreground">
-                      {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" })}
-                      {/* 브리핑 생성 시각 — "이 브리핑이 언제 작성됐는지" 신뢰 단서 */}
-                      {reportTs != null &&
-                        ` ${new Date(reportTs).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit", hour12: false })}`}
-                    </span>
-                    <button
-                      onClick={refreshReport}
-                      disabled={aiLoading}
-                      aria-label="리포트 새로고침"
-                      className="-my-3 -mr-2.5 rounded-full p-3 text-muted-foreground transition-smooth hover:bg-muted disabled:opacity-40"
-                    >
-                      <RefreshCw className="h-5 w-5" strokeWidth={1.75} />
-                    </button>
+            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-soft animate-fade-up">
+              {/* 카드 헤더 — 아이브로우 + 생성 메타 + 저장·공유·새로고침 */}
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-[12px] font-bold tracking-[0.04em] text-accent">AI 리포트</span>
+                <span className="num min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+                  {aiError && "기본 추천 · "}
+                  {reportMeta}
+                </span>
+                <div className="-mr-1.5 flex shrink-0 items-center text-muted-foreground">
+                  <button
+                    onClick={refreshReport}
+                    disabled={aiLoading}
+                    aria-label="리포트 새로고침"
+                    className="rounded-full p-2.5 transition-smooth hover:bg-muted disabled:opacity-40"
+                  >
+                    <RefreshCw className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </button>
+                  <button
+                    onClick={() => toast("이미지 저장은 준비 중이에요")}
+                    aria-label="이미지 저장"
+                    className="rounded-full p-2.5 transition-smooth hover:bg-muted"
+                  >
+                    <Download className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </button>
+                  <button
+                    onClick={() => toast("공유는 준비 중이에요")}
+                    aria-label="공유"
+                    className="rounded-full p-2.5 transition-smooth hover:bg-muted"
+                  >
+                    <Share2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </button>
+                </div>
+              </div>
+
+              {/* hook + message — 로딩 중엔 skeleton */}
+              {aiLoading ? (
+                <div className="mt-3 space-y-2">
+                  <Skeleton className="h-6 w-3/4 rounded-full" />
+                  <div className="mt-3 space-y-1.5">
+                    <Skeleton className="h-3.5 w-full rounded-full" />
+                    <Skeleton className="h-3.5 w-5/6 rounded-full" />
+                    <Skeleton className="h-3.5 w-4/6 rounded-full" />
                   </div>
                 </div>
-
-                {/* 상태 필 — 5초 안에 파악되는 오늘의 결론 */}
-                {!aiLoading && (
-                  <span
-                    className={`mt-2.5 inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-semibold ${
-                      hasWarn ? "chip-warn" : "chip-good"
-                    }`}
-                  >
-                    <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-                    {hasWarn ? "오늘은 주의가 필요해요" : "오늘은 무난한 하루예요"}
-                  </span>
-                )}
-
-                {/* AI 로딩 중: hook + message 영역 skeleton */}
-                {aiLoading ? (
-                  <div className="mt-3 space-y-2">
-                    <Skeleton className="h-5 w-3/4 rounded-full" />
-                    <div className="mt-3 space-y-1.5">
-                      <Skeleton className="h-3.5 w-full rounded-full" />
-                      <Skeleton className="h-3.5 w-5/6 rounded-full" />
-                      <Skeleton className="h-3.5 w-4/6 rounded-full" />
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론 */}
-                    {aiHook && (
-                      <h1 className="mt-3 text-[19px] font-bold leading-[1.4] tracking-[-0.01em] text-foreground break-keep">
-                        {aiHook}
-                      </h1>
-                    )}
-                    {/* message — 상세 설명 */}
-                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
-                      {message.split("\n").filter(Boolean).map((line, i) => (
-                        <p key={i} className="text-[14px] leading-[1.7] text-foreground/80 break-keep">
-                          {renderRich(line)}
-                        </p>
+              ) : (
+                <>
+                  {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론 */}
+                  {aiHook && (
+                    <h1 className="mt-3 text-[22px] font-extrabold leading-[1.35] tracking-[-0.02em] text-foreground break-keep">
+                      {splitHook(aiHook).map((ln, i) => (
+                        <span key={i} className="block">
+                          {ln}
+                        </span>
                       ))}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="px-5 pb-5">
-              {/* 환경 칩 — 1b: 흰 배경 + 6px 상태 도트 + 값 텍스트만 상태 색 */}
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {badges.map((b) => {
-                  const tone = badgeTone(b.tone, b.value);
-                  return (
+                    </h1>
+                  )}
+                  {/* message — 상세 설명 */}
+                  <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
+                    {message.split("\n").filter(Boolean).map((line, i) => (
+                      <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
+                        {renderRich(line)}
+                      </p>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* 환경 칩 — 주의(warn)만 컬러 강조, 나머지는 플랫 그레이 */}
+              <div className="mt-3.5 flex flex-wrap gap-1.5">
+                {badges.map((b) =>
+                  badgeTone(b.tone, b.value) === "warn" ? (
                     <span
                       key={b.label}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border-chip bg-card px-[11px] py-[5px] text-[11px] text-muted-foreground"
+                      className="inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-bold chip-warn"
                     >
-                      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${toneDot[tone]}`} aria-hidden="true" />
-                      {b.label} ·{" "}
-                      <span className={`${tone === "neutral" ? "font-medium" : "font-semibold"} ${toneText[tone]}`}>
-                        {b.value}
-                      </span>
+                      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" aria-hidden="true" />
+                      {b.label} {b.value}
                     </span>
-                  );
-                })}
+                  ) : (
+                    <span
+                      key={b.label}
+                      className="rounded-full bg-muted px-[11px] py-[5px] text-[12px] text-muted-foreground"
+                    >
+                      {b.label} {b.value}
+                    </span>
+                  )
+                )}
               </div>
 
-              <div className="mt-5 rounded-2xl bg-soft p-4">
-                <div className="flex items-center justify-between px-1">
-                  <p className="eyebrow normal-case tracking-[0.06em]">오늘 챙길 것</p>
+              {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄 */}
+              <div className="mt-4 rounded-2xl bg-soft px-4 pt-4 pb-1.5">
+                <div className="flex items-center justify-between px-0.5">
+                  <p className="text-[15px] font-bold">오늘 챙길 것</p>
                   {allDone ? (
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
                     <p className="num text-xs text-muted-foreground">
-                      {checked.length}
-                      <span className="text-muted-foreground/50"> / {activeChecklist.length}</span>
+                      <b className="text-accent">{checked.length}</b> / {activeChecklist.length}
                     </p>
                   )}
                 </div>
-                <ul className="mt-1 divide-y divide-border/40">
+                <ul className="mt-1.5">
                   {activeChecklist.map((c, i) => {
                     const on = checked.includes(i);
+                    // "제목 (사유)" 형태를 제목/사유 두 줄로 분리 — 괄호가 없으면 제목만
+                    const m = c.text.match(/^(.*?)\s*[（(](.+?)[)）]\s*$/);
+                    const title = m ? m[1].trim() : c.text;
+                    const reason = m ? m[2].trim() : "";
                     return (
                       <li key={i}>
                         <button
                           onClick={() => toggle(i)}
-                          className="flex w-full items-center gap-3 px-1 py-2.5 text-left"
+                          className="flex w-full items-center gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
                         >
                           <span
-                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-[1.5px] transition-smooth ${
+                            className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-[1.5px] transition-smooth ${
                               on
                                 ? "border-primary bg-primary text-primary-foreground"
                                 : "border-border-control bg-card"
                             }`}
                           >
-                            {on && <Check className="h-3 w-3" strokeWidth={3.2} />}
+                            {on && <Check className="h-3.5 w-3.5" strokeWidth={3.2} />}
                           </span>
-                          {checklistIcon(c.icon, c.text)}
-                          <span className={`flex-1 text-sm ${on ? "text-muted-foreground line-through" : "text-foreground"}`}>
-                            {c.text}
+                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-secondary text-accent">
+                            {checklistIcon(c.icon, c.text)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={`block text-[14.5px] font-bold tracking-[-0.01em] ${
+                                on ? "text-muted-foreground/60 line-through" : "text-foreground"
+                              }`}
+                            >
+                              {title}
+                            </span>
+                            {reason && (
+                              <span className="mt-0.5 block text-[12px] text-muted-foreground break-keep">
+                                {reason}
+                              </span>
+                            )}
                           </span>
                         </button>
                       </li>
@@ -785,10 +872,9 @@ const Home = () => {
               </div>
 
               {/* 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지 */}
-              <p className="mt-3 px-1 text-[11px] leading-relaxed text-muted-foreground/70">
+              <p className="mt-3 px-0.5 text-[11px] leading-relaxed text-muted-foreground/70">
                 {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
               </p>
-              </div>
             </section>
           )}
 
@@ -865,6 +951,82 @@ const Home = () => {
                       )}
                     </article>
                   ))}
+            </div>
+          </section>
+
+          {/* 하루 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
+          <section className="mt-8">
+            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em]">하루 케어 플랜</h2>
+            <div className="mt-4">
+              {loading
+                ? Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="mb-2.5 flex gap-3">
+                      <div className="flex flex-col items-center">
+                        <Skeleton className="mt-5 h-3 w-3 rounded-full" />
+                        {i < 2 && <span className="w-px flex-1 bg-border" />}
+                      </div>
+                      <Skeleton className="mb-0.5 h-24 flex-1 rounded-2xl" />
+                    </div>
+                  ))
+                : displaySlots.map((slot, i) => {
+                    const isNow = i === careNowIdx;
+                    const notables = slotNotables(slot, cur?.conditions);
+                    const prep = slotPrep[slot.time] ?? [];
+                    const last = i === displaySlots.length - 1;
+                    return (
+                      <div key={slot.time} className="flex gap-3">
+                        {/* 좌측 레일: 도트 + 연결선 */}
+                        <div className="flex flex-col items-center">
+                          <span
+                            className={`mt-5 h-3 w-3 shrink-0 rounded-full ${
+                              isNow ? "bg-primary ring-4 ring-primary/15" : "bg-border-control"
+                            }`}
+                            aria-hidden="true"
+                          />
+                          {!last && <span className="w-px flex-1 bg-border" />}
+                        </div>
+                        {/* 카드 */}
+                        <div className={`mb-2.5 flex-1 rounded-2xl p-4 ${isNow ? "bg-secondary" : "bg-muted"}`}>
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="min-w-0 text-[15px] break-keep">
+                              <span className="font-bold tracking-[-0.01em]">
+                                <span className="num">{slot.hour}</span> {careLabel(slot.time)}
+                              </span>
+                              <span className="ml-2 font-normal text-muted-foreground">
+                                <span className="num">{slot.temp}°</span>
+                                {notables.length > 0
+                                  ? ` · ${notables.slice(0, 2).join(" · ")}`
+                                  : " · 무난해요"}
+                              </span>
+                            </p>
+                            <span className="shrink-0">{skySlotIcon(slot.sky, slot.pty)}</span>
+                          </div>
+                          {prep.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                              {prep.map((k) =>
+                                CRITICAL_PREP.has(k) ? (
+                                  <span
+                                    key={k}
+                                    className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-bold chip-warn"
+                                  >
+                                    <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" aria-hidden="true" />
+                                    {k}
+                                  </span>
+                                ) : (
+                                  <span
+                                    key={k}
+                                    className="rounded-full border border-border-control bg-card px-3 py-1 text-[12px] font-semibold text-foreground"
+                                  >
+                                    {k}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
             </div>
           </section>
 

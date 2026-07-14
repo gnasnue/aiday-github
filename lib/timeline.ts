@@ -141,13 +141,15 @@ export function buildTimeline(
   );
   const pollenG = pollenVals.length ? Math.max(...pollenVals) : null;
 
-  // 등원·하원은 일과 미입력 시에도 기본 시각으로 항상 노출.
-  // 야외활동·저녁은 사용자가 입력한 경우에만 노출(허구의 슬롯 방지).
+  // 등원·하원·저녁은 일과 미입력 시에도 기본 시각으로 항상 노출.
+  // 저녁: 온보딩에서 '저녁 외출 시간'을 설정했으면 그 시각, 아니면 21:00
+  // (기상청 예보가 06·09·12·15·18·21시로 제공돼 21:00은 정확히 커버됨).
+  // 야외활동만 사용자가 입력한 경우에 노출(허구의 슬롯 방지).
   const defs: { label: string; time?: string; fallback: string }[] = [
     { label: "등원시간", time: schedule?.goSchool, fallback: "08:00" },
     { label: "야외활동", time: schedule?.outdoorStart, fallback: "" },
     { label: "하원시간", time: schedule?.leaveSchool, fallback: "15:00" },
-    { label: "저녁", time: schedule?.eveningStart, fallback: "" },
+    { label: "저녁", time: schedule?.eveningStart, fallback: "21:00" },
   ];
 
   const slots: HomeTimeSlot[] = [];
