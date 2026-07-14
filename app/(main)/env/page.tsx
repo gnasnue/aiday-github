@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { ArrowLeft, MapPin, ChevronDown, RefreshCw, Info } from "lucide-react";
 import Logo from "@/components/Logo";
@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withSubjectSuffix } from "@/lib/korean";
+import { computeOutdoorIndex } from "@/lib/outdoor-index";
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -32,27 +33,6 @@ const skyDesc = (sky: number | null, pty: number | null) => {
   if (sky === 4) return "흐림";
   return "알 수 없음";
 };
-
-const hourly = [
-  { h: "08", icon: "⛅", t: 12, rain: 0 },
-  { h: "10", icon: "☀️", t: 16, rain: 0 },
-  { h: "12", icon: "☀️", t: 19, rain: 0 },
-  { h: "14", icon: "🌤️", t: 21, rain: 10 },
-  { h: "16", icon: "🌥️", t: 20, rain: 20 },
-  { h: "18", icon: "🌥️", t: 16, rain: 30 },
-  { h: "20", icon: "☁️", t: 13, rain: 20 },
-  { h: "22", icon: "☁️", t: 11, rain: 10 },
-];
-
-const weekly = [
-  { day: "오늘", date: "5/01", icon: "🌤️", high: 22, low: 9, rain: 10, weekend: false },
-  { day: "금", date: "5/02", icon: "☀️", high: 24, low: 11, rain: 0, weekend: false },
-  { day: "토", date: "5/03", icon: "🌤️", high: 23, low: 12, rain: 10, weekend: true },
-  { day: "일", date: "5/04", icon: "🌦️", high: 19, low: 11, rain: 60, weekend: true },
-  { day: "월", date: "5/05", icon: "☁️", high: 18, low: 10, rain: 30, weekend: false },
-  { day: "화", date: "5/06", icon: "🌧️", high: 16, low: 9, rain: 80, weekend: false },
-  { day: "수", date: "5/07", icon: "⛅", high: 20, low: 10, rain: 20, weekend: false },
-];
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -79,6 +59,10 @@ const pollenGradeLabel = (g: number | null) =>
 const humidityLabel = (h: number) =>
   h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
 
+// 환경부 오존 1시간 기준 등급 (ppm): ≤0.03 좋음 / ≤0.09 보통 / ≤0.15 나쁨 / 초과 매우나쁨
+const o3Grade = (ppm: number | null): number | null =>
+  ppm === null ? null : ppm <= 0.03 ? 1 : ppm <= 0.09 ? 2 : ppm <= 0.15 ? 3 : 4;
+
 /* ----------------------------- nav ----------------------------- */
 
 
@@ -99,36 +83,51 @@ const Environment = () => {
   const [loading, setLoading] = useState(true);
 
   // 실제 API 데이터
+  type HourlyForecast = {
+    hour: string; temp: number; sky: number | null; pty: number | null;
+    humidity: number | null; windSpeed: number | null; pop: number | null;
+  };
   const [weather, setWeather] = useState<{
     temperature: number | null; sky: number | null; pty: number | null;
     humidity: number | null; windSpeed: number | null; pop: number | null;
+    hourlyForecast?: HourlyForecast[];
   } | null>(null);
   const [air, setAir] = useState<{
     pm10: number | null; pm25: number | null;
     pm10Grade: number | null; pm25Grade: number | null;
     o3: number | null; stationName: string | null;
+    hourly?: Record<string, number | null>;
   } | null>(null);
   const [pollen, setPollen] = useState<{
     oak: number | null; pine: number | null; weed: number | null;
   } | null>(null);
-  const [uv, setUv] = useState<{ uvi: number | null } | null>(null);
+  const [uv, setUv] = useState<{ uvi: number | null; hourly?: Record<string, number | null> } | null>(null);
+  type WeekDay = {
+    day: string; date: string; icon: string;
+    high: number | null; low: number | null; rain: number; weekend: boolean;
+  };
+  const [weekly, setWeekly] = useState<WeekDay[] | null>(null);
+
+  const fetchAll = useCallback(async () => {
+    const [wRes, aRes, pRes, uRes, weekRes] = await Promise.allSettled([
+      fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
+      fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
+      fetch("/api/pollen?region=서울").then((r) => r.json()),
+      fetch("/api/uv?region=서울").then((r) => r.json()),
+      fetch("/api/weather/weekly?region=서울&lat=37.5665&lon=126.9780").then((r) => r.json()),
+    ]);
+    if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
+    if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
+    if (pRes.status === "fulfilled" && !pRes.value.error) setPollen(pRes.value);
+    if (uRes.status === "fulfilled" && !uRes.value.error) setUv(uRes.value);
+    if (weekRes.status === "fulfilled" && !weekRes.value.error && Array.isArray(weekRes.value.week))
+      setWeekly(weekRes.value.week);
+    setLoading(false);
+  }, []);
 
   useEffect(() => {
-    const fetchAll = async () => {
-      const [wRes, aRes, pRes, uRes] = await Promise.allSettled([
-        fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
-        fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
-        fetch("/api/pollen?region=서울").then((r) => r.json()),
-        fetch("/api/uv?region=서울").then((r) => r.json()),
-      ]);
-      if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
-      if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
-      if (pRes.status === "fulfilled" && !pRes.value.error) setPollen(pRes.value);
-      if (uRes.status === "fulfilled" && !uRes.value.error) setUv(uRes.value);
-      setLoading(false);
-    };
     fetchAll();
-  }, []);
+  }, [fetchAll]);
 
   /* personalized insights based on conditions + env */
   const insights = useMemo(() => {
@@ -187,12 +186,74 @@ const Environment = () => {
     return list;
   }, [cur, air, weather]);
 
-  const refresh = () => {
+  /* 시간대별 날씨 카드 — weather.hourlyForecast(06~21시)에 자외선·미세먼지 등급을 합침 */
+  const hourlyCards = useMemo(() => {
+    const list = weather?.hourlyForecast ?? [];
+    return list.map((h) => {
+      const hh = h.hour.slice(0, 2); // "06:00" → "06"
+      const hourKey = String(Number(hh)); // uv/air hourly 맵 키는 "6"
+      const uvi = uv?.hourly?.[hourKey] ?? null;
+      const pm10Grade = air?.hourly?.[hourKey] ?? null;
+      return {
+        h: hh,
+        icon: skyIcon(h.sky, h.pty),
+        t: Math.round(h.temp),
+        rain: h.pop ?? 0,
+        uvi,
+        pm10Grade,
+      };
+    });
+  }, [weather, uv, air]);
+
+  /* 주간 날씨 온도 바 스케일 — 그 주의 실제 최저~최고 범위로 정규화 */
+  const weekTempRange = useMemo(() => {
+    const temps = (weekly ?? [])
+      .flatMap((w) => [w.low, w.high])
+      .filter((v): v is number => v != null);
+    if (!temps.length) return null;
+    const min = Math.min(...temps);
+    const max = Math.max(...temps);
+    return { min, span: max === min ? 1 : max - min };
+  }, [weekly]);
+
+  /* 주간 하단 안내 — 주말 강수 소식이 있으면 반영 */
+  const weekendHint = useMemo(() => {
+    const wet = (weekly ?? []).find((w) => w.weekend && w.rain >= 50);
+    if (wet)
+      return `주말은 나들이 계획에 참고하세요. ${wet.day === "오늘" ? "오늘" : wet.day + "요일"} 비 소식이 있어요.`;
+    return "주말은 나들이 계획에 참고하세요.";
+  }, [weekly]);
+
+  /* 오늘의 야외활동 지수 — 환경 수치 종합 (데이터 로딩 전엔 null) */
+  const outdoor = useMemo(() => {
+    if (!weather && !air && !uv && !pollen) return null;
+    const pollenMax = pollen
+      ? Math.max(pollen.oak ?? 0, pollen.pine ?? 0, pollen.weed ?? 0) || null
+      : null;
+    return computeOutdoorIndex({
+      pm10Grade: air?.pm10Grade ?? null,
+      pm25Grade: air?.pm25Grade ?? null,
+      uvi: uv?.uvi ?? null,
+      pollenMax,
+      pop: weather?.pop ?? null,
+      temp: weather?.temperature ?? null,
+      windSpeed: weather?.windSpeed ?? null,
+    });
+  }, [weather, air, uv, pollen]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      await fetchAll();
       toast("최신 환경 정보로 새로고침했어요");
-    }, 500);
+    } catch {
+      toast("새로고침에 실패했어요. 잠시 후 다시 시도해주세요");
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (
@@ -213,10 +274,11 @@ const Environment = () => {
             </div>
             <button
               onClick={refresh}
-              className="rounded-full p-2 text-foreground hover:bg-muted"
+              disabled={refreshing}
+              className="rounded-full p-2 text-foreground hover:bg-muted disabled:opacity-50"
               aria-label="새로고침"
             >
-              <RefreshCw className="h-5 w-5" />
+              <RefreshCw className={`h-5 w-5 ${refreshing ? "animate-spin" : ""}`} />
             </button>
           </div>
         </header>
@@ -268,22 +330,26 @@ const Environment = () => {
           </section>
 
           {/* Outdoor activity index */}
-          <section className="mt-7 rounded-2xl border border-border bg-secondary p-5 shadow-soft">
-            <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
-            <div className="mt-1 flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-foreground">68</span>
-              <span className="text-sm text-muted-foreground">/ 100 · 보통</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60">
-              <div
-                className="h-full bg-gradient-to-r from-primary to-accent"
-                style={{ width: "68%" }}
-              />
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-foreground">
-              꽃가루·자외선이 다소 높아요. 짧은 산책 위주로 권장하며, 정오~오후 2시 사이는 그늘에서 쉬어주세요.
-            </p>
-          </section>
+          {loading ? (
+            <Skeleton className="mt-7 h-28 w-full rounded-2xl" />
+          ) : outdoor ? (
+            <section className="mt-7 rounded-2xl border border-border bg-secondary p-5 shadow-soft">
+              <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
+                <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-accent"
+                  style={{ width: `${outdoor.score}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-foreground">
+                {outdoor.comment}
+              </p>
+            </section>
+          ) : null}
 
           {/* Current weather hero */}
           {loading ? (
@@ -336,7 +402,7 @@ const Environment = () => {
               {[
                 { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
                 { k: "PM2.5", v: air?.pm25 ?? "--", label: gradeToLabel(air?.pm25Grade ?? null), unit: "㎍/㎥" },
-                { k: "오존", v: air?.o3 != null ? air.o3 : "--", label: "알 수 없음", unit: "ppm" },
+                { k: "오존", v: air?.o3 != null ? air.o3 : "--", label: gradeToLabel(o3Grade(air?.o3 ?? null)), unit: "ppm" },
               ].map((d) => (
                 <div
                   key={d.k}
@@ -443,25 +509,39 @@ const Environment = () => {
               <h2 className="text-[22px] font-bold tracking-tight">시간대별 날씨</h2>
               <span className="text-xs text-muted-foreground">가로 스크롤 →</span>
             </div>
-            <div className="mt-3 -mx-5 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-              {hourly.map((h) => (
-                <div
-                  key={h.h}
-                  className="w-[64px] shrink-0 rounded-2xl border border-border bg-card p-2.5 text-center shadow-soft"
-                >
-                  <p className="text-xs text-muted-foreground">{h.h}시</p>
-                  <p className="my-1 text-2xl">{h.icon}</p>
-                  <p className="text-sm font-bold text-foreground">{h.t}°</p>
-                  <p
-                    className={`mt-0.5 text-[10px] font-medium ${
-                      h.rain >= 50 ? "text-accent" : "text-muted-foreground"
-                    }`}
+            {loading ? (
+              <Skeleton className="mt-3 h-32 w-full rounded-2xl" />
+            ) : hourlyCards.length > 0 ? (
+              <div className="mt-3 -mx-5 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
+                {hourlyCards.map((h) => (
+                  <div
+                    key={h.h}
+                    className="w-[64px] shrink-0 rounded-2xl border border-border bg-card p-2.5 text-center shadow-soft"
                   >
-                    💧{h.rain}%
-                  </p>
-                </div>
-              ))}
-            </div>
+                    <p className="text-xs text-muted-foreground">{h.h}시</p>
+                    <p className="my-1 text-2xl">{h.icon}</p>
+                    <p className="text-sm font-bold text-foreground">{h.t}°</p>
+                    <p
+                      className={`mt-0.5 text-[10px] font-medium ${
+                        h.rain >= 50 ? "text-accent" : "text-muted-foreground"
+                      }`}
+                    >
+                      💧{h.rain}%
+                    </p>
+                    {h.uvi != null && (
+                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
+                        ☀️{h.uvi}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                시간대별 예보를 불러오지 못했어요
+                <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
+              </div>
+            )}
           </section>
 
           {/* Weekly */}
@@ -470,55 +550,68 @@ const Environment = () => {
               <h2 className="text-[22px] font-bold tracking-tight">주간 날씨</h2>
               <span className="text-xs text-muted-foreground">주말 강조</span>
             </div>
-            <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-              {weekly.map((w, i) => (
-                <div
-                  key={w.date}
-                  className={`flex items-center gap-3 px-4 py-3 ${
-                    i !== weekly.length - 1 ? "border-b border-border/60" : ""
-                  } ${w.weekend ? "bg-secondary/60" : ""}`}
-                >
-                  <div className="w-12">
-                    <p
-                      className={`text-sm font-bold ${
-                        w.weekend ? "text-accent" : "text-foreground"
-                      }`}
+            {loading ? (
+              <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
+            ) : weekly && weekly.length > 0 ? (
+              <>
+                <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+                  {weekly.map((w, i) => (
+                    <div
+                      key={w.date}
+                      className={`flex items-center gap-3 px-4 py-3 ${
+                        i !== weekly.length - 1 ? "border-b border-border/60" : ""
+                      } ${w.weekend ? "bg-secondary/60" : ""}`}
                     >
-                      {w.day}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground">{w.date}</p>
-                  </div>
-                  <span className="text-2xl">{w.icon}</span>
-                  <div className="flex-1">
-                    <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="absolute h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                        style={{
-                          left: `${((w.low + 5) / 35) * 100}%`,
-                          width: `${((w.high - w.low) / 35) * 100}%`,
-                        }}
-                      />
+                      <div className="w-12">
+                        <p
+                          className={`text-sm font-bold ${
+                            w.weekend ? "text-accent" : "text-foreground"
+                          }`}
+                        >
+                          {w.day}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">{w.date}</p>
+                      </div>
+                      <span className="text-2xl">{w.icon}</span>
+                      <div className="flex-1">
+                        <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
+                          {w.low != null && w.high != null && weekTempRange && (
+                            <div
+                              className="absolute h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                              style={{
+                                left: `${((w.low - weekTempRange.min) / weekTempRange.span) * 100}%`,
+                                width: `${Math.max((w.high - w.low) / weekTempRange.span * 100, 6)}%`,
+                              }}
+                            />
+                          )}
+                        </div>
+                      </div>
+                      <p className="w-20 text-right text-xs">
+                        <span className="text-muted-foreground">{w.low != null ? `${w.low}°` : "--"}</span>
+                        <span className="mx-1 text-muted-foreground/60">/</span>
+                        <span className="font-bold text-foreground">{w.high != null ? `${w.high}°` : "--"}</span>
+                      </p>
+                      <p
+                        className={`w-10 text-right text-[11px] font-medium ${
+                          w.rain >= 50 ? "text-accent" : "text-muted-foreground"
+                        }`}
+                      >
+                        💧{w.rain}%
+                      </p>
                     </div>
-                  </div>
-                  <p className="w-20 text-right text-xs">
-                    <span className="text-muted-foreground">{w.low}°</span>
-                    <span className="mx-1 text-muted-foreground/60">/</span>
-                    <span className="font-bold text-foreground">{w.high}°</span>
-                  </p>
-                  <p
-                    className={`w-10 text-right text-[11px] font-medium ${
-                      w.rain >= 50 ? "text-accent" : "text-muted-foreground"
-                    }`}
-                  >
-                    💧{w.rain}%
-                  </p>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Info className="h-3 w-3" />
-              주말은 나들이 계획에 참고하세요. 일요일 비 소식 있어요.
-            </p>
+                <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+                  <Info className="h-3 w-3" />
+                  {weekendHint}
+                </p>
+              </>
+            ) : (
+              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                주간 예보를 불러오지 못했어요
+                <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
+              </div>
+            )}
           </section>
 
         </main>
