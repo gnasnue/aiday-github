@@ -1,6 +1,7 @@
 import type { ChildProfile } from "./profile";
 import type { WeatherData } from "./weather-api";
 import { withDativeParticle } from "./korean";
+import { hasRespiratory, hasSkin } from "./domain/child-conditions";
 
 export interface CheckItem {
   icon: string;
@@ -22,8 +23,8 @@ export interface Recommendation {
 
 export function buildRecommendation(profile: ChildProfile, weather: WeatherData): Recommendation {
   const conditions = profile.conditions ?? [];
-  const hasRhinitis = conditions.includes("비염");
-  const hasSensitiveSkin = conditions.includes("피부 민감");
+  const hasRhinitis = hasRespiratory(conditions);
+  const hasSensitiveSkin = hasSkin(conditions);
 
   const checklist: CheckItem[] = [];
   const envReasons: string[] = [];
@@ -58,7 +59,7 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
   if (highPollen || badDust) {
     const reason = highPollen ? "꽃가루 높음" : "미세먼지 나쁨";
     const text = hasRhinitis
-      ? `마스크 필수 (비염 + ${reason})`
+      ? `마스크 필수 (호흡기 민감 + ${reason})`
       : `마스크 (${reason})`;
     checklist.push({ icon: "😷", text, key: "마스크" });
     if (highPollen) envReasons.push("__꽃가루 높음__");
@@ -76,7 +77,7 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
   }
 
   // 메시지 조합
-  const conditionNote = hasRhinitis ? " 비염이 있으니" : "";
+  const conditionNote = hasRhinitis ? " 호흡기가 예민하니" : "";
   const envPart = envReasons.slice(0, 2).join("이고 오후엔 ");
   const itemPart = itemRecommends.slice(0, 2).join("와 ");
   const message =

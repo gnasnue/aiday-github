@@ -1,4 +1,9 @@
 import type { HomeTimeSlot } from "./timeline";
+import {
+  hasRespiratory,
+  hasAllergy as hasAllergyCondition,
+  hasSkin as hasSkinCondition,
+} from "./domain/child-conditions";
 
 /**
  * 시간대별 환경 카드 하단 "준비물 키워드" 규칙 엔진 (A/B 중 규칙 기반 변형).
@@ -10,20 +15,14 @@ import type { HomeTimeSlot } from "./timeline";
 
 type Candidate = { keyword: string; priority: number };
 
-// 온보딩 신규 문자열("호흡기 민감 (비염, 천식·기관지)")과
-// 구형/데모 프로필의 짧은 문자열("비염", "아토피") 모두 매칭
-const RESP = /호흡기|비염|천식|기관지/;
-const ALLERGY = /알레르기/;
-const SKIN = /피부|아토피|건조/;
-
 export function buildPrepKeywords(
   slot: HomeTimeSlot,
   prevSlot: HomeTimeSlot | null,
   conditions: string[] = []
 ): string[] {
-  const hasResp = conditions.some((c) => RESP.test(c));
-  const hasAllergy = conditions.some((c) => ALLERGY.test(c));
-  const hasSkin = conditions.some((c) => SKIN.test(c));
+  const hasResp = hasRespiratory(conditions);
+  const hasAllergy = hasAllergyCondition(conditions);
+  const hasSkin = hasSkinCondition(conditions);
 
   const out: Candidate[] = [];
 

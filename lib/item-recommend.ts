@@ -1,4 +1,9 @@
 import type { ItemArt } from "@/components/ItemIllustration";
+import {
+  hasRespiratory,
+  hasAllergy as hasAllergyCondition,
+  hasSkin as hasSkinCondition,
+} from "./domain/child-conditions";
 
 /**
  * 홈 "오늘의 추천 아이템" 규칙 엔진.
@@ -48,10 +53,6 @@ const contextOf = (text: string): string | null => {
   return m ? m[1].trim() : null;
 };
 
-// 체질 문자열 매칭 (온보딩 신규 문구·구형 데모 프로필 모두 대응 — lib/prep.ts와 동일 기준)
-const RESP = /호흡기|비염|천식|기관지|알레르기/;
-const SKIN = /피부|아토피|건조/;
-
 type Scored = { entry: CatalogEntry; priority: number; reason: string };
 
 export function buildItemRecommendations(params: {
@@ -87,8 +88,9 @@ export function buildItemRecommendations(params: {
   }
 
   // 3순위: 아이 체질 상비템 — 매칭이 적어도 섹션이 비지 않게
-  const hasResp = conditions.some((c) => RESP.test(c));
-  const hasSkin = conditions.some((c) => SKIN.test(c));
+  // 종전 RESP 정규식은 알레르기를 포함했으므로 호흡기 ‖ 알레르기로 동작 보존
+  const hasResp = hasRespiratory(conditions) || hasAllergyCondition(conditions);
+  const hasSkin = hasSkinCondition(conditions);
   if (hasResp) add(CATALOG.find((e) => e.art === "mask")!, 100, "호흡기 상비템");
   if (hasSkin) add(CATALOG.find((e) => e.art === "lotion")!, 100, "피부 보습 상비템");
 
