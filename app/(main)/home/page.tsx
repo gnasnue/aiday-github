@@ -734,43 +734,45 @@ const Home = () => {
         </header>
 
         <main className="container-mobile pt-5">
-          {/* Profile tabs */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
-            {profiles.map((p) => (
+          {/* 상단 라인 — 프로필 탭(좌, 가로 스크롤) + 위치(우, 고정) */}
+          <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
+              {profiles.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setActive(p.id)}
+                  className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-[5px] pl-1.5 pr-[15px] text-sm transition-smooth ${
+                    active === p.id
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-card text-muted-foreground hover:border-foreground/40"
+                  }`}
+                >
+                  {/* 아바타: 이모지 → 파스텔 원 + 이니셜 (OS 이모지 전면 금지) */}
+                  <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-bold text-avatar-foreground">
+                    {p.name.charAt(0)}
+                  </span>
+                  <span className="font-semibold">{p.name}</span>
+                  <span className={`num text-xs ${active === p.id ? "text-primary-foreground/60" : "text-muted-foreground"}`}>{p.age}</span>
+                </button>
+              ))}
               <button
-                key={p.id}
-                onClick={() => setActive(p.id)}
-                className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-[5px] pl-1.5 pr-[15px] text-sm transition-smooth ${
-                  active === p.id
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:border-foreground/40"
-                }`}
+                onClick={() => router.push("/onboarding")}
+                className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border-control bg-card px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
               >
-                {/* 아바타: 이모지 → 파스텔 원 + 이니셜 (OS 이모지 전면 금지) */}
-                <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-bold text-avatar-foreground">
-                  {p.name.charAt(0)}
-                </span>
-                <span className="font-semibold">{p.name}</span>
-                <span className={`num text-xs ${active === p.id ? "text-primary-foreground/60" : "text-muted-foreground"}`}>{p.age}</span>
+                + 추가
               </button>
-            ))}
+            </div>
+
+            {/* 위치 — 상단 라인 우측 고정 */}
             <button
-              onClick={() => router.push("/onboarding")}
-              className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border-control bg-card px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
+              onClick={() => toast("위치 변경은 준비 중이에요")}
+              className="flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
             >
-              + 추가
+              <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+              <span>서울 강남구</span>
+              <ChevronDown className="h-3 w-3 shrink-0" />
             </button>
           </div>
-
-          {/* Location */}
-          <button
-            onClick={() => toast("위치 변경은 준비 중이에요")}
-            className="mt-4 flex min-h-11 items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-          >
-            <MapPin className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>서울 강남구</span>
-            <ChevronDown className="h-3 w-3" />
-          </button>
 
           {/* AI message card */}
           {loading ? (
@@ -794,7 +796,7 @@ const Home = () => {
             <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-card animate-fade-up">
               {/* 카드 헤더 — 아이브로우 + 메타 + 새로고침·공유 */}
               <div className="flex items-center gap-2">
-                <span className="eyebrow shrink-0">AI 리포트</span>
+                <span className="eyebrow shrink-0 text-accent">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
@@ -884,7 +886,14 @@ const Home = () => {
                 })}
               </div>
 
-              {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄 */}
+              {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄.
+                  리포트가 정착(hook·message·checklist 도착)하기 전까지는 스켈레톤 유지.
+                  aiLoading은 hook 도착 즉시 false가 되므로, 본문·체크리스트가 아직 없는
+                  스트리밍 구간(aiStreaming)까지 함께 봐야 규칙 폴백(추천 이유 2줄·0/3)이
+                  잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출. */}
+              {aiLoading || aiStreaming ? (
+                <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
+              ) : (
               <div className="mt-4 rounded-2xl bg-soft px-4 pt-4 pb-1.5">
                 <div className="flex items-center justify-between px-0.5">
                   <p className="text-[15px] font-bold">오늘 챙길 것</p>
@@ -941,6 +950,7 @@ const Home = () => {
                   })}
                 </ul>
               </div>
+              )}
 
               {/* 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지 */}
               <p className="mt-3 px-0.5 text-[11px] leading-relaxed text-muted-foreground/70">
