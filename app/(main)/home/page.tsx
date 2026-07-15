@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Download, Share2 } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -184,6 +184,14 @@ const splitHook = (hook: string): string[] => {
 
 // 환경 보호용 준비물(강수·미세먼지·꽃가루·자외선 대응)은 컬러 강조, 나머지(보습·보온)는 아웃라인.
 const CRITICAL_PREP = new Set(["우산", "마스크", "선크림"]);
+
+// 추천 아이템 근거 톤: 오늘의 실제 신호(fromToday)에서 파생된 환경 경고만 warn(주황).
+// 상시·예방 근거(체질 상비템·카탈로그 채움) 및 비경고 근거(일교차·보온·보습)는 neutral.
+// fromToday를 함께 보므로, 비 예보 없는 날 채움으로 들어온 "비 대비" 우산은 주황이 되지 않는다.
+// 주의: 맨 '비'는 "대비"·"상비템"의 비와 겹치므로 비(rain)는 "비 "(뒤 공백)·"비옷"으로만 매칭.
+const WARN_REASON = /비\s|비옷|우산|미세먼지|자외선|꽃가루|햇빛|폭염|한파|소나기|강수/;
+const reasonTone = (reason: string, fromToday: boolean): "warn" | "neutral" =>
+  fromToday && WARN_REASON.test(reason) ? "warn" : "neutral";
 
 // 슬롯 라벨 정리: "등원시간" → "등원", "하원시간" → "하원"
 const careLabel = (label: string) => label.replace(/시간$/, "");
@@ -681,7 +689,7 @@ const Home = () => {
     return idx >= 0 ? idx : 0;
   })();
 
-  // 헤더 메타 — "7월 14일 (화) 07:30 생성" (요일 포함·24시간제). 시각은 리포트 생성 시점.
+  // 헤더 메타 — "7월 14일 (화) 07:30" (요일 포함·24시간제). 시각은 리포트 생성 시점.
   const reportMeta = (() => {
     const d = reportTs != null ? new Date(reportTs) : new Date();
     const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
@@ -689,7 +697,7 @@ const Home = () => {
     if (reportTs == null) return base;
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${base} ${hh}:${mm} 생성`;
+    return `${base} ${hh}:${mm}`;
   })();
 
   // Reset checklist when profile changes
@@ -766,7 +774,7 @@ const Home = () => {
 
           {/* AI message card */}
           {loading ? (
-            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-soft">
+            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-card">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
@@ -783,10 +791,10 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-soft animate-fade-up">
-              {/* 카드 헤더 — 아이브로우 + 생성 메타 + 저장·공유·새로고침 */}
+            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-card animate-fade-up">
+              {/* 카드 헤더 — 아이브로우 + 메타 + 새로고침·공유 */}
               <div className="flex items-center gap-2">
-                <span className="shrink-0 text-[12px] font-bold tracking-[0.04em] text-accent">AI 리포트</span>
+                <span className="eyebrow shrink-0">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
@@ -798,21 +806,14 @@ const Home = () => {
                     aria-label="리포트 새로고침"
                     className="rounded-full p-2.5 transition-smooth hover:bg-muted disabled:opacity-40"
                   >
-                    <RefreshCw className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                  </button>
-                  <button
-                    onClick={() => toast("이미지 저장은 준비 중이에요")}
-                    aria-label="이미지 저장"
-                    className="rounded-full p-2.5 transition-smooth hover:bg-muted"
-                  >
-                    <Download className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                   <button
                     onClick={() => toast("공유는 준비 중이에요")}
                     aria-label="공유"
                     className="rounded-full p-2.5 transition-smooth hover:bg-muted"
                   >
-                    <Share2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    <Share2 className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                 </div>
               </div>
@@ -858,26 +859,29 @@ const Home = () => {
                 </>
               )}
 
-              {/* 환경 칩 — 주의(warn)만 컬러 강조, 나머지는 플랫 그레이 */}
+              {/* 환경 칩 — warn=주황, good=초록(흰bg+도트), 보통=플랫 그레이 */}
               <div className="mt-3.5 flex flex-wrap gap-1.5">
-                {badges.map((b) =>
-                  badgeTone(b.tone, b.value) === "warn" ? (
-                    <span
-                      key={b.label}
-                      className="inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-bold chip-warn"
-                    >
-                      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" aria-hidden="true" />
-                      {b.label} {b.value}
-                    </span>
-                  ) : (
+                {badges.map((b) => {
+                  const t = badgeTone(b.tone, b.value);
+                  return t === "neutral" ? (
                     <span
                       key={b.label}
                       className="rounded-full bg-muted px-[11px] py-[5px] text-[12px] text-muted-foreground"
                     >
                       {b.label} {b.value}
                     </span>
-                  )
-                )}
+                  ) : (
+                    <span
+                      key={b.label}
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-semibold ${
+                        t === "warn" ? "chip-warn" : "chip-good"
+                      }`}
+                    >
+                      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" aria-hidden="true" />
+                      {b.label} {b.value}
+                    </span>
+                  );
+                })}
               </div>
 
               {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄 */}
@@ -888,7 +892,7 @@ const Home = () => {
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
                     <p className="num text-xs text-muted-foreground">
-                      <b className="text-accent">{checked.length}</b> / {activeChecklist.length}
+                      <b className="text-foreground">{checked.length}</b> / {activeChecklist.length}
                     </p>
                   )}
                 </div>
@@ -906,21 +910,21 @@ const Home = () => {
                           className="flex w-full items-center gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
                         >
                           <span
-                            className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-lg border-[1.5px] transition-smooth ${
+                            className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card transition-smooth ${
                               on
-                                ? "border-primary bg-primary text-primary-foreground"
-                                : "border-border-control bg-card"
+                                ? "border-status-good text-status-good"
+                                : "border-border-control"
                             }`}
                           >
-                            {on && <Check className="h-3.5 w-3.5" strokeWidth={3.2} />}
+                            {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                           </span>
-                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-secondary text-accent">
+                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-muted text-status-neutral">
                             {checklistIcon(c.icon, c.text)}
                           </span>
                           <span className="min-w-0 flex-1">
                             <span
                               className={`block text-[14.5px] font-bold tracking-[-0.01em] ${
-                                on ? "text-muted-foreground/60 line-through" : "text-foreground"
+                                on ? "text-muted-foreground" : "text-foreground"
                               }`}
                             >
                               {title}
@@ -956,7 +960,7 @@ const Home = () => {
                 : displaySlots.map((t) => (
                     <article
                       key={t.time}
-                      className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 transition-smooth hover:border-foreground/30 hover:shadow-soft"
+                      className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 shadow-soft transition-smooth hover:border-foreground/30"
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -999,23 +1003,7 @@ const Home = () => {
                           </div>
                         ))}
                       </dl>
-                      {/* 준비물 키워드 — 튀는 환경이 있는 슬롯에만 표시 (A/B: 규칙/AI) */}
-                      {(slotPrep[t.time]?.length ?? 0) > 0 && (
-                        <>
-                          <div className="my-3 h-px bg-border/60" />
-                          <div className="flex flex-wrap gap-1">
-                            {slotPrep[t.time].map((k) => (
-                              <span
-                                key={k}
-                                className="inline-flex items-center gap-1 rounded-full border px-2 py-[3px] text-[10px] font-semibold chip-warn"
-                              >
-                                <span className="h-1 w-1 shrink-0 rounded-full bg-current" aria-hidden="true" />
-                                {k}
-                              </span>
-                            ))}
-                          </div>
-                        </>
-                      )}
+                      {/* 준비물 칩은 하루 케어 플랜에만 노출 — 강수확률 warn 행이 근거를 전달 (중복 제거) */}
                     </article>
                   ))}
             </div>
@@ -1052,13 +1040,22 @@ const Home = () => {
                           />
                           {!last && <span className="w-px flex-1 bg-border" />}
                         </div>
-                        {/* 카드 */}
-                        <div className={`mb-2.5 flex-1 rounded-2xl p-4 ${isNow ? "bg-secondary" : "bg-muted"}`}>
+                        {/* 카드 — 흰 카드 문법 통일, "지금" 슬롯만 1.5px 오렌지 보더 */}
+                        <div
+                          className={`mb-2.5 flex-1 rounded-2xl border bg-card p-4 shadow-soft ${
+                            isNow ? "border-[1.5px] border-primary" : "border-border/60"
+                          }`}
+                        >
                           <div className="flex items-start justify-between gap-2">
                             <p className="min-w-0 text-[15px] break-keep">
                               <span className="font-bold tracking-[-0.01em]">
                                 <span className="num">{slot.hour}</span> {careLabel(slot.time)}
                               </span>
+                              {isNow && (
+                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
+                                  지금
+                                </span>
+                              )}
                               <span className="ml-2 font-normal text-muted-foreground">
                                 <span className="num">{slot.temp}°</span>
                                 {notables.length > 0
@@ -1111,17 +1108,21 @@ const Home = () => {
                     <button
                       key={it.art}
                       onClick={() => toast("외부 구매 페이지로 이동합니다")}
-                      className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left transition-smooth hover:border-foreground/30 hover:shadow-soft"
+                      className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left shadow-soft transition-smooth hover:border-foreground/30"
                     >
                       <div className="relative flex h-24 items-center justify-center rounded-xl bg-soft">
                         <ItemIllustration art={it.art} />
-                        {/* 추천 근거 — 왜 이 아이템인지 (상단 신호와의 연결) */}
-                        <span className="absolute left-1.5 top-1.5 max-w-[112px] truncate rounded-full bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold text-accent shadow-sm">
+                        {/* 추천 근거 — 경고 연동(비 대비 등)만 warn, 나머지는 neutral */}
+                        <span
+                          className={`absolute left-1.5 top-1.5 max-w-[112px] truncate rounded-full bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${
+                            reasonTone(it.reason, it.fromToday) === "warn" ? "text-status-warn" : "text-status-neutral"
+                          }`}
+                        >
                           {it.reason}
                         </span>
                       </div>
-                      <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-medium leading-snug">{it.name}</p>
-                      <p className="num mt-1 px-0.5 text-xs text-foreground">{it.price}</p>
+                      <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-semibold text-foreground leading-snug">{it.name}</p>
+                      <p className="num mt-1 px-0.5 text-xs text-muted-foreground">{it.price}</p>
                     </button>
                   ))}
             </div>
