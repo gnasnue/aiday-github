@@ -25,6 +25,7 @@ import { buildTimeline, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/li
 import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
+import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
 
@@ -272,6 +273,17 @@ const Home = () => {
   const airRawRef = useRef<object | null>(null);
   const uvRawRef = useRef<object | null>(null);
   const pollenRawRef = useRef<object | null>(null);
+  // 홈 지연 계측 세션 — 환경 API~AI 리포트 워터폴 구간 실측 (?perf=1일 때만 콘솔 출력)
+  const perfRef = useRef<PerfSession | null>(null);
+  // 리포트 요청 세대 — 프로필 전환·DB 복원(cur.id 변경)으로 새 요청이 시작되면 증가시켜,
+  // 늦게 끝난 이전 아이의 응답이 현재 화면 상태를 덮어쓰지 못하게 한다(stale 응답 방어).
+  const reportGenRef = useRef(0);
+  // 진행 중인 리포트 요청 — single-flight(같은 아이 중복 방지) + 새 요청 시작·언마운트 시
+  // 이전 요청 취소(중복 Claude 생성·비용 차단). 서버는 req.signal로 Anthropic 스트림까지 abort.
+  const activeReportRef = useRef<{ ctrl: AbortController; childId: string } | null>(null);
+  // 현재 활성 프로필 id의 최신값(렌더마다 동기 갱신) — isCurrent()가 effect 실행 순서에 의존하지
+  // 않고, "요청의 아이가 아직 활성인가"를 항상 최신 기준으로 판단하게 한다(stale 표시 방지).
+  const activeIdRef = useRef<string | null>(null);
 
   // Refresh profiles when returning from onboarding
   useEffect(() => {
@@ -306,24 +318,69 @@ const Home = () => {
   // 화면 셸·카드는 weather·air가 도착하면 바로 표시(loading 해제)해 체감 로딩을 줄이고,
   // AI 리포트는 자외선·꽃가루까지 4개 입력이 모두 준비된 뒤 착수한다(리포트가 이 값들을 반영).
   useEffect(() => {
+    // Strict Mode 이중 실행·언마운트 시 이전 흐름을 취소해 활성 env 흐름을 하나로 제한한다.
+    // 이로써 계측 세션이 하나만 진행되고(리포트 세션과의 연결이 보장됨), 실서비스에서도
+    // 언마운트 후 상태 갱신·중복 요청을 막는다.
+    const controller = new AbortController();
     const fetchEnv = async () => {
       setLoading(true);
-      // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
-      // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
-      // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게
-      // 짧게(5s) — 초과 시 null로 진행하고(리포트는 "데이터 없음" 처리) 서버 캐시는 다음 진입에 채워진다.
-      const getJson = (url: string, timeoutMs: number) =>
-        fetch(url, { signal: AbortSignal.timeout(timeoutMs) })
-          .then((r) => r.json())
-          .catch(() => null);
-      const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780", 9000);
-      const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC", 9000);
-      const uvP = getJson("/api/uv?region=서울", 5000);
-      const pollenP = getJson("/api/pollen?region=서울", 5000);
-
+      // 계측 시작 — home 마운트 직후 환경 API 착수 시점. 세션을 로컬로 캡처해
+      // 이후 비동기 응답이 항상 이 세션에 마킹하게 한다(공유 ref 덮어쓰기 오염 방지).
+      const perf = perfStart();
+      perfRef.current = perf;
+      perfMark(perf, "env_start");
+      // landing→home 전환 시각이 있으면 그 구간(landing 마운트~home env_start; 인증 자체는 제외)을
+      // 참고용으로 남긴다. (SPA 클라이언트 네비라 performance.now()가 문서 수명 내에서 연속)
       try {
+        const navT = Number(sessionStorage.getItem("aiday:perf:navToHome"));
+        if (navT > 0 && perfEnabled()) {
+          console.log(`[perf] landing(프로필 조회 포함)→home env_start [${perf.id}]: ${Math.round(perf.t0 - navT)}ms`);
+        }
+        sessionStorage.removeItem("aiday:perf:navToHome");
+      } catch {}
+      // getJson: 부모 취소(controller)와 타임아웃을 요청별 AbortController에 수동 연결한다.
+      // AbortSignal.any()는 Safari 17.4+ 전용이라 구형 iOS에서 throw → 스켈레톤 영구 정지
+      // 위험이 있어 쓰지 않는다 (AbortController·setTimeout만으로 광범위 호환).
+      // 개별 완료 마커로 API별 결과를 남긴다: <api>_ok / _timeout / _err. Σ(누적)가 각 API의
+      // 응답시간 근사값이다(4개가 env_start 직후 동시 착수하므로). 취소된 흐름은 마킹하지 않는다.
+      const getJson = (url: string, timeoutMs: number, mark: string) => {
+        const ac = new AbortController();
+        let timedOut = false;
+        const timer = setTimeout(() => {
+          timedOut = true;
+          ac.abort();
+        }, timeoutMs);
+        const onParentAbort = () => ac.abort();
+        controller.signal.addEventListener("abort", onParentAbort, { once: true });
+        return fetch(url, { signal: ac.signal })
+          .then((r) => r.json())
+          .catch(() => null)
+          .then((r) => {
+            clearTimeout(timer);
+            controller.signal.removeEventListener("abort", onParentAbort);
+            if (!controller.signal.aborted) {
+              const ok = r && !r.error;
+              perfMark(perf, ok ? `${mark}_ok` : timedOut ? `${mark}_timeout` : `${mark}_err`);
+            }
+            return r;
+          });
+      };
+
+      // 요청 시작·await·상태 갱신을 모두 try로 감싸 예기치 못한 throw에도 setLoading(false)에
+      // 도달하게 한다(스켈레톤 영구 정지 방지).
+      try {
+        // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
+        // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
+        // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게 짧게(5s).
+        const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780", 9000, "weather");
+        const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC", 9000, "air");
+        const uvP = getJson("/api/uv?region=서울", 5000, "uv");
+        const pollenP = getJson("/api/pollen?region=서울", 5000, "pollen");
+
         // 1) weather·air 도착 → 화면 셸·상단 카드·시간대 카드를 먼저 표시 (uv·꽃가루는 이후 채움)
         const [w, a] = await Promise.all([weatherP, airP]);
+        if (controller.signal.aborted) return; // 취소된(stale) 흐름 — 상태·계측 갱신 안 함
+        perfMark(perf, "env_primary_gate"); // weather+air 게이트 통과 (화면 셸 표시 가능)
         weatherRawRef.current = w; // fetchReport에서 재사용 (T4: 중복 호출 방지)
         airRawRef.current = a;
         setEnvRaw({
@@ -348,6 +405,8 @@ const Home = () => {
 
         // 2) uv·꽃가루 도착 → 시간대 카드 갱신 + 리포트 입력 준비 후 착수
         const [u, po] = await Promise.all([uvP, pollenP]);
+        if (controller.signal.aborted) return; // 취소된(stale) 흐름 — 상태·계측 갱신 안 함
+        perfMark(perf, "env_full_gate"); // uv+pollen 게이트 통과 (AI 착수·캐시 확인 관문)
         uvRawRef.current = u;
         pollenRawRef.current = po;
         setEnvRaw((prev) =>
@@ -376,13 +435,16 @@ const Home = () => {
           setAiError(true);
         }
       } catch {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     fetchEnv();
+    return () => controller.abort();
   }, []);
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
+  // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
+  activeIdRef.current = cur?.id ?? null;
 
   // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
   const prepFrozenKey = cur ? `aiday:prepFrozen:v1:${cur.id}:${localDateStr()}` : null;
@@ -406,10 +468,47 @@ const Home = () => {
     // v12: 체질 민감도 코드→한국어 변환(버그 B) — 프롬프트 입력 변경으로 구캐시 무효화
     const cacheKey = `aiday:report:v12:${cur.id}:${localDateStr()}`;
 
+    // 주의: 이 effect는 hook 도착 시 setAiLoading(false)로 자기 dep을 스트림 도중 바꾼다.
+    // 따라서 cleanup에서 fetch를 abort하면 SSE가 done 전에 끊긴다 — abort를 쓰지 않는다.
+    // Strict Mode 세션 연결 문제는 env 흐름을 단일화(위 fetchEnv abort)해 이미 해소된다
+    // (env 세션이 하나뿐이라 perfRef.current가 유일 → 리포트가 올바른 세션에 연결됨).
     const fetchReport = async () => {
       const force = forceRefreshRef.current;
       forceRefreshRef.current = false;
+      const childId = cur.id;
+
+      // single-flight — 같은 아이의 요청이 진행 중이고 강제 새로고침이 아니면 중복 시작 안 함
+      // (Strict 이중 실행·연타로 인한 중복 Claude 호출 방지).
+      const activePrev = activeReportRef.current;
+      if (activePrev && activePrev.childId === childId && !force) return;
+      // 다른 아이거나 강제 새로고침이면 이전 요청을 즉시 취소한다 — 클라이언트 fetch abort가
+      // 서버 req.signal을 통해 진행 중인 Anthropic 스트림까지 취소해 중복 생성·비용을 막는다.
+      if (activePrev) activePrev.ctrl.abort();
+      const ctrl = new AbortController();
+      activeReportRef.current = { ctrl, childId };
+
       let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
+      // 계측 세션 로컬 캡처 — 초기 진입이면 fetchEnv의 세션(env 마커 포함)을 1회 점유(claim)하고,
+      // 이미 점유·보고된 세션(재방문·프로필 전환·중첩 요청)이면 리포트 전용 새 세션을 만든다.
+      // 어느 경로든 세션을 claim해, 뒤이은 요청이 같은 세션에 마커를 덧쓰지 않게 한다
+      // (한 요청의 보고가 다른 요청의 마커를 삼키는 것 방지).
+      const base = perfRef.current;
+      let perf: PerfSession;
+      if (base && !base.reported && !base.claimed) {
+        base.claimed = true;
+        perf = base;
+      } else {
+        perf = perfStart();
+        perf.claimed = true;
+        perfRef.current = perf;
+      }
+      let outcome = "unknown"; // finally에서 성공/실패 구분 기록 (생존자 편향 방지)
+      // 이 요청이 여전히 화면의 주인인지 판정 — 두 조건 모두:
+      //  ① gen: 같은 아이의 더 새 요청(수동 새로고침 등)이 시작되면 증가해 이전 요청을 밀어냄
+      //  ② childId: 활성 프로필이 다른 아이로 바뀌면(전환) 이 요청은 즉시 stale
+      // childId 비교는 effect 실행 순서에 의존하지 않아, hook 도착 전 전환 시에도 안전하다.
+      const gen = ++reportGenRef.current;
+      const isCurrent = () => gen === reportGenRef.current && childId === activeIdRef.current;
       try {
         // T4: use cached env from fetchEnv instead of re-fetching
         const w = weatherRawRef.current ?? {};
@@ -428,20 +527,30 @@ const Home = () => {
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
         if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
           if (!envChanged(cached.env, sig)) {
-            setAiHook(cached.hook ?? "");
-            setAiMessage(cached.message);
-            if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-            setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
-            setReportTs(typeof cached.ts === "number" ? cached.ts : null);
-            setAiLoading(false);
+            perfMark(perf, "cache_hit");
+            outcome = "cache_hit";
+            if (isCurrent()) {
+              setAiHook(cached.hook ?? "");
+              setAiMessage(cached.message);
+              if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
+              setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
+              setReportTs(typeof cached.ts === "number" ? cached.ts : null);
+              setAiLoading(false);
+            }
             return;
           }
           regenerating = true;
         }
 
+        perfMark(perf, "report_fetch_start"); // 캐시 미스 → 서버 요청 착수
         const res = await fetch("/api/report", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          signal: ctrl.signal, // 새 요청·언마운트 시 취소 → 서버 Anthropic 스트림까지 abort
+          headers: {
+            "Content-Type": "application/json",
+            // 계측 요청만 서버 로그를 남기도록 게이팅 + 클라이언트/서버 로그 correlation
+            ...(perfEnabled() ? { "x-perf-id": perf.id } : {}),
+          },
           body: JSON.stringify({
             child: {
               name: cur.name,
@@ -463,21 +572,25 @@ const Home = () => {
 
         // 사전 검증 실패(apiKey·baseURL 등)는 여전히 non-2xx JSON으로 온다
         if (!res.ok || !res.body) {
-          setAiError(true);
+          perfMark(perf, `report_http_${res.status}`);
+          outcome = `http_${res.status}`;
           // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
           try {
             const detail = (await res.json())?.error;
             if (detail) console.error("[AI report] 서버 오류 상세:", detail);
           } catch {}
-          toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
-          setAiLoading(false);
+          if (isCurrent()) {
+            setAiError(true);
+            toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+            setAiLoading(false);
+          }
           return;
         }
 
         // SSE 스트림 소비 — hook·message가 도착하는 즉시 히어로를 노출하고,
         // done 이벤트의 전체 페이로드로 체크리스트·준비물·캐시를 채운다.
         type ReportPayload = { hook: string; message: string; checklist: string[]; prep: Record<string, string[]> };
-        setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
+        if (isCurrent()) setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = "";
@@ -492,10 +605,13 @@ const Home = () => {
             return;
           }
           if (event === "hook") {
-            setAiHook(typeof data === "string" ? data : "");
-            setAiLoading(false); // 헤드라인(아침의 결론) 즉시 노출 — 본문은 message까지 스켈레톤
+            perfMark(perf, "report_hook"); // 첫 가시 콘텐츠 (스켈레톤 해제)
+            if (isCurrent()) {
+              setAiHook(typeof data === "string" ? data : "");
+              setAiLoading(false); // 헤드라인(아침의 결론) 즉시 노출 — 본문은 message까지 스켈레톤
+            }
           } else if (event === "message") {
-            setAiMessage(typeof data === "string" ? data : "");
+            if (isCurrent()) setAiMessage(typeof data === "string" ? data : "");
           } else if (event === "done") {
             final = data as ReportPayload;
           } else if (event === "error") {
@@ -506,6 +622,12 @@ const Home = () => {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
+          // 새 요청(프로필 전환 등)이 시작됐으면 이 스트림은 낡음 — 취소하고 중단(불필요한 생성 소비 방지)
+          if (!isCurrent()) {
+            outcome = "superseded";
+            try { await reader.cancel(); } catch {}
+            break;
+          }
           buf += decoder.decode(value, { stream: true });
           const chunks = buf.split("\n\n");
           buf = chunks.pop() ?? "";
@@ -516,7 +638,12 @@ const Home = () => {
           }
         }
 
+        // 낡은(superseded) 요청은 done 처리·상태 갱신을 건너뛰고 finally로 (계측만 남긴다)
+        if (!isCurrent()) return;
+
         if (streamErr) {
+          perfMark(perf, "report_stream_error");
+          outcome = "stream_error";
           setAiError(true);
           toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
           setAiLoading(false);
@@ -537,26 +664,47 @@ const Home = () => {
             localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
           } catch {}
           if (regenerating) toast("날씨가 바뀌어 브리핑을 새로 썼어요");
+          perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
+          outcome = "done";
         } else {
           // done은 왔지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
           console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
           setAiError(true);
+          perfMark(perf, "report_empty");
+          outcome = "empty";
           toast("AI 리포트 생성에 실패해 기본 추천을 보여드려요.");
         }
       } catch (err) {
-        console.error("[AI report]", err);
-        setAiError(true);
-        toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+        // 취소(새 요청·언마운트)·낡은 요청은 오류가 아니다 — 화면·계측을 오류로 집계하지 않는다.
+        if (ctrl.signal.aborted || !isCurrent()) {
+          outcome = ctrl.signal.aborted ? "aborted" : "superseded";
+        } else {
+          console.error("[AI report]", err);
+          perfMark(perf, "report_exception");
+          outcome = "exception";
+          setAiError(true);
+          toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+        }
       } finally {
-        setAiLoading(false);
-        setAiStreaming(false);
+        // 낡은 요청은 화면 상태를 건드리지 않는다(현재 요청이 관리 중). 계측은 남기되
+        // 성공·오류·빈응답·중단(실서비스 관점의 실패 포함)을 outcome으로 구분해 기록한다.
+        if (isCurrent()) {
+          setAiLoading(false);
+          setAiStreaming(false);
+        }
+        // 이 요청이 아직 활성으로 등록돼 있으면 해제(새 요청이 이미 교체했으면 건드리지 않음).
+        if (activeReportRef.current?.ctrl === ctrl) activeReportRef.current = null;
+        perfReport(perf, `home 진입 → AI 리포트 (${isCurrent() ? outcome : outcome === "aborted" ? "aborted" : "superseded"})`);
       }
     };
 
     fetchReport();
   }, [aiLoading, cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 프로필 변경 시 AI 리포트 재요청
+  // 프로필 변경 시 AI 리포트 재요청.
+  // (세대 증가는 여기서 하지 않는다 — 리포트 effect가 먼저 실행돼 새 요청을 시작한 뒤 여기서
+  //  gen을 또 올리면, 방금 시작한 요청까지 stale이 돼 스켈레톤이 남는다. 이전 아이 응답 차단은
+  //  isCurrent()의 child 비교(activeIdRef)가 담당하므로 effect 순서와 무관하게 안전하다.)
   useEffect(() => {
     if (!loading) {
       setAiLoading(true);
@@ -565,6 +713,10 @@ const Home = () => {
       setAiError(false);
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 언마운트 시 진행 중인 리포트 요청 취소 (서버 Anthropic 스트림까지 abort). 빈 deps라
+  // aiLoading 변화로는 트리거되지 않아 스트리밍 도중 자기 요청을 끊지 않는다.
+  useEffect(() => () => activeReportRef.current?.ctrl.abort(), []);
 
   // 수동 새로고침 — 당일 캐시를 건너뛰고 즉시 재생성
   const refreshReport = () => {

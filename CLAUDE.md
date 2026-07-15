@@ -29,6 +29,7 @@ npm run lint    # ESLint — ship 전 필수 통과
 - **MANIFESTO.md** — 서비스 존재 이유와 설계 원칙. 제품 판단의 기준.
 - **DESIGN.md** — 디자인 시스템. 아래 Design System 섹션 참조.
 - **docs/PRODUCT-DECISIONS.md** — 성공 지표·출시 기준·확정된 제품 결정. 출시 범위나 보류 항목 판단 시 참조.
+- **docs/perf-home-latency.md** — 홈 지연 계측(`?perf=1`) 사용법·로그 읽는 법·2026-07 조사 요약. 홈 로딩 성능 진단 시 참조.
 - **CHANGELOG.md / VERSION** — 아래 Conventions 참조.
 
 ## Conventions

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- **홈 지연 계측(`?perf=1`)** (`lib/perf.ts`, `app/(main)/home/page.tsx`, `app/api/report/route.ts`, `app/auth/landing/page.tsx`) — 로그인 후 home 진입~AI 리포트 안정 구간을 분해 측정하는 경량 계측. `?perf=1`로 켜면(이후 세션 유지, `?perf=0`로 해제) 클라이언트 콘솔에 구간별 Δ/누적 Σ, 서버 Vercel 로그에 `received→firstDelta→hook→done` 분해가 남고, `perfId`로 클라이언트·서버 로그를 같은 요청으로 매칭. 일반 사용자 요청에는 로그를 남기지 않음(`x-perf-id` 헤더 게이팅). 사용법은 `docs/perf-home-latency.md`
+
+### Fixed
+- **구형 iOS(Safari 17.4 미만)에서 홈 로딩이 멈추던 문제** (`app/(main)/home/page.tsx`) — 환경 API 호출에 Safari 17.4+ 전용 `AbortSignal.any()`를 쓰고 그 호출이 `try` 밖에 있어, 미지원 브라우저에서 throw 시 `setLoading(false)`에 도달하지 못해 스켈레톤이 영구 노출될 수 있었다. 요청별 `AbortController` + `setTimeout` + 부모 취소 리스너로 교체(광범위 호환)하고, 요청 시작·await를 모두 `try` 안으로 이동
+- **프로필 전환 시 이전 아이 리포트가 현재 화면을 덮어쓰던 문제** (`app/(main)/home/page.tsx`) — AI 리포트 스트리밍 중 다른 아이로 전환하면, 늦게 끝난 이전 요청의 결과가 현재 아이 화면·캐시를 덮어쓸 수 있었다. 요청 세대(gen) + 활성 프로필 id(`activeIdRef`) 비교로 stale 응답의 화면·캐시 갱신을 차단. hook 도착 전 전환에서도 안전하도록 프로필 변경 무효화를 effect 실행 순서에 의존하지 않게 처리
+- **superseded 리포트 요청의 Claude 토큰 비용** (`app/(main)/home/page.tsx`, `app/api/report/route.ts`) — 프로필 전환·언마운트로 밀려난 리포트 요청이 서버에서 계속 생성돼 토큰이 청구되던 문제. 클라이언트가 이전 요청 fetch를 취소하고, 서버는 `req.signal`로 진행 중인 Anthropic 스트림까지 취소(`client_aborted`). 같은 아이 중복 요청은 single-flight로 시작 자체를 차단
+- **리포트 API 실패 경로 관측성** (`app/api/report/route.ts`) — 잘못된 JSON body·필수 입력(child/weather) 누락·프롬프트 구성 예외가 로그 없이 500으로 끝나던 경로를 계측(`input_error`/`build_error`)하고 400으로 명확히 처리
+
 ## [0.3.4.1] - 2026-07-15
 
 ### Fixed

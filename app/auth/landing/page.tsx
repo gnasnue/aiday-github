@@ -25,6 +25,14 @@ const AuthLanding = () => {
     if (ran.current) return; // React Strict Mode 이중 실행 → 중복 업로드 방지
     ran.current = true;
 
+    // 홈 지연 계측용 — landing 마운트 시각을 기록해 home에서 "landing(프로필 조회 포함)→env_start"
+    // 구간을 남긴다. (로그인 인증 자체의 왕복 시간은 login 페이지에서 발생하므로 포함되지 않음)
+    try {
+      if (typeof performance !== "undefined") {
+        sessionStorage.setItem("aiday:perf:navToHome", String(performance.now()));
+      }
+    } catch {}
+
     const route = async () => {
       let res = await fetchProfilesFromDb();
 
@@ -59,7 +67,12 @@ const AuthLanding = () => {
             localStorage.setItem(activeKey, res.list[0].id);
           }
         } catch {}
-        router.replace("/home");
+        // 계측이 활성(aiday:perf)이면 ?perf=1을 전달해 재로그인 시에도 계측이 유지되게 한다.
+        let dest = "/home";
+        try {
+          if (localStorage.getItem("aiday:perf") === "1") dest = "/home?perf=1";
+        } catch {}
+        router.replace(dest);
       } else {
         router.replace("/onboarding");
       }
