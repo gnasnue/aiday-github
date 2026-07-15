@@ -18,7 +18,12 @@ type Candidate = { keyword: string; priority: number };
 export function buildPrepKeywords(
   slot: HomeTimeSlot,
   prevSlot: HomeTimeSlot | null,
-  conditions: string[] = []
+  conditions: string[] = [],
+  // 대표 슬롯(하루 첫 슬롯) 여부. 체질 기반 "상시" 키워드(예: 아토피 보습제)는
+  // 시간대와 무관한 상수 신호라 이 슬롯에서만 켜, 전 슬롯 반복 노출을 막는다.
+  isPrimarySlot = false,
+  // 땀·더위 체질(프로필 hot/sweat). "여벌 옷" 등 땀 대비 준비물의 임계값을 낮춘다.
+  sweatProne = false
 ): string[] {
   const hasResp = hasRespiratory(conditions);
   const hasAllergy = hasAllergyCondition(conditions);
@@ -26,8 +31,10 @@ export function buildPrepKeywords(
 
   const out: Candidate[] = [];
 
-  // 강수: 실제 강수 형태가 있거나 확률 60% 이상
-  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 60)) {
+  // 강수: 실제 강수 형태가 있거나 확률 30% 이상.
+  // 상단 체크리스트·AI 리포트가 30%대에도 우산을 권하므로 임계값을 맞춰,
+  // 케어 플랜에서만 우산 칩이 비는 상단-하단 불일치를 없앤다.
+  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 30)) {
     out.push({ keyword: "우산", priority: 100 });
   }
 
@@ -39,6 +46,15 @@ export function buildPrepKeywords(
   // 한파권 기온
   if (slot.temp <= 0) {
     out.push({ keyword: "방한용품", priority: 90 });
+  }
+
+  // 땀 대비 여벌 옷 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요하다.
+  // 상단 AI 리포트가 "27도·습도 높음"에서 여벌 옷을 권하는 신호를 규칙으로 재현.
+  // 땀·더위 체질이면 임계값을 낮춰 더 민감하게 반응한다.
+  const sweatTemp = sweatProne ? 26 : 28;
+  const sweatHumid = sweatProne ? 60 : 70;
+  if (slot.temp >= sweatTemp && slot.humidity >= sweatHumid) {
+    out.push({ keyword: "여벌 옷", priority: 58 });
   }
 
   // 직전 슬롯 대비 기온 급변 (±5°C)
@@ -60,9 +76,11 @@ export function buildPrepKeywords(
     out.push({ keyword: "선크림", priority: hasSkin ? 85 : 65 });
   }
 
-  // 건조 (민감 피부면 임계값 완화 + 우선순위 상향)
-  const dryThreshold = hasSkin ? 50 : 40;
-  if (slot.humidity > 0 && slot.humidity <= dryThreshold) {
+  // 건조 → 보습제. 상단 체크리스트와 정합:
+  //  - 습도 < 45%: 날씨 기반 신호(상단 건조 임계값과 동일; 종전 ≤40에서 완화). 해당 슬롯마다 노출.
+  //  - 민감 피부(아토피 등): 체질 기반 상시 신호. 대표 슬롯에서만 노출해 반복을 막는다.
+  const dry = slot.humidity > 0 && slot.humidity < 45;
+  if (dry || (hasSkin && isPrimarySlot)) {
     out.push({ keyword: "보습제", priority: hasSkin ? 85 : 50 });
   }
 
