@@ -23,6 +23,7 @@ import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
+import { isSweatProne } from "@/lib/domain/child-conditions";
 import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
@@ -644,17 +645,18 @@ const Home = () => {
 
   const slotPrep = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
+    const sweatProne = isSweatProne(cur?.hot, cur?.sweat);
     displaySlots.forEach((slot, i) => {
       const frozen = slotPassed(slot.hour) ? frozenPrep[slot.time] : undefined;
       const fromAi = frozen ?? aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
       map[slot.time] =
         prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
           ? fromAi.slice(0, 2)
-          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions);
+          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne);
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions]);
+  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions, cur?.hot, cur?.sweat]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;

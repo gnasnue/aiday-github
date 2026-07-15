@@ -17,6 +17,23 @@ export const hasAllergy = (conditions: string[] = []): boolean =>
 export const hasSkin = (conditions: string[] = []): boolean =>
   conditions.some((c) => SKIN.test(c));
 
+// 땀·더위 체질 판정 — "땀 대비 여벌 옷" 같은 준비물의 임계값 완화에 쓴다.
+// 온보딩 코드(much/very-much)와 구형 한국어 라벨("많이 타요"·"많아요")을 모두 인식.
+export const isSweatProne = (hot?: string, sweat?: string): boolean => {
+  const prone = (v?: string) =>
+    !!v && (v === "much" || v === "very-much" || v.includes("많"));
+  return prone(hot) || prone(sweat);
+};
+
+// 땀이 차는 날씨 판정 — 고온·고습(땀·더위 체질이면 임계값 완화).
+// "여벌 옷" 준비물의 단일 기준. prep.ts(케어 플랜)·recommendation-engine.ts(상단
+// 체크리스트)가 이 함수를 공유해, 임계값이 두 곳에 중복돼 드리프트하는 것을 막는다.
+export const isSweatWeather = (
+  temp: number,
+  humidity: number,
+  sweatProne: boolean
+): boolean => temp >= (sweatProne ? 26 : 28) && humidity >= (sweatProne ? 60 : 70);
+
 // 민감도/땀 코드 → 한국어 문구. 실사용자는 온보딩에서 코드("normal", "much"…)를
 // 저장하지만, 데모/구형 프로필은 한국어 문장("보통이에요")을 저장하므로 매핑 실패 시
 // 원문을 그대로 통과시켜 리포트 퇴행을 막는다(버그 B).

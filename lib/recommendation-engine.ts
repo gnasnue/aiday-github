@@ -1,7 +1,7 @@
 import type { ChildProfile } from "./profile";
 import type { TimeSlot, WeatherData } from "./weather-api";
 import { hasJongseong, withDativeParticle } from "./korean";
-import { hasRespiratory, hasSkin } from "./domain/child-conditions";
+import { hasRespiratory, hasSkin, isSweatProne, isSweatWeather } from "./domain/child-conditions";
 
 export interface CheckItem {
   icon: string;
@@ -85,6 +85,16 @@ export function buildRecommendation(
     checklist.push({ icon: "💧", text: "보습제 (건조 주의)", key: "보습제" });
     if (avgHumidity < 45) envReasons.push("__건조함__");
     itemRecommends.push("**보습제**");
+  }
+
+  // 땀 대비 여벌 옷 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요.
+  // 케어 플랜(buildPrepKeywords)과 같은 신호·임계값(땀·더위 체질이면 완화)을 써
+  // 상단 체크리스트와 시간대 칩이 어긋나지 않게 한다.
+  const sweatProne = isSweatProne(profile.hot, profile.sweat);
+  if (isSweatWeather(weather.temp, weather.humidity, sweatProne)) {
+    checklist.push({ icon: "👕", text: "여벌 옷 (땀 대비)", key: "여벌옷" });
+    envReasons.push("__덥고 습함__");
+    itemRecommends.push("**여벌 옷**");
   }
 
   // 메시지 조합
