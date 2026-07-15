@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [0.3.4.1] - 2026-07-15
+
+### Fixed
+- **홈 규칙 기반 폴백이 mock 기준으로 계산돼 상단 칩과 모순 + 조용히 노출** (`app/(main)/home/page.tsx`, `lib/recommendation-engine.ts`) — 날씨 API 실패·지연 시 홈이 AI 리포트 대신 규칙 기반 기본 추천을 띄우는데, ① 그 추천이 항상 `mockWeather.timeline`을 근거로 계산돼(상단 칩은 실측) "꽃가루 낮음(칩) vs 꽃가루 높음(체크리스트)"처럼 모순됐고, ② 날씨 실패 시 `aiError`가 세팅되지 않아 "기본 추천" 표기 없이 정상 리포트처럼 보였다(둘러보기 진입에서 구버전처럼 보이던 원인). 폴백 근거를 실측 슬롯(`displaySlots`)로 전환해 칩과 일치시키고, 날씨 실패 시 `aiError`로 "기본 추천"을 명시. 상단 칩(badges)은 종전대로 실측 스칼라값에서 도출(변경 없음)
+- **규칙 기반 폴백 메시지 조사 오류** (`lib/recommendation-engine.ts`) — 준비물 나열 시 받침을 무시하고 "와"·"을"로 고정해 "가디건와" 같은 비문이 생기던 문제. 마지막 한글 음절의 받침으로 "와/과"·"을/를"을 판정하도록 수정
+
 ## [0.3.4.0] - 2026-07-15
 
 ### Changed
