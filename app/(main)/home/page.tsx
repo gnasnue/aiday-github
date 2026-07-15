@@ -99,10 +99,8 @@ const toneDot: Record<StatusTone, string> = {
   warn: "bg-status-warn",
 };
 
-// 환경 칩: 엔진의 warn 판정 유지, good/neutral은 값 텍스트로 구분
-const GOOD_VALUES = ["좋음", "낮음", "적정"];
-const badgeTone = (tone: "ok" | "warn", value: string): StatusTone =>
-  tone === "warn" ? "warn" : GOOD_VALUES.includes(value) ? "good" : "neutral";
+// 환경 칩: 엔진의 warn 판정만 오렌지, 나머지(좋음·보통)는 무색(neutral) — 초록 미사용
+const badgeTone = (tone: "ok" | "warn"): StatusTone => (tone === "warn" ? "warn" : "neutral");
 
 /* ---- 하늘상태(SKY/PTY) → 날씨 아이콘 (표시 계층 전용) ---- */
 
@@ -864,7 +862,7 @@ const Home = () => {
               {/* 환경 칩 — warn=주황, good=초록(흰bg+도트), 보통=플랫 그레이 */}
               <div className="mt-3.5 flex flex-wrap gap-1.5">
                 {badges.map((b) => {
-                  const t = badgeTone(b.tone, b.value);
+                  const t = badgeTone(b.tone);
                   return t === "neutral" ? (
                     <span
                       key={b.label}
@@ -987,11 +985,13 @@ const Home = () => {
                       {/* 지표 값: 5px 도트 + 상태 색 텍스트, neutral은 도트 숨김 */}
                       <dl className="space-y-1.5 text-[11px]">
                         {([
-                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : t.dust === "좋음" ? "good" : "neutral"],
-                          ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : t.uv === "낮음" ? "good" : "neutral"],
-                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : t.pollen === "낮음" ? "good" : "neutral"],
-                          // 수치는 임계값 초과 시에만 warn, 아니면 neutral (good 없음)
-                          ["습도", `${t.humidity}%`, t.humidity <= 40 ? "warn" : "neutral"],
+                          // 경고(오렌지)만 색을 쓰고 좋음·보통은 무색(neutral) — 24개 값 그리드에서
+                          // 경고가 묻히지 않도록 "특이사항 없음 = 색 없음" 원칙 적용 (good/초록 미사용)
+                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"],
+                          ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : "neutral"],
+                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"],
+                          // 습도: 양극단 경고 — ≤40% 건조(피부·호흡기) / ≥80% 후텁지근(AI 리포트 로직과 일치)
+                          ["습도", `${t.humidity}%`, t.humidity <= 40 || t.humidity >= 80 ? "warn" : "neutral"],
                           ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],
                           // 강수확률: 우산 키워드의 근거 지표 — 데이터 있을 때만 노출
                           ...(t.pop != null
