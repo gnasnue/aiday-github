@@ -1,6 +1,6 @@
 import type { ChildProfile } from "./profile";
-import type { WeatherData } from "./weather-api";
-import { withDativeParticle } from "./korean";
+import type { TimeSlot, WeatherData } from "./weather-api";
+import { hasJongseong, withDativeParticle } from "./korean";
 import { hasRespiratory, hasSkin } from "./domain/child-conditions";
 
 export interface CheckItem {
@@ -21,7 +21,17 @@ export interface Recommendation {
   badges: Badge[];
 }
 
-export function buildRecommendation(profile: ChildProfile, weather: WeatherData): Recommendation {
+// 규칙 기반 추천의 시간대 판정에 필요한 필드만 추린 최소 형태.
+// 홈의 실측 슬롯(HomeTimeSlot)과 mock(TimeSlot) 양쪽을 모두 받기 위한 구조적 타입.
+type RecoSlot = Pick<TimeSlot, "wind" | "pollen" | "dust" | "humidity">;
+
+// slots: 체크리스트·메시지의 근거가 되는 시간대 데이터. 홈은 실측 슬롯을 넘겨
+// 상단 칩(실측)과 어긋나지 않게 한다. 미지정 시 weather.timeline(mock 포함)으로 폴백.
+export function buildRecommendation(
+  profile: ChildProfile,
+  weather: WeatherData,
+  slots: ReadonlyArray<RecoSlot> = weather.timeline
+): Recommendation {
   const conditions = profile.conditions ?? [];
   const hasRhinitis = hasRespiratory(conditions);
   const hasSensitiveSkin = hasSkin(conditions);
@@ -42,7 +52,7 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
   }
 
   // 바람
-  const hasStrongWind = weather.timeline.some((t) => t.wind === "강함");
+  const hasStrongWind = slots.some((t) => t.wind === "강함");
   if (hasStrongWind) {
     checklist.push({ icon: "🧣", text: "목수건 (오후 바람 강함)", key: "목수건" });
     envReasons.push("__바람 강함__");
@@ -50,10 +60,10 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
   }
 
   // 꽃가루 + 미세먼지 → 마스크
-  const highPollen = weather.timeline.some(
+  const highPollen = slots.some(
     (t) => t.pollen === "높음" || t.pollen === "매우높음"
   );
-  const badDust = weather.timeline.some(
+  const badDust = slots.some(
     (t) => t.dust === "나쁨" || t.dust === "매우나쁨"
   );
   if (highPollen || badDust) {
@@ -67,9 +77,10 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
     itemRecommends.push("**마스크**");
   }
 
-  // 건조 (평균 습도 < 45)
-  const avgHumidity =
-    weather.timeline.reduce((s, t) => s + t.humidity, 0) / weather.timeline.length;
+  // 건조 (평균 습도 < 45). 슬롯이 비면(이론상) 건조 미판정(50)으로 폴백.
+  const avgHumidity = slots.length
+    ? slots.reduce((s, t) => s + t.humidity, 0) / slots.length
+    : 50;
   if (avgHumidity < 45 || hasSensitiveSkin) {
     checklist.push({ icon: "💧", text: "보습제 (건조 주의)", key: "보습제" });
     if (avgHumidity < 45) envReasons.push("__건조함__");
@@ -79,9 +90,17 @@ export function buildRecommendation(profile: ChildProfile, weather: WeatherData)
   // 메시지 조합
   const conditionNote = hasRhinitis ? " 호흡기가 예민하니" : "";
   const envPart = envReasons.slice(0, 2).join("이고 오후엔 ");
-  const itemPart = itemRecommends.slice(0, 2).join("와 ");
+  // 준비물명은 **마크다운**으로 감싸져 있어, 받침 판정 시 별표를 제거하고 마지막 한글로 본다.
+  const core = (w: string) => w.replace(/\*/g, "");
+  const items = itemRecommends.slice(0, 2);
+  const itemPart =
+    items.length === 2
+      ? `${items[0]}${hasJongseong(core(items[0])) ? "과" : "와"} ${items[1]}`
+      : items[0] ?? "";
+  const lastItem = items[items.length - 1] ?? "";
+  const objParticle = hasJongseong(core(lastItem)) ? "을" : "를";
   const message =
-    `${withDativeParticle(profile.name)} 오늘 ${envPart}이에요.${conditionNote} ${itemPart}을 꼭 챙겨주세요.` +
+    `${withDativeParticle(profile.name)} 오늘 ${envPart}이에요.${conditionNote} ${itemPart}${objParticle} 꼭 챙겨주세요.` +
     (itemRecommends.length > 2 ? ` ${itemRecommends[2]}도 챙겨주세요.` : "");
 
   const badges = buildBadges(weather);

@@ -368,6 +368,11 @@ const Home = () => {
           setAiHook("");
           setAiMessage("");
           setAiError(false);
+        } else {
+          // 날씨 실측이 없으면 AI 리포트를 생성할 수 없다(날씨가 핵심 입력).
+          // 이때 규칙 기반 기본 추천을 노출하되, aiError로 표시해 헤더에 "기본 추천"을
+          // 명확히 붙인다 — 폴백이 정상 AI 리포트로 오인되지 않게 한다.
+          setAiError(true);
         }
       } catch {
         setLoading(false);
@@ -575,11 +580,6 @@ const Home = () => {
     setAiLoading(true);
   };
 
-  const recommendation = useMemo(
-    () => buildRecommendation(cur, weatherData),
-    [cur, weatherData]
-  );
-
   // 시간대별 환경: 활성 프로필의 일과 + 실측 데이터로 구성. 실데이터가 없으면 mock.
   const timeline = useMemo<HomeTimeSlot[] | null>(
     () => (envRaw ? buildTimeline(cur?.schedule, envRaw) : null),
@@ -604,6 +604,14 @@ const Home = () => {
       wind: t.wind,
     }));
   }, [timeline]);
+
+  // 규칙 기반 추천(AI 리포트 폴백 + 상단 환경 칩).
+  // 체크리스트·메시지는 실측 슬롯(displaySlots)을 근거로 삼아 상단 칩과 어긋나지 않게 하고,
+  // 칩(badges)은 종전대로 weatherData의 실측 스칼라값에서 도출한다.
+  const recommendation = useMemo(
+    () => buildRecommendation(cur, weatherData, displaySlots),
+    [cur, weatherData, displaySlots]
+  );
 
   // 슬롯별 준비물 키워드 (A/B): rule=로컬 규칙 엔진, ai=Claude prep 필드
   // AI 변형에서 prep이 비면(로딩 중·미지원 응답) 규칙 기반으로 폴백해 빈 화면을 막는다
