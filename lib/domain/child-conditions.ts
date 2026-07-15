@@ -25,6 +25,15 @@ export const isSweatProne = (hot?: string, sweat?: string): boolean => {
   return prone(hot) || prone(sweat);
 };
 
+// 땀이 차는 날씨 판정 — 고온·고습(땀·더위 체질이면 임계값 완화).
+// "여벌 옷" 준비물의 단일 기준. prep.ts(케어 플랜)·recommendation-engine.ts(상단
+// 체크리스트)가 이 함수를 공유해, 임계값이 두 곳에 중복돼 드리프트하는 것을 막는다.
+export const isSweatWeather = (
+  temp: number,
+  humidity: number,
+  sweatProne: boolean
+): boolean => temp >= (sweatProne ? 26 : 28) && humidity >= (sweatProne ? 60 : 70);
+
 // 민감도/땀 코드 → 한국어 문구. 실사용자는 온보딩에서 코드("normal", "much"…)를
 // 저장하지만, 데모/구형 프로필은 한국어 문장("보통이에요")을 저장하므로 매핑 실패 시
 // 원문을 그대로 통과시켜 리포트 퇴행을 막는다(버그 B).

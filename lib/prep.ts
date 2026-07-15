@@ -3,6 +3,7 @@ import {
   hasRespiratory,
   hasAllergy as hasAllergyCondition,
   hasSkin as hasSkinCondition,
+  isSweatWeather,
 } from "./domain/child-conditions";
 
 /**
@@ -50,10 +51,8 @@ export function buildPrepKeywords(
 
   // 땀 대비 여벌 옷 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요하다.
   // 상단 AI 리포트가 "27도·습도 높음"에서 여벌 옷을 권하는 신호를 규칙으로 재현.
-  // 땀·더위 체질이면 임계값을 낮춰 더 민감하게 반응한다.
-  const sweatTemp = sweatProne ? 26 : 28;
-  const sweatHumid = sweatProne ? 60 : 70;
-  if (slot.temp >= sweatTemp && slot.humidity >= sweatHumid) {
+  // 임계값은 상단(buildRecommendation)과 공유하는 isSweatWeather에 단일화돼 있다.
+  if (isSweatWeather(slot.temp, slot.humidity, sweatProne)) {
     out.push({ keyword: "여벌 옷", priority: 58 });
   }
 
