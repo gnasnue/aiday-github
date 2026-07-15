@@ -141,3 +141,4 @@
 | 2026-07-01 | CharacterReport 캐릭터 일러스트를 "일러스트 없음" 규칙의 유일한 예외로 인정 | /design-review — 신체 부위 매핑 안내는 일러스트가 아이콘보다 직관적. 단, calloutsData가 실제 weather/conditions와 무관한 고정값이었던 버그를 같은 세션에서 수정 (지금은 실데이터 연동) |
 | 2026-07-13 | 카드 표준 문법 확정: `rounded-2xl border border-border/60 bg-card p-5 shadow-soft` | /design-review 랜딩 일관성 감사 — 한 페이지 카드 3종 문법을 홈 리스타일 실사용 표준으로 단일화. Color 테이블을 globals.css 웜 뉴트럴 v2에 동기화 (문서 부채 해소) |
 | 2026-07-13 | 랜딩 섹션 템플릿: eyebrow(`normal-case tracking-[0.06em]`) + H2 22px + 배경 위계(기본 background, 강조 1곳만 soft, 히어로·클로징 CTA만 secondary) | /design-review — 쿠키커터 리듬 제거, 홈과 섹션 어휘 통일 |
+| 2026-07-15 | 카드 elevation 2단 규칙 도입: 홈 최상위 AI 리포트 카드만 `shadow-card`(hero), 나머지 카드는 `shadow-soft` 유지 | 홈 1c 리스타일 — 표면 위계로 "오늘의 결론" 카드를 강조. 2026-07-13 단일 `shadow-soft` 표준의 홈 국소 개정. 오렌지 역할 분리(브랜드=solid / warn=status-warn / 완료=status-good)도 함께 정착 |

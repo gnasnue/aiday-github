@@ -22,7 +22,7 @@ const BottomNav = () => {
   return (
     <nav
       aria-label="주요 메뉴"
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border/70 bg-background/92 backdrop-blur-xl safe-bottom"
+      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border/70 bg-background/92 shadow-[0_-4px_16px_hsl(24_30%_12%_/_0.04)] backdrop-blur-xl safe-bottom"
     >
       <div className="container-mobile">
         <ul className="grid grid-cols-5">

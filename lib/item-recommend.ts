@@ -20,6 +20,12 @@ export interface RecommendedItem {
   price: string;
   /** 카드에 표시할 추천 근거 한 줄 */
   reason: string;
+  /**
+   * 오늘의 실제 신호(체크리스트·시간대 준비물)에서 파생됐는지 여부.
+   * 체질 상비템·카탈로그 채움(priority < 200)은 false — 표시 계층에서
+   * 경고색(warn)을 붙일지 판단하는 근거. (예: 비 예보 없는 날 "비 대비" 채움 아이템은 주황 금지)
+   */
+  fromToday: boolean;
 }
 
 type CatalogEntry = {
@@ -106,10 +112,12 @@ export function buildItemRecommendations(params: {
     }
   }
 
-  return picked.map(({ entry, reason }) => ({
+  return picked.map(({ entry, reason, priority }) => ({
     art: entry.art,
     name: entry.name,
     price: entry.price,
     reason,
+    // 체크리스트(300)·시간대 준비물(200)만 오늘의 신호. 상비템(100)·채움(0)은 상시.
+    fromToday: priority >= 200,
   }));
 }
