@@ -224,25 +224,6 @@ const Environment = () => {
     return list;
   }, [cur, air, weather, uv, pollen]);
 
-  /* 시간대별 날씨 카드 — weather.hourlyForecast(06~21시)에 자외선·미세먼지 등급을 합침 */
-  const hourlyCards = useMemo(() => {
-    const list = weather?.hourlyForecast ?? [];
-    return list.map((h) => {
-      const hh = h.hour.slice(0, 2); // "06:00" → "06"
-      const hourKey = String(Number(hh)); // uv/air hourly 맵 키는 "6"
-      const uvi = uv?.hourly?.[hourKey] ?? null;
-      const pm10Grade = air?.hourly?.[hourKey] ?? null;
-      return {
-        h: hh,
-        icon: skyIcon(h.sky, h.pty),
-        t: Math.round(h.temp),
-        rain: h.pop ?? 0,
-        uvi,
-        pm10Grade,
-      };
-    });
-  }, [weather, uv, air]);
-
   /* 주간 날씨 온도 바 스케일 — 그 주의 실제 최저~최고 범위로 정규화 */
   const weekTempRange = useMemo(() => {
     const temps = (weekly ?? [])
@@ -322,24 +303,22 @@ const Environment = () => {
         </header>
 
         <main className="container-mobile pt-5">
-          <h1 className="text-xl font-bold tracking-tight">환경정보</h1>
-
-          {/* Location */}
-          <button
-            onClick={() => toast("위치 변경은 준비 중이에요")}
-            className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <MapPin className="h-4 w-4" />
-            <span>{air?.stationName ?? "서울"}</span>
-            <ChevronDown className="h-3.5 w-3.5" />
-            <span className="ml-1 text-xs">· 실시간</span>
-          </button>
-
           {/* Personalized insights */}
-          <section className="mt-5">
-            <h2 className="text-[22px] font-bold tracking-tight">
-              {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
-            </h2>
+          <section>
+            <div className="flex items-start justify-between gap-2">
+              <h2 className="text-[22px] font-bold tracking-tight">
+                {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
+              </h2>
+              {/* Location */}
+              <button
+                onClick={() => toast("위치 변경은 준비 중이에요")}
+                className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+              >
+                <MapPin className="h-3.5 w-3.5" />
+                <span>{air?.stationName ?? "서울"}</span>
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </div>
             <p className="mt-1 text-xs text-muted-foreground">
               {cur?.conditions?.length
                 ? `${cur.name}의 건강 정보(${cur.conditions.join(", ")})를 반영했어요`
@@ -558,52 +537,10 @@ const Environment = () => {
             </div>
           </section>
 
-          {/* Hourly */}
-          <section className="mt-7">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">시간대별 날씨</h2>
-              <span className="text-xs text-muted-foreground">가로 스크롤 →</span>
-            </div>
-            {loading ? (
-              <Skeleton className="mt-3 h-32 w-full rounded-2xl" />
-            ) : hourlyCards.length > 0 ? (
-              <div className="mt-3 -mx-5 flex flex-nowrap gap-2 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-                {hourlyCards.map((h) => (
-                  <div
-                    key={h.h}
-                    className="w-[64px] shrink-0 rounded-2xl border border-border bg-card p-2.5 text-center shadow-soft"
-                  >
-                    <p className="text-xs text-muted-foreground">{h.h}시</p>
-                    <p className="my-1 text-2xl">{h.icon}</p>
-                    <p className="text-sm font-bold text-foreground">{h.t}°</p>
-                    <p
-                      className={`mt-0.5 text-[10px] font-medium ${
-                        h.rain >= 50 ? "text-accent" : "text-muted-foreground"
-                      }`}
-                    >
-                      💧{h.rain}%
-                    </p>
-                    {h.uvi != null && (
-                      <p className="mt-0.5 text-[10px] font-medium text-muted-foreground">
-                        ☀️{h.uvi}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                시간대별 예보를 불러오지 못했어요
-                <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
-              </div>
-            )}
-          </section>
-
           {/* Weekly */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
               <h2 className="text-[22px] font-bold tracking-tight">주간 날씨</h2>
-              <span className="text-xs text-muted-foreground">주말 강조</span>
             </div>
             {loading ? (
               <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
