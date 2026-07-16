@@ -27,7 +27,7 @@ import {
   syncProfilesFromDb,
 } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
-import { normalizeSensitivity, normalizeSweat } from "@/lib/profile-options";
+import { normalizeSensitivity } from "@/lib/profile-options";
 
 
 const sensitivityLabel: Record<string, string> = {
@@ -36,12 +36,6 @@ const sensitivityLabel: Record<string, string> = {
   normal: "보통",
   less: "조금 덜 탐",
   "very-less": "매우 덜 탐",
-};
-const sweatLabel: Record<string, string> = {
-  "very-much": "매우 많음",
-  much: "조금 많음",
-  normal: "보통",
-  less: "적은 편",
 };
 
 const InfoRow = ({ label, value }: { label: string; value?: string }) => (
@@ -66,9 +60,6 @@ const ProfileCard = ({
   onEdit: () => void;
   onDelete: () => void;
 }) => {
-  const birth = p.birth?.year
-    ? `${p.birth.year}.${p.birth.month}`
-    : "";
   const conds = (p.conditions || []).filter(Boolean);
   const condStr = conds.length
     ? conds
@@ -77,45 +68,46 @@ const ProfileCard = ({
     : "-";
 
   const sched = p.schedule || {};
-  const range = (a?: string, b?: string) =>
-    a && b ? `${a} ~ ${b}` : a || b || "";
+  const genderStr =
+    p.gender === "male" ? "남아" : p.gender === "female" ? "여아" : "";
+  const summary = [p.age, genderStr, conds.length ? condStr : ""]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <article
-      className={`rounded-2xl border bg-card p-4 shadow-soft transition-smooth ${
-        active ? "border-primary ring-2 ring-primary/20" : "border-border"
-      }`}
-    >
+    <article className="rounded-2xl bg-card p-4 shadow-soft transition-smooth">
       <button onClick={onSelect} className="flex w-full items-center gap-3 text-left">
-        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-2xl">
-          {p.emoji}
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-avatar text-lg font-bold text-avatar-foreground">
+          {p.name.charAt(0)}
         </div>
-        <div className="flex-1">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5">
-            <p className="text-base font-bold">{p.name}</p>
+            <p className="text-[17px] font-bold">{p.name}</p>
             {active && (
-              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-accent">
+              <span className="rounded-full bg-primary-tint px-2 py-0.5 text-[11px] font-semibold text-accent">
                 선택됨
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {p.age || "-"} · {p.gender === "male" ? "남아" : p.gender === "female" ? "여아" : "선택 안 함"}
+          <p className="truncate text-[13px] text-muted-foreground">
+            {summary || "-"}
           </p>
         </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </button>
 
       <dl className="mt-3 divide-y divide-border/60 border-t border-border/60 pt-1">
-        <InfoRow label="출생 연월" value={birth} />
-        <InfoRow label="건강 정보" value={condStr} />
-        <InfoRow label="추위 민감도" value={sensitivityLabel[normalizeSensitivity(p.cold)]} />
-        <InfoRow label="더위 민감도" value={sensitivityLabel[normalizeSensitivity(p.hot)]} />
-        <InfoRow label="땀 분비" value={sweatLabel[normalizeSweat(p.sweat)]} />
-        <InfoRow label="등원 시간" value={sched.goSchool} />
-        <InfoRow label="야외활동" value={range(sched.outdoorStart, sched.outdoorEnd)} />
-        <InfoRow label="하원 시간" value={sched.leaveSchool} />
-        <InfoRow label="저녁 야외활동" value={range(sched.eveningStart, sched.eveningEnd)} />
+        <InfoRow
+          label="민감도"
+          value={`추위 ${sensitivityLabel[normalizeSensitivity(p.cold)]} · 더위 ${sensitivityLabel[normalizeSensitivity(p.hot)]}`}
+        />
+        <InfoRow
+          label="등원 · 하원"
+          value={
+            sched.goSchool || sched.leaveSchool
+              ? `${sched.goSchool || "-"} · ${sched.leaveSchool || "-"}`
+              : ""
+          }
+        />
       </dl>
 
       <div className="mt-3 flex gap-2">
@@ -228,7 +220,7 @@ const My = () => {
 
           <section className="mt-6">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">아이 프로필</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">아이 프로필</h2>
               <span className="text-xs text-muted-foreground">{profiles.length}명</span>
             </div>
 
@@ -260,7 +252,7 @@ const My = () => {
                 onClick={() => router.push("/onboarding")}
                 variant="outline"
                 size="lg"
-                className="h-12 w-full border-2 border-dashed border-border text-foreground hover:border-primary hover:bg-secondary"
+                className="h-12 w-full rounded-2xl border-2 border-dashed border-border text-foreground hover:border-primary hover:bg-secondary"
               >
                 <Plus className="mr-1.5 h-4 w-4" /> 아이 추가하기
               </Button>
@@ -268,8 +260,8 @@ const My = () => {
           </section>
 
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">계정</h2>
-            <div className="mt-3 divide-y divide-border rounded-2xl bg-card">
+            <h2 className="text-[17px] font-bold tracking-tight">계정</h2>
+            <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-card">
               {([
                 { l: "알림 설정", Icon: Bell },
                 { l: "위치 설정", Icon: MapPin },
@@ -280,13 +272,13 @@ const My = () => {
                 <button
                   key={it.l}
                   onClick={it.action ?? (() => toast(`${it.l}은(는) 준비 중이에요`))}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                     <it.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </span>
-                  <span className="flex-1">{it.l}</span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <span className="flex-1 text-base font-medium">{it.l}</span>
+                  {!it.action && <ChevronRight className="h-4 w-4 text-faint" />}
                 </button>
               ))}
             </div>

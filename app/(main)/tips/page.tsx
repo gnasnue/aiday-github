@@ -295,7 +295,9 @@ const Tips = () => {
           {/* Profile context */}
           {cur && (
             <div className="mt-3 flex items-center gap-2 rounded-2xl bg-card p-3 text-sm shadow-soft">
-              <span className="text-2xl">{cur.emoji}</span>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-avatar text-lg font-bold text-avatar-foreground">
+                {cur.name.charAt(0)}
+              </span>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">
                   {withSubjectSuffix(cur.name)} 위한 오늘의 가이드

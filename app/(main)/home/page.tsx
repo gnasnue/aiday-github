@@ -1026,7 +1026,6 @@ const Home = () => {
                 aria-label="알림"
               >
                 <Bell className="h-5 w-5" strokeWidth={1.75} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
@@ -1049,8 +1048,8 @@ const Home = () => {
                   onClick={() => setActive(p.id)}
                   className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-[5px] pl-1.5 pr-[15px] text-sm transition-smooth ${
                     active === p.id
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-muted-foreground hover:border-foreground/40"
+                      ? "border-transparent bg-primary-tint text-accent"
+                      : "border-transparent bg-card text-muted-foreground shadow-soft"
                   }`}
                 >
                   {/* 아바타: 이모지 → 파스텔 원 + 이니셜 (OS 이모지 전면 금지) */}
@@ -1058,7 +1057,7 @@ const Home = () => {
                     {p.name.charAt(0)}
                   </span>
                   <span className="font-semibold">{p.name}</span>
-                  <span className={`num text-xs ${active === p.id ? "text-primary-foreground/60" : "text-muted-foreground"}`}>{p.age}</span>
+                  <span className={`num text-xs ${active === p.id ? "text-accent/70" : "text-muted-foreground"}`}>{p.age}</span>
                 </button>
               ))}
               <button
@@ -1145,7 +1144,7 @@ const Home = () => {
                 <>
                   {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론 */}
                   {aiHook && (
-                    <h1 className="mt-3 text-[22px] font-extrabold leading-[1.35] tracking-[-0.02em] text-foreground break-keep">
+                    <h1 className="mt-3 text-[26px] font-extrabold leading-[1.32] tracking-[-0.02em] text-foreground break-keep">
                       {splitHook(aiHook).map((ln, i) => (
                         <span key={i} className="block">
                           {ln}
@@ -1224,7 +1223,7 @@ const Home = () => {
               {aiLoading || aiStreaming ? (
                 <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
               ) : (
-              <div className="mt-4 rounded-2xl bg-soft px-4 pt-4 pb-1.5">
+              <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
                 <div className="flex items-center justify-between px-0.5">
                   <p className="text-[15px] font-bold">오늘 챙길 것</p>
                   {allDone ? (
@@ -1257,7 +1256,7 @@ const Home = () => {
                           >
                             {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                           </span>
-                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-muted text-status-neutral">
+                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
                             {checklistIcon(c.icon, c.text)}
                           </span>
                           <span className="min-w-0 flex-1">
@@ -1291,7 +1290,7 @@ const Home = () => {
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
           <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
+            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -1353,7 +1352,7 @@ const Home = () => {
 
           {/* 하루 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
           <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em]">하루 케어 플랜</h2>
+            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">하루 케어 플랜</h2>
             <div className="mt-4">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -1438,7 +1437,7 @@ const Home = () => {
 
           {/* Recommended items */}
           <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[22px] font-bold tracking-[-0.01em] break-keep">
+            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em] break-keep">
               {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
             </h2>
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
