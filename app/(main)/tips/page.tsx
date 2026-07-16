@@ -54,12 +54,13 @@ const sevIconBox = (s: Tip["severity"]) =>
       ? "bg-status-warn-bg text-status-warn"
       : "bg-status-info-bg text-status-info";
 
+// v3: 상태 배지는 solid 채움 금지 — 상태색 틴트 배경 + 상태색 텍스트 (브랜드 오렌지는 상태 표현에 사용 불가)
 const sevBadge = (s: Tip["severity"]) =>
   s === "경고"
-    ? "bg-destructive text-destructive-foreground"
+    ? "bg-destructive/10 text-destructive"
     : s === "주의"
-      ? "bg-accent text-accent-foreground"
-      : "bg-primary text-primary-foreground";
+      ? "bg-status-warn-bg text-status-warn"
+      : "bg-status-info-bg text-status-info";
 
 /* ----------------------------- page ----------------------------- */
 const Tips = () => {
