@@ -71,18 +71,12 @@ const skyDesc = (sky: number | null, pty: number | null) => {
 
 /* ----------------------------- helpers ----------------------------- */
 
+// v3: 상태는 순백 카드 위 "상태색 텍스트"로만 — 틴트 배경·보더·브랜드 오렌지(accent) 금지
 const levelTone = (label: string) => {
-  if (["매우높음", "매우나쁨", "위험"].includes(label)) return "text-destructive";
-  if (["높음", "나쁨"].includes(label)) return "text-accent";
-  if (label === "보통") return "text-foreground";
+  if (["매우높음", "매우나쁨", "위험"].includes(label)) return "text-status-bad";
+  if (["높음", "나쁨"].includes(label)) return "text-status-warn";
+  if (label === "보통") return "text-status-neutral";
   return "text-muted-foreground";
-};
-
-const levelBg = (label: string) => {
-  if (["매우높음", "매우나쁨", "위험"].includes(label)) return "bg-destructive/10 border-destructive/20";
-  if (["높음", "나쁨"].includes(label)) return "bg-accent/10 border-accent/20";
-  if (label === "보통") return "bg-secondary border-border";
-  return "bg-muted border-border";
 };
 
 const uvLabel = (v: number) =>
@@ -369,13 +363,7 @@ const Environment = () => {
                 {insights.map((it, i) => (
                   <article
                     key={i}
-                    className={`flex items-start gap-3 rounded-2xl border p-4 shadow-soft ${
-                      it.tone === "warn"
-                        ? "border-accent/30 bg-accent/5"
-                        : it.tone === "ok"
-                          ? "border-border bg-card"
-                          : "border-primary/30 bg-secondary/40"
-                    }`}
+                    className="flex items-start gap-3 rounded-2xl bg-card p-4 shadow-soft"
                   >
                     <span
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
@@ -407,7 +395,7 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-7 h-28 w-full rounded-2xl" />
           ) : outdoor ? (
-            <section className="mt-7 rounded-2xl bg-secondary p-5 shadow-soft">
+            <section className="mt-7 rounded-2xl bg-card p-5 shadow-card">
               <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
@@ -429,7 +417,7 @@ const Environment = () => {
                 {outdoor.comment}
               </p>
               {outdoor.basis.length > 0 && (
-                <p className="mt-2 border-t border-border/50 pt-2 text-[10px] leading-relaxed text-muted-foreground">
+                <p className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
                   아이데이 종합 지표(공인 지수 아님) · {outdoor.basis.join(" · ")} 기준
                 </p>
               )}
@@ -457,7 +445,7 @@ const Environment = () => {
                   {skyIcon(weather?.sky ?? null, weather?.pty ?? null, 56)}
                 </span>
               </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-background/70 p-3 text-center text-xs">
+              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-muted/60 p-3 text-center text-xs">
                 <div>
                   <p className="text-muted-foreground">습도</p>
                   <p className="mt-0.5 font-bold text-foreground">
@@ -491,11 +479,11 @@ const Environment = () => {
               ].map((d) => (
                 <div
                   key={d.k}
-                  className={`rounded-2xl border p-3 text-center ${levelBg(d.label)}`}
+                  className="rounded-2xl bg-card p-3 text-center shadow-soft"
                 >
                   <p className="text-xs font-medium text-muted-foreground">{d.k}</p>
-                  <p className="mt-1 text-xl font-bold text-foreground">{d.v}</p>
-                  <p className="text-[10px] text-muted-foreground">{d.unit}</p>
+                  <p className="num mt-1 text-xl font-bold text-foreground">{d.v}</p>
+                  <p className="text-xs text-faint">{d.unit}</p>
                   <p className={`mt-1 text-xs font-bold ${levelTone(d.label)}`}>{d.label}</p>
                 </div>
               ))}
@@ -510,7 +498,7 @@ const Environment = () => {
                 href="https://www.weather.go.kr/w/forecast/life/life-weather-index.do?tabIndex=4"
                 target="_blank"
                 rel="noreferrer"
-                className="text-xs text-muted-foreground underline"
+                className="text-xs font-medium text-accent"
               >
                 기상청 출처
               </a>
@@ -528,9 +516,9 @@ const Environment = () => {
                   return (
                     <div
                       key={d.k}
-                      className={`rounded-2xl border p-3 text-center ${levelBg(label)}`}
+                      className="rounded-2xl bg-card p-3 text-center shadow-soft"
                     >
-                      <d.Icon className="mx-auto h-5 w-5 text-accent" strokeWidth={1.75} aria-hidden />
+                      <d.Icon className="mx-auto h-5 w-5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
                       <p className="mt-1 text-xs font-medium text-muted-foreground">{d.k}</p>
                       <p className={`mt-1 text-sm font-bold ${levelTone(label)}`}>{label}</p>
                     </div>
@@ -553,7 +541,7 @@ const Environment = () => {
 
           {/* UV + Humidity */}
           <section className="mt-7 grid grid-cols-2 gap-3">
-            <div className={`rounded-2xl border bg-card p-4 shadow-soft ${uv?.uvi != null ? levelBg(uvLabel(uv.uvi)) : "border-border"}`}>
+            <div className="rounded-2xl bg-card p-4 shadow-soft">
               <p className="text-xs font-medium text-muted-foreground">자외선 지수</p>
               <p className="mt-1 text-3xl font-bold text-foreground">
                 {uv?.uvi != null ? uv.uvi : "--"}
@@ -584,13 +572,13 @@ const Environment = () => {
               <p
                 className={`text-xs font-bold ${
                   (weather?.humidity ?? 50) <= 30 || (weather?.humidity ?? 50) >= 75
-                    ? "text-accent"
-                    : "text-foreground"
+                    ? "text-status-warn"
+                    : "text-status-neutral"
                 }`}
               >
                 {weather?.humidity != null ? humidityLabel(weather.humidity) : "로딩 중"}
               </p>
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              <p className="mt-2 text-xs text-muted-foreground">
                 실내 권장 40~60%
               </p>
             </div>
@@ -610,25 +598,30 @@ const Environment = () => {
                     <div
                       key={w.date}
                       className={`flex items-center gap-3 px-4 py-3 ${
-                        i !== weekly.length - 1 ? "border-b border-border/60" : ""
-                      } ${w.weekend ? "bg-secondary/60" : ""}`}
+                        i !== weekly.length - 1 ? "border-b border-border" : ""
+                      }`}
                     >
                       <div className="w-12">
+                        {/* 요일 색: 달력 관례(토=파랑·일=빨강) — 브랜드 오렌지는 데이터에 쓰지 않는다 */}
                         <p
                           className={`text-sm font-bold ${
-                            w.weekend ? "text-accent" : "text-foreground"
+                            w.day === "토"
+                              ? "text-status-info"
+                              : w.weekend
+                                ? "text-status-bad"
+                                : "text-foreground"
                           }`}
                         >
                           {w.day}
                         </p>
-                        <p className="text-[10px] text-muted-foreground">{w.date}</p>
+                        <p className="text-xs text-faint">{w.date}</p>
                       </div>
-                      <span className="shrink-0 text-accent">{weekIcon(w.icon, 24)}</span>
+                      <span className="shrink-0 text-muted-foreground">{weekIcon(w.icon, 24)}</span>
                       <div className="flex-1">
                         <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
                           {w.low != null && w.high != null && weekTempRange && (
                             <div
-                              className="absolute h-full rounded-full bg-primary/70"
+                              className="absolute h-full rounded-full bg-foreground/30"
                               style={{
                                 left: `${((w.low - weekTempRange.min) / weekTempRange.span) * 100}%`,
                                 width: `${Math.max((w.high - w.low) / weekTempRange.span * 100, 6)}%`,
@@ -643,8 +636,8 @@ const Environment = () => {
                         <span className="font-bold text-foreground">{w.high != null ? `${w.high}°` : "--"}</span>
                       </p>
                       <p
-                        className={`inline-flex w-10 items-center justify-end gap-0.5 text-right text-[11px] font-medium ${
-                          w.rain >= 50 ? "text-accent" : "text-muted-foreground"
+                        className={`inline-flex w-10 items-center justify-end gap-0.5 text-right text-xs font-medium ${
+                          w.rain >= 50 ? "text-status-info" : "text-muted-foreground"
                         }`}
                       >
                         <Droplet size={12} strokeWidth={1.75} aria-hidden />
@@ -653,7 +646,7 @@ const Environment = () => {
                     </div>
                   ))}
                 </div>
-                <p className="mt-2 flex items-center gap-1 text-[11px] text-muted-foreground">
+                <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
                   <Info className="h-3 w-3" />
                   {weekendHint}
                 </p>

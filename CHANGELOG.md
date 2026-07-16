@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.6.1] - 2026-07-16
+
+### Changed
+- **환경정보 화면 v3 톤 정렬** (`app/(main)/env/page.tsx`) — 다른 탭과 어긋나던 v2 잔재 제거. 인사이트·야외활동 지수·대기질·꽃가루·자외선 카드의 크림 면과 틴트 배경+보더를 순백 카드로 통일, 상태 텍스트를 브랜드 오렌지에서 시멘틱 색(status-warn/bad/neutral)으로 교정, 주간 날씨 요일 달력 관례(토=파랑·일=빨강)·온도 바 뉴트럴·강수 status-info, 10~11px 텍스트 12px 수렴. 리뷰: `docs/reviews/2026-07-16-design-review-env-v3-tone.md`
+
 ## [0.3.6.0] - 2026-07-16
 
 ### Changed
