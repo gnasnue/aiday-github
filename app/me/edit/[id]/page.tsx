@@ -225,23 +225,22 @@ const EditProfile = () => {
             <Field label="성별">
               <div className="grid grid-cols-3 gap-2">
                 {([
-                  { code: "male", l: "남아", e: "👦" },
-                  { code: "female", l: "여아", e: "👧" },
-                  { code: "unknown", l: "선택 안 함", e: "🙂" },
-                ] as { code: Gender; l: string; e: string }[]).map((g) => {
+                  { code: "male", l: "남아" },
+                  { code: "female", l: "여아" },
+                  { code: "unknown", l: "선택 안 함" },
+                ] as { code: Gender; l: string }[]).map((g) => {
                   const on = f.gender === g.code;
                   return (
                     <button
                       key={g.code}
                       type="button"
                       onClick={() => update({ gender: g.code })}
-                      className={`flex h-16 flex-col items-center justify-center gap-1 rounded-xl border-2 text-xs font-medium transition-smooth ${
+                      className={`flex h-14 items-center justify-center rounded-xl border-2 text-sm font-medium transition-smooth ${
                         on
                           ? "border-primary bg-secondary text-foreground"
                           : "border-border bg-card text-muted-foreground hover:border-primary/40"
                       }`}
                     >
-                      <span className="text-xl">{g.e}</span>
                       {g.l}
                     </button>
                   );
@@ -295,7 +294,7 @@ const EditProfile = () => {
           </Section>
 
           <Section title="하루 일과 (선택)">
-            <Field label="🌅 등원 시간">
+            <Field label="등원 시간">
               <Select value={f.goSchool} onValueChange={(v) => update({ goSchool: v })}>
                 <SelectTrigger className="h-12"><SelectValue placeholder="시간 선택" /></SelectTrigger>
                 <SelectContent>
@@ -303,7 +302,7 @@ const EditProfile = () => {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="☀️ 야외활동 시간대">
+            <Field label="야외활동 시간대">
               <div className="grid grid-cols-2 gap-2">
                 <Select value={f.outdoorStart} onValueChange={(v) => update({ outdoorStart: v })}>
                   <SelectTrigger className="h-12"><SelectValue placeholder="시작" /></SelectTrigger>
@@ -319,7 +318,7 @@ const EditProfile = () => {
                 </Select>
               </div>
             </Field>
-            <Field label="🏫 하원 시간">
+            <Field label="하원 시간">
               <Select value={f.leaveSchool} onValueChange={(v) => update({ leaveSchool: v })}>
                 <SelectTrigger className="h-12"><SelectValue placeholder="시간 선택" /></SelectTrigger>
                 <SelectContent>
@@ -327,7 +326,7 @@ const EditProfile = () => {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="🌇 저녁 야외활동 시간대">
+            <Field label="저녁 야외활동 시간대">
               <div className="grid grid-cols-2 gap-2">
                 <Select value={f.eveningStart} onValueChange={(v) => update({ eveningStart: v })}>
                   <SelectTrigger className="h-12"><SelectValue placeholder="시작" /></SelectTrigger>

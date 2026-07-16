@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { ArrowLeft, ExternalLink, ShieldCheck, BookOpen, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  ShieldCheck,
+  BookOpen,
+  AlertTriangle,
+  Sun,
+  TreeDeciduous,
+  Droplet,
+  Sparkles,
+} from "lucide-react";
+import LineIcon from "@/components/LineIcon";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -25,7 +36,7 @@ type Tip = {
   id: string;
   category: "자외선" | "미세먼지" | "꽃가루" | "건조" | "기온" | "일반";
   severity: "주의" | "경고" | "정보";
-  icon: string;
+  icon: ReactNode;
   title: string;
   summary: string;
   recommendations: string[];
@@ -42,6 +53,13 @@ const sevStyle = (s: Tip["severity"]) =>
     : s === "주의"
       ? "border-accent/30 bg-accent/5"
       : "border-primary/30 bg-secondary/40";
+
+const sevIconBox = (s: Tip["severity"]) =>
+  s === "경고"
+    ? "bg-destructive/10 text-destructive"
+    : s === "주의"
+      ? "bg-status-warn-bg text-status-warn"
+      : "bg-status-info-bg text-status-info";
 
 const sevBadge = (s: Tip["severity"]) =>
   s === "경고"
@@ -84,7 +102,7 @@ const Tips = () => {
         id: "uv-high",
         category: "자외선",
         severity: env.uv >= 8 ? "경고" : "주의",
-        icon: "☀️",
+        icon: <Sun size={20} strokeWidth={1.75} aria-hidden />,
         title: `자외선 ${env.uv >= 8 ? "매우 높음" : "높음"} — 영유아 피부 보호 필수`,
         summary:
           "영유아 피부는 멜라닌 색소가 적어 성인보다 자외선 손상에 취약합니다. UV 지수 6 이상에서는 적극적 차단이 필요합니다.",
@@ -113,7 +131,7 @@ const Tips = () => {
         id: "pm-high",
         category: "미세먼지",
         severity: bad ? "경고" : "주의",
-        icon: "😷",
+        icon: <LineIcon name="mask" size={20} strokeWidth={1.75} />,
         title: `미세먼지 ${bad ? "나쁨" : "보통~주의"} — 호흡기 보호 가이드`,
         summary:
           "초미세먼지(PM2.5)는 폐포·혈관까지 침투해 소아 천식·알레르기성 비염을 악화시킬 수 있습니다. 어린이는 호흡량이 많아 더 큰 영향을 받습니다.",
@@ -143,7 +161,7 @@ const Tips = () => {
         id: "pollen-high",
         category: "꽃가루",
         severity: personal ? "경고" : "주의",
-        icon: "🌳",
+        icon: <TreeDeciduous size={20} strokeWidth={1.75} aria-hidden />,
         title: `${env.pollenTop.name} 꽃가루 ${env.pollenTop.level}${
           personal ? " — 알레르기 아동 주의" : ""
         }`,
@@ -181,7 +199,7 @@ const Tips = () => {
         id: "dry-skin",
         category: "건조",
         severity: skinFocus ? "경고" : "정보",
-        icon: "💧",
+        icon: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
         title: `습도 ${env.humidity}% — ${
           skinFocus ? "민감·아토피 피부 집중 케어" : "건조 환경 보습 가이드"
         }`,
@@ -217,7 +235,7 @@ const Tips = () => {
       id: "general-hygiene",
       category: "일반",
       severity: "정보",
-      icon: "🧼",
+      icon: <Sparkles size={20} strokeWidth={1.75} aria-hidden />,
       title: "환절기 기본 위생 — 손씻기 30초",
       summary:
         "환절기에는 호흡기 바이러스 전파가 증가합니다. 손씻기는 가장 효과적인 비약물적 예방법으로 알려져 있습니다.",
@@ -341,7 +359,13 @@ const Tips = () => {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-2xl">{tip.icon}</span>
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${sevIconBox(
+                              tip.severity
+                            )}`}
+                          >
+                            {tip.icon}
+                          </span>
                           <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
                             {tip.category}
                           </span>

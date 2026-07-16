@@ -2,7 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, Plus, Pencil, Trash2, ChevronRight } from "lucide-react";
+import {
+  Bell,
+  Settings,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronRight,
+  MapPin,
+  FileText,
+  MessageCircle,
+  LogOut,
+  Baby,
+  type LucideIcon,
+} from "lucide-react";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -222,7 +235,9 @@ const My = () => {
             <div className="mt-3 space-y-3">
               {profiles.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center">
-                  <div className="text-4xl">👶</div>
+                  <div className="flex justify-center text-muted-foreground">
+                    <Baby size={40} strokeWidth={1.75} aria-hidden="true" />
+                  </div>
                   <p className="mt-3 text-sm text-foreground">등록된 아이가 없어요</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     온보딩으로 우리 아이 정보를 등록해주세요
@@ -256,18 +271,20 @@ const My = () => {
             <h2 className="text-[22px] font-bold tracking-tight">계정</h2>
             <div className="mt-3 divide-y divide-border rounded-2xl bg-card">
               {([
-                { l: "알림 설정", e: "🔔" },
-                { l: "위치 설정", e: "📍" },
-                { l: "약관 및 정책", e: "📄" },
-                { l: "고객 문의", e: "💬" },
-                { l: "로그아웃", e: "🚪", action: logout },
-              ] as { l: string; e: string; action?: () => void }[]).map((it) => (
+                { l: "알림 설정", Icon: Bell },
+                { l: "위치 설정", Icon: MapPin },
+                { l: "약관 및 정책", Icon: FileText },
+                { l: "고객 문의", Icon: MessageCircle },
+                { l: "로그아웃", Icon: LogOut, action: logout },
+              ] as { l: string; Icon: LucideIcon; action?: () => void }[]).map((it) => (
                 <button
                   key={it.l}
                   onClick={it.action ?? (() => toast(`${it.l}은(는) 준비 중이에요`))}
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-left text-sm hover:bg-muted/50"
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50"
                 >
-                  <span className="text-base">{it.e}</span>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                    <it.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </span>
                   <span className="flex-1">{it.l}</span>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </button>

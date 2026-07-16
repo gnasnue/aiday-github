@@ -839,6 +839,9 @@ const Home = () => {
         // "☂️ 우산" 형태 파싱
         const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
         if (match) return { icon: match[1], text: match[2], key: `ai-${i}` };
+        // icon은 화면에 raw로 렌더링되지 않는다 — 체크리스트 UI는 항상 checklistIcon()을
+        // 거쳐 LineIcon/lucide로 매핑되고, 매칭 실패 시 CircleCheck로 fallback된다.
+        // 이 문자열은 키워드 매칭·텍스트 공유용 데이터로만 쓰인다.
         return { icon: "✅", text: item, key: `ai-${i}` };
       });
     }
