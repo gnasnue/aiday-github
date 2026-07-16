@@ -6,8 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.7.0] - 2026-07-17
+
 ### Changed
-- **홈 상단 재구성 — 날씨 정보 중복 정리** (`components/WeatherNowCard.tsx`, `app/(main)/home/page.tsx`, `app/(main)/outfit/page.tsx`) — home·env·outfit에 날씨가 3중 노출되던 문제 해소. 홈의 raw "시간대별 환경" 가로 카드(env 데이터 복제)를 제거하고, 그 자리에 결론형 "지금 날씨" 카드를 배치(현재 온도·조건·바람·습도·강수 + "환경정보 전체 보기 →" 링크). AI 리포트 히어로는 그대로 #1, 날씨 카드는 그 아래 근거로 배치해 위계 충돌 없음(판단 → 지금 근거 → 실행). outfit의 날씨 카드도 동일한 공용 `WeatherNowCard`로 추출(옷차림 조언 문구 유지). env는 전체 날씨 상세를 담는 목적지로 유지. 리뷰: `docs/reviews/2026-07-16-design-review-cross-page-consistency.md`
+- **전 화면 디자인 일관성 — 상단바 통일** (`components/PageHeader.tsx`, home·env·outfit·tips·me) — 5개 탭이 각자 인라인 헤더를 들고 있어 문법이 셋으로 갈리던 문제 해소. 공용 `PageHeader`로 통일(로고 좌 + 우측 컨텍스트 액션), env·outfit·tips의 뒤로가기 화살표 제거(최상위 탭엔 부모 없음 — 토스·당근 패턴), 헤더 아이콘 버튼 44px 터치 타겟 통일. env h1 승격, outfit 영문 라벨(TODAY'S OOTD·INNER/BOTTOM/ACC) 제거. 리뷰: `docs/reviews/2026-07-16-design-review-cross-page-consistency.md`
+- **홈 상단 재구성 + 날씨 중복 정리** (`app/(main)/home/page.tsx`, `components/WeatherNowCard.tsx`, `app/(main)/outfit/page.tsx`) — home·env·outfit 날씨 3중 노출 정리. 홈 AI 리포트 카드는 흰색 유지하고, 라벨 행과 hook 사이에 현재 환경 한 줄(현재날씨·체감·강수·미세먼지·습도, 있는 값만) 삽입 + message 아래 환경지표 칩 삭제. "시간대별 환경" 섹션 유지, "지금 날씨" 결론형 카드 컴포넌트(`WeatherNowCard`)를 outfit과 공용화(옷차림 조언 유지). env는 전체 날씨 상세 목적지로 유지
+- **환경정보 화면 재배치** (`app/(main)/env/page.tsx`) — 타이틀 "맞춤 인사이트" → "맞춤 환경 정보". 현재 날씨 카드를 최상단으로, 그 다음 오늘의 야외활동 지수, 맞춤 인사이트는 아래로. 주간 날씨 강수확률 ≥60% 강조색을 홈 시간대별 환경과 동일(status-warn)하게 통일. 주간 하단 안내문("주말은 나들이 계획에…") 제거
 
 ## [0.3.6.1] - 2026-07-16
 
