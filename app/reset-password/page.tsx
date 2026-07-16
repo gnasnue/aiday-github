@@ -64,7 +64,7 @@ const ResetPassword = () => {
           </div>
 
           {hasSession === false ? (
-            <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-center shadow-soft">
+            <div className="mt-8 rounded-2xl bg-card p-6 text-center shadow-soft">
               <p className="text-sm text-foreground">
                 재설정 링크가 만료됐거나 잘못된 접근이에요.
               </p>

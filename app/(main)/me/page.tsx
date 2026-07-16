@@ -254,7 +254,7 @@ const My = () => {
 
           <section className="mt-7">
             <h2 className="text-[22px] font-bold tracking-tight">계정</h2>
-            <div className="mt-3 divide-y divide-border rounded-2xl border border-border bg-card">
+            <div className="mt-3 divide-y divide-border rounded-2xl bg-card">
               {([
                 { l: "알림 설정", e: "🔔" },
                 { l: "위치 설정", e: "📍" },

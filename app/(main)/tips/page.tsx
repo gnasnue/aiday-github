@@ -276,7 +276,7 @@ const Tips = () => {
 
           {/* Profile context */}
           {cur && (
-            <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-card p-3 text-sm shadow-soft">
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-card p-3 text-sm shadow-soft">
               <span className="text-2xl">{cur.emoji}</span>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">

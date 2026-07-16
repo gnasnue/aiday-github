@@ -1079,7 +1079,7 @@ const Home = () => {
 
           {/* AI message card */}
           {loading ? (
-            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-card">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
@@ -1096,7 +1096,7 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 rounded-[18px] border border-border/60 bg-card p-5 shadow-card animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
               {/* 카드 헤더 — 아이브로우 + 메타 + 새로고침·공유 */}
               <div className="flex items-center gap-2">
                 <span className="eyebrow shrink-0 text-accent">AI 리포트</span>
@@ -1297,7 +1297,7 @@ const Home = () => {
                 : displaySlots.map((t) => (
                     <article
                       key={t.time}
-                      className="w-[148px] shrink-0 rounded-2xl border border-border/60 bg-card p-4 shadow-soft transition-smooth hover:border-foreground/30"
+                      className="w-[148px] shrink-0 rounded-2xl bg-card p-4 shadow-soft transition-smooth"
                     >
                       <div className="flex items-start justify-between">
                         <div>
@@ -1447,7 +1447,7 @@ const Home = () => {
                     <button
                       key={it.art}
                       onClick={() => toast("외부 구매 페이지로 이동합니다")}
-                      className="w-[132px] shrink-0 rounded-2xl border border-border/60 bg-card p-2.5 text-left shadow-soft transition-smooth hover:border-foreground/30"
+                      className="w-[132px] shrink-0 rounded-2xl bg-card p-2.5 text-left shadow-soft transition-smooth"
                     >
                       <div className="relative flex h-24 items-center justify-center rounded-xl bg-soft">
                         <ItemIllustration art={it.art} />

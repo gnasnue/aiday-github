@@ -351,7 +351,7 @@ const Environment = () => {
                 ))}
               </div>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 지금은 특별히 주의할 환경 요인이 없어요
                 <p className="mt-1 text-xs">쾌적한 하루예요 🌿</p>
               </div>
@@ -362,7 +362,7 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-7 h-28 w-full rounded-2xl" />
           ) : outdoor ? (
-            <section className="mt-7 rounded-2xl border border-border bg-secondary p-5 shadow-soft">
+            <section className="mt-7 rounded-2xl bg-secondary p-5 shadow-soft">
               <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
@@ -488,12 +488,12 @@ const Environment = () => {
               </div>
             ) : pollen ? (
               // 모든 종이 null = 200 응답이지만 제공 기간이 아님 (참나무·소나무 4~6월, 잡초 8~10월)
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 🌳 지금은 꽃가루 예보 제공 기간이 아니에요
                 <p className="mt-1 text-xs">참나무·소나무는 4~6월, 잡초는 8~10월에 제공돼요</p>
               </div>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 🌳 꽃가루 데이터를 불러오지 못했어요
                 <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
               </div>
@@ -517,7 +517,7 @@ const Environment = () => {
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="rounded-2xl bg-card p-4 shadow-soft">
               <p className="text-xs font-medium text-muted-foreground">온·습도</p>
               <p className="mt-1 text-3xl font-bold text-foreground">
                 {weather?.humidity != null ? `${weather.humidity}%` : "--"}
@@ -546,7 +546,7 @@ const Environment = () => {
               <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
             ) : weekly && weekly.length > 0 ? (
               <>
-                <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+                <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-soft">
                   {weekly.map((w, i) => (
                     <div
                       key={w.date}
@@ -599,7 +599,7 @@ const Environment = () => {
                 </p>
               </>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 주간 예보를 불러오지 못했어요
                 <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
               </div>

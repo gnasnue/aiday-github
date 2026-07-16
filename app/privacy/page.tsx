@@ -18,7 +18,7 @@ export default function PrivacyPage() {
         </header>
         <main className="container-mobile py-12">
           <h1 className="text-[1.375rem] font-bold tracking-tight">개인정보처리방침</h1>
-          <div className="mt-4 rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+          <div className="mt-4 rounded-2xl bg-card p-5 shadow-soft">
             <p className="text-sm leading-relaxed text-muted-foreground break-keep">
               개인정보처리방침은 정식 서비스 출시와 함께 제공될 예정이에요. 개인정보 처리에
               관해 궁금한 점이 있다면 아래로 문의해 주세요.

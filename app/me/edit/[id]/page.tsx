@@ -54,7 +54,7 @@ type FormState = {
 };
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+  <section className="rounded-2xl bg-card p-5 shadow-soft">
     <h2 className="text-sm font-semibold text-foreground">{title}</h2>
     <div className="mt-3 space-y-3">{children}</div>
   </section>

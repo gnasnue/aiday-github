@@ -410,7 +410,7 @@ const Onboarding = () => {
           </button>
 
           {/* 전날 밤 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl bg-card p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">🌙 전날 밤 알림</p>
@@ -436,7 +436,7 @@ const Onboarding = () => {
           </div>
 
           {/* 당일 아침 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl bg-card p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">🌅 당일 아침 알림</p>
@@ -464,7 +464,7 @@ const Onboarding = () => {
           </div>
 
           {/* 상황별 환경 경보 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl bg-card p-4">
             <p className="font-medium">⚠️ 상황별 환경 경보 알림</p>
             <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
               아래 환경 조건 충족 시 즉시 알림을 보내드려요. 중복 선택 가능해요

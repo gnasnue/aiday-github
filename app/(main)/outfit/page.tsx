@@ -387,7 +387,7 @@ const Outfit = () => {
           {loading ? (
             <Skeleton className="mt-4 h-36 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-4 shadow-soft animate-fade-up">
               <div className="flex items-stretch gap-3.5">
                 {/* 온도 */}
                 <div className="flex shrink-0 flex-col items-center justify-center text-center">
@@ -448,7 +448,7 @@ const Outfit = () => {
                 return (
                   <div
                     key={cat}
-                    className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft"
+                    className="rounded-2xl bg-card p-4 shadow-soft"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-baseline gap-2">
@@ -467,7 +467,7 @@ const Outfit = () => {
                       {list.map((it) => (
                         <div
                           key={it.name}
-                          className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-background p-3"
+                          className="flex items-center gap-2.5 rounded-xl bg-muted/60 p-3"
                         >
                           <span className="text-2xl">{it.emoji}</span>
                           <div className="min-w-0 flex-1">
@@ -500,7 +500,7 @@ const Outfit = () => {
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground break-keep">
               추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
             </p>
-            <div className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
+            <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-soft">
               <img
                 src={ootdLook}
                 alt={`${cur?.name ?? "우리 아이"}의 오늘 코디 미리보기`}
@@ -517,7 +517,7 @@ const Outfit = () => {
               {plan.avoid.map((a) => (
                 <li
                   key={a.name}
-                  className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft"
+                  className="rounded-2xl bg-card p-4 shadow-soft"
                 >
                   <div className="flex items-center gap-2.5">
                     <span className="text-xl">{a.emoji}</span>
