@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
+import WeatherNowCard from "@/components/WeatherNowCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
@@ -86,19 +87,6 @@ const envChanged = (prev: EnvSignature | undefined, cur: EnvSignature): boolean 
 
 /* ---- 상태 3단계 (good/neutral/warn) — 표시 계층 전용 매핑 ---- */
 type StatusTone = "good" | "neutral" | "warn";
-
-// 값 텍스트 색: 상태를 나타내는 모든 색은 3단계 토큰 중 하나 (예외 없음)
-const toneText: Record<StatusTone, string> = {
-  good: "text-status-good",
-  neutral: "text-status-neutral",
-  warn: "text-status-warn",
-};
-// 상태 도트: neutral은 옅은 도트(환경 칩) 또는 숨김(시간대 카드)
-const toneDot: Record<StatusTone, string> = {
-  good: "bg-status-good",
-  neutral: "bg-status-neutral-dot",
-  warn: "bg-status-warn",
-};
 
 // 환경 칩: 엔진의 warn 판정만 오렌지, 나머지(좋음·보통)는 무색(neutral) — 초록 미사용
 const badgeTone = (tone: "ok" | "warn"): StatusTone => (tone === "warn" ? "warn" : "neutral");
@@ -231,6 +219,11 @@ const Home = () => {
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  // 현재 날씨 스칼라(지금 날씨 카드용) — weatherData는 축약본이라 원본 스칼라를 따로 보관
+  const [curWeather, setCurWeather] = useState<{
+    temperature: number | null; feelsLike: number | null; windSpeed: number | null;
+    humidity: number | null; pop: number | null; sky: number | null; pty: number | null;
+  } | null>(null);
   const [envRaw, setEnvRaw] = useState<EnvRaw | null>(null);
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
@@ -398,6 +391,15 @@ const Home = () => {
             humidity: w.humidity ?? mockWeather.humidity,
             dustLevel: dustLabel,
             windSpeed: windLabel,
+          });
+          setCurWeather({
+            temperature: w.temperature ?? null,
+            feelsLike: w.feelsLike ?? null,
+            windSpeed: w.windSpeed ?? null,
+            humidity: w.humidity ?? null,
+            pop: w.pop ?? null,
+            sky: w.sky ?? null,
+            pty: w.pty ?? null,
           });
         }
         setLoading(false);
@@ -1265,66 +1267,23 @@ const Home = () => {
             </section>
           )}
 
-          {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
-          <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
-            <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-              {loading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-[150px] shrink-0 rounded-2xl" />
-                  ))
-                : displaySlots.map((t) => (
-                    <article
-                      key={t.time}
-                      className="w-[148px] shrink-0 rounded-2xl bg-card p-4 shadow-soft transition-smooth"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="text-sm font-semibold tracking-[-0.01em]">{t.time}</p>
-                          <p className="text-[11px] tabular text-muted-foreground">{t.hour}</p>
-                        </div>
-                        {skySlotIcon(t.sky, t.pty)}
-                      </div>
-                      <div className="mt-3 flex items-baseline gap-1">
-                        <span className="num text-[26px] leading-none">{t.temp}°</span>
-                        <span className="num text-[11px] text-muted-foreground">체감 {t.feels}°</span>
-                      </div>
-                      <div className="my-3 h-px bg-border/60" />
-                      {/* 지표 값: 5px 도트 + 상태 색 텍스트, neutral은 도트 숨김 */}
-                      <dl className="space-y-1.5 text-[11px]">
-                        {([
-                          // 경고(오렌지)만 색을 쓰고 좋음·보통은 무색(neutral) — 24개 값 그리드에서
-                          // 경고가 묻히지 않도록 "특이사항 없음 = 색 없음" 원칙 적용 (good/초록 미사용)
-                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"],
-                          ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : "neutral"],
-                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"],
-                          // 습도: 양극단 경고 — ≤40% 건조(피부·호흡기) / ≥80% 후텁지근(AI 리포트 로직과 일치)
-                          ["습도", `${t.humidity}%`, t.humidity <= 40 || t.humidity >= 80 ? "warn" : "neutral"],
-                          ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],
-                          // 강수확률: 우산 키워드의 근거 지표 — 데이터 있을 때만 노출
-                          ...(t.pop != null
-                            ? [["강수확률", `${t.pop}%`, t.pop >= 60 ? "warn" : "neutral"] as [string, string, StatusTone]]
-                            : []),
-                        ] as [string, string, StatusTone][]).map(([k, v, tone]) => (
-                          <div key={k} className="flex items-center justify-between">
-                            <dt className="text-muted-foreground">{k}</dt>
-                            <dd className="flex items-center gap-1 whitespace-nowrap">
-                              {tone !== "neutral" && (
-                                <span className={`h-[5px] w-[5px] shrink-0 rounded-full ${toneDot[tone]}`} aria-hidden="true" />
-                              )}
-                              <span
-                                className={`${/\d/.test(v) ? "num" : tone === "neutral" ? "font-medium" : "font-semibold"} ${toneText[tone]}`}
-                              >
-                                {v}
-                              </span>
-                            </dd>
-                          </div>
-                        ))}
-                      </dl>
-                      {/* 준비물 칩은 하루 케어 플랜에만 노출 — 강수확률 warn 행이 근거를 전달 (중복 제거) */}
-                    </article>
-                  ))}
-            </div>
+          {/* 지금 날씨 — 결론형 근거 카드(공용). 상세 시간대·주간은 환경정보 탭으로 위임.
+              (구 "시간대별 환경" raw 카드는 env 데이터 복제라 2026-07-16 제거) */}
+          <section className="mt-6">
+            {loading ? (
+              <Skeleton className="h-28 w-full rounded-2xl" />
+            ) : (
+              <WeatherNowCard
+                temp={curWeather?.temperature ?? weatherData.temp}
+                feelsLike={curWeather?.feelsLike}
+                sky={curWeather?.sky}
+                pty={curWeather?.pty}
+                windSpeed={curWeather?.windSpeed}
+                humidity={curWeather?.humidity}
+                pop={curWeather?.pop}
+                href="/env"
+              />
+            )}
           </section>
 
           {/* 하루 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}

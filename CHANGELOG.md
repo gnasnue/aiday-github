@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **홈 상단 재구성 — 날씨 정보 중복 정리** (`components/WeatherNowCard.tsx`, `app/(main)/home/page.tsx`, `app/(main)/outfit/page.tsx`) — home·env·outfit에 날씨가 3중 노출되던 문제 해소. 홈의 raw "시간대별 환경" 가로 카드(env 데이터 복제)를 제거하고, 그 자리에 결론형 "지금 날씨" 카드를 배치(현재 온도·조건·바람·습도·강수 + "환경정보 전체 보기 →" 링크). AI 리포트 히어로는 그대로 #1, 날씨 카드는 그 아래 근거로 배치해 위계 충돌 없음(판단 → 지금 근거 → 실행). outfit의 날씨 카드도 동일한 공용 `WeatherNowCard`로 추출(옷차림 조언 문구 유지). env는 전체 날씨 상세를 담는 목적지로 유지. 리뷰: `docs/reviews/2026-07-16-design-review-cross-page-consistency.md`
+
 ## [0.3.6.1] - 2026-07-16
 
 ### Changed

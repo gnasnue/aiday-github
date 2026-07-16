@@ -4,18 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   Info,
-  Sun,
-  Cloud,
-  CloudSun,
-  CloudRain,
-  CloudSnow,
-  Wind,
-  Droplets,
   Umbrella,
   Footprints,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
+import WeatherNowCard from "@/components/WeatherNowCard";
 import LineIcon, { type LineIconName } from "@/components/LineIcon";
 const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
@@ -98,20 +92,6 @@ interface WeatherData {
   pop: number | null;
   sky: number | null;
   pty: number | null;
-}
-
-// SKY: 1=맑음, 3=구름많음, 4=흐림 / PTY: 0=없음, 1=비, 2=비/눈, 3=눈, 4=소나기
-function weatherCondition(w: WeatherData | null): { Icon: LucideIcon; label: string } {
-  if (!w) return { Icon: Cloud, label: "날씨 로딩 중" };
-  const pty = w.pty ?? 0;
-  if (pty === 3) return { Icon: CloudSnow, label: "눈" };
-  if (pty === 2) return { Icon: CloudSnow, label: "비/눈" };
-  if (pty === 4) return { Icon: CloudRain, label: "소나기" };
-  if (pty === 1) return { Icon: CloudRain, label: "비" };
-  const sky = w.sky ?? 1;
-  if (sky >= 4) return { Icon: Cloud, label: "흐림" };
-  if (sky === 3) return { Icon: CloudSun, label: "구름많음" };
-  return { Icon: Sun, label: "맑음" };
 }
 
 // 현재 기온 기준 옷차림 밴드 — 빠른 규칙 기반 조회(LLM 아님).
@@ -363,18 +343,6 @@ const Outfit = () => {
 
   const plan = useMemo(() => buildOutfit(cur, weather), [cur, weather]);
 
-  const condition = useMemo(() => weatherCondition(weather), [weather]);
-  const metrics = useMemo(() => {
-    const list: { Icon: LucideIcon; label: string; value: string }[] = [];
-    if (weather?.windSpeed != null)
-      list.push({ Icon: Wind, label: "바람", value: `${weather.windSpeed}m/s` });
-    if (weather?.humidity != null)
-      list.push({ Icon: Droplets, label: "습도", value: `${weather.humidity}%` });
-    if (weather?.pop != null)
-      list.push({ Icon: Umbrella, label: "강수", value: `${weather.pop}%` });
-    return list;
-  }, [weather]);
-
   const grouped = useMemo(() => {
     const map: Record<Category, OutfitItem[]> = {
       아우터: [],
@@ -413,58 +381,23 @@ const Outfit = () => {
             아이의 체질과 오늘 날씨를 반영한 맞춤 옷차림이에요.
           </p>
 
-          {/* Hero — 온도·날씨 지표(동적) + 맞춤 인사이트 한 줄 배치 */}
+          {/* Hero — 지금 날씨 카드(공용) + 옷차림 맞춤 조언 */}
           {loading ? (
             <Skeleton className="mt-4 h-36 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl bg-card p-4 shadow-soft animate-fade-up">
-              <div className="flex items-stretch gap-3.5">
-                {/* 온도 */}
-                <div className="flex shrink-0 flex-col items-center justify-center text-center">
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <condition.Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    <span className="text-[11px] font-medium">{condition.label}</span>
-                  </div>
-                  <p className="mt-0.5 text-[40px] font-bold leading-none tracking-tight text-foreground tabular-nums">
-                    {plan.temp != null ? `${plan.temp}°` : "--°"}
-                  </p>
-                  {weather?.feelsLike != null && (
-                    <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
-                      체감 {weather.feelsLike}°
-                    </p>
-                  )}
-                </div>
-
-                {/* 구분선 */}
-                <div className="w-px shrink-0 self-stretch bg-border/70" />
-
-                {/* 맞춤 인사이트 */}
-                <div className="flex min-w-0 flex-1 flex-col justify-center">
-                  <p className="text-[13.5px] font-semibold leading-snug text-foreground break-keep">
-                    {plan.headline}
-                  </p>
-                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground break-keep">
-                    {plan.subline}
-                  </p>
-                </div>
-              </div>
-
-              {/* 실시간 날씨 지표 */}
-              {metrics.length > 0 && (
-                <div className="mt-3 flex items-center gap-4 border-t border-border/60 pt-2.5">
-                  {metrics.map((m) => (
-                    <div
-                      key={m.label}
-                      className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground"
-                    >
-                      <m.Icon className="h-3.5 w-3.5 text-muted-foreground/70" strokeWidth={1.75} />
-                      <span className="text-muted-foreground/80">{m.label}</span>
-                      <span className="font-medium text-foreground tabular-nums">{m.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
+            <div className="mt-4 animate-fade-up">
+              <WeatherNowCard
+                temp={plan.temp}
+                feelsLike={weather?.feelsLike}
+                sky={weather?.sky}
+                pty={weather?.pty}
+                windSpeed={weather?.windSpeed}
+                humidity={weather?.humidity}
+                pop={weather?.pop}
+                headline={plan.headline}
+                subline={plan.subline}
+              />
+            </div>
           )}
 
           {/* Recommended items - OOTD style by category */}
