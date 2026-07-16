@@ -6,7 +6,6 @@ import {
   MapPin,
   ChevronDown,
   RefreshCw,
-  Info,
   Sun,
   Cloud,
   CloudSun,
@@ -262,14 +261,6 @@ const Environment = () => {
     return { min, span: max === min ? 1 : max - min };
   }, [weekly]);
 
-  /* 주간 하단 안내 — 주말 강수 소식이 있으면 반영 */
-  const weekendHint = useMemo(() => {
-    const wet = (weekly ?? []).find((w) => w.weekend && w.rain >= 50);
-    if (wet)
-      return `주말은 나들이 계획에 참고하세요. ${wet.day === "오늘" ? "오늘" : wet.day + "요일"} 비 소식이 있어요.`;
-    return "주말은 나들이 계획에 참고하세요.";
-  }, [weekly]);
-
   /* 오늘의 야외활동 지수 — 환경 수치 종합 (데이터 로딩 전엔 null) */
   const outdoor = useMemo(() => {
     if (!weather && !air && !uv && !pollen) return null;
@@ -324,7 +315,7 @@ const Environment = () => {
           <section>
             <div className="flex items-start justify-between gap-2">
               <h1 className="text-[20px] font-bold tracking-tight">
-                {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
+                {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 환경 정보` : "맞춤 환경 정보"}
               </h1>
               {/* Location */}
               <button
@@ -341,78 +332,9 @@ const Environment = () => {
                 ? `${cur.name}의 건강 정보(${cur.conditions.join(", ")})를 반영했어요`
                 : "프로필을 등록하면 더 정확한 추천을 받을 수 있어요"}
             </p>
-            {loading ? (
-              <div className="mt-3 space-y-2.5">
-                <Skeleton className="h-20 w-full rounded-2xl" />
-                <Skeleton className="h-20 w-full rounded-2xl" />
-              </div>
-            ) : insights.length > 0 ? (
-              <div className="mt-3 space-y-2.5">
-                {insights.map((it, i) => (
-                  <article
-                    key={i}
-                    className="flex items-start gap-3 rounded-2xl bg-card p-4 shadow-soft"
-                  >
-                    <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                        it.tone === "warn"
-                          ? "bg-status-warn-bg text-status-warn"
-                          : it.tone === "info"
-                            ? "bg-status-info-bg text-status-info"
-                            : "bg-primary-tint text-accent"
-                      }`}
-                    >
-                      {it.icon}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold text-foreground">{it.title}</p>
-                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                지금은 특별히 주의할 환경 요인이 없어요
-                <p className="mt-1 text-xs">쾌적한 하루예요</p>
-              </div>
-            )}
           </section>
 
-          {/* Outdoor activity index */}
-          {loading ? (
-            <Skeleton className="mt-7 h-28 w-full rounded-2xl" />
-          ) : outdoor ? (
-            <section className="mt-7 rounded-2xl bg-card p-5 shadow-card">
-              <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
-                <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
-              </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full ${
-                    outdoor.label === "좋음"
-                      ? "bg-status-good"
-                      : outdoor.label === "보통"
-                        ? "bg-primary"
-                        : "bg-status-warn"
-                  }`}
-                  style={{ width: `${outdoor.score}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-foreground">
-                {outdoor.comment}
-              </p>
-              {outdoor.basis.length > 0 && (
-                <p className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-                  아이데이 종합 지표(공인 지수 아님) · {outdoor.basis.join(" · ")} 기준
-                </p>
-              )}
-            </section>
-          ) : null}
-
-          {/* Current weather hero */}
+          {/* Current weather hero — 최상단 배치 */}
           {loading ? (
             <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
           ) : (
@@ -454,6 +376,77 @@ const Environment = () => {
                 </div>
               </div>
             </section>
+          )}
+
+          {/* Outdoor activity index */}
+          {loading ? (
+            <Skeleton className="mt-4 h-28 w-full rounded-2xl" />
+          ) : outdoor ? (
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
+              <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
+                <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  className={`h-full rounded-full ${
+                    outdoor.label === "좋음"
+                      ? "bg-status-good"
+                      : outdoor.label === "보통"
+                        ? "bg-primary"
+                        : "bg-status-warn"
+                  }`}
+                  style={{ width: `${outdoor.score}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs leading-relaxed text-foreground">
+                {outdoor.comment}
+              </p>
+              {outdoor.basis.length > 0 && (
+                <p className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
+                  아이데이 종합 지표(공인 지수 아님) · {outdoor.basis.join(" · ")} 기준
+                </p>
+              )}
+            </section>
+          ) : null}
+
+          {/* 맞춤 인사이트 — 프로필(체질) 반영 요약 */}
+          {loading ? (
+            <div className="mt-6 space-y-2.5">
+              <Skeleton className="h-20 w-full rounded-2xl" />
+              <Skeleton className="h-20 w-full rounded-2xl" />
+            </div>
+          ) : insights.length > 0 ? (
+            <div className="mt-6 space-y-2.5">
+              {insights.map((it, i) => (
+                <article
+                  key={i}
+                  className="flex items-start gap-3 rounded-2xl bg-card p-4 shadow-soft"
+                >
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                      it.tone === "warn"
+                        ? "bg-status-warn-bg text-status-warn"
+                        : it.tone === "info"
+                          ? "bg-status-info-bg text-status-info"
+                          : "bg-primary-tint text-accent"
+                    }`}
+                  >
+                    {it.icon}
+                  </span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-foreground">{it.title}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-6 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              지금은 특별히 주의할 환경 요인이 없어요
+              <p className="mt-1 text-xs">쾌적한 하루예요</p>
+            </div>
           )}
 
           {/* Air quality */}
@@ -623,9 +616,10 @@ const Environment = () => {
                         <span className="mx-1 text-muted-foreground/60">/</span>
                         <span className="font-bold text-foreground">{w.high != null ? `${w.high}°` : "--"}</span>
                       </p>
+                      {/* 강수확률 ≥60% 강조 — home 시간대별 환경과 동일 기준(warn) */}
                       <p
                         className={`inline-flex w-10 items-center justify-end gap-0.5 text-right text-xs font-medium ${
-                          w.rain >= 50 ? "text-status-info" : "text-muted-foreground"
+                          w.rain >= 60 ? "text-status-warn" : "text-muted-foreground"
                         }`}
                       >
                         <Droplet size={12} strokeWidth={1.75} aria-hidden />
@@ -634,10 +628,6 @@ const Environment = () => {
                     </div>
                   ))}
                 </div>
-                <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Info className="h-3 w-3" />
-                  {weekendHint}
-                </p>
               </>
             ) : (
               <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
