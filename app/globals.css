@@ -3,50 +3,54 @@
 @tailwind utilities;
 
 /* ============================================================
-   AiDay Design System v2 — "Morning Certainty"
-   (DESIGN.md 준수 + 프리미엄 리파인)
+   AiDay Design System v3 — "White Report"
+   (토스·당근 벤치마크, 2026-07-16 승인)
 
    원칙:
-   1. 오렌지는 유일한 브랜드 색 — 판단·행동에만 사용
-   2. 모든 중립색은 웜톤(24~36 hue) — 오렌지가 '붙인 색'이 아니라
-      '원래 있던 색'처럼 느껴지게
-   3. 환경 상태(좋음/주의/위험)는 semantic 토큰으로만 표현
+   1. 오렌지 역할 3분리 — 면(primary solid: CTA·활성 탭)·
+      텍스트(accent=brand-deep: 링크·강조)·배경(primary-tint: 선택 상태)
+   2. 면 분리 — 웜 그레이 배경 + 순백 카드. 카드 외곽 보더 금지,
+      내부 구분은 divider(--border) 헤어라인만
+   3. 모든 중립색은 웜톤(24~36 hue) 유지
+   4. 환경 상태(좋음/주의/위험)는 semantic 토큰으로만 표현
    All colors MUST be HSL.
    ============================================================ */
 
 @layer base {
   :root {
-    /* --- Warm neutrals (기존 무채색 그레이 → 웜 잉크/페이퍼) --- */
-    --background: 36 45% 98%;            /* 웜 페이퍼 */
-    --foreground: 24 30% 12%;            /* 웜 잉크 */
+    /* --- Warm neutrals (베이지 페이퍼 → 웜 그레이 페이퍼) --- */
+    --background: 30 15% 96%;            /* #F6F4F2 웜 그레이 */
+    --foreground: 25 17% 13%;            /* #26201B 웜 잉크 */
 
     --card: 0 0% 100%;
-    --card-foreground: 24 30% 12%;
+    --card-foreground: 25 17% 13%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 24 30% 12%;
+    --popover-foreground: 25 17% 13%;
 
-    /* --- Brand --- */
-    --primary: 38 91% 55%;               /* #F5A623 */
-    --primary-foreground: 24 100% 6%;    /* WCAG 4.5:1 */
-    --primary-hover: 38 91% 48%;
+    /* --- Brand (당근 톤으로 심화: #F5A623 → #F97316) --- */
+    --primary: 25 95% 53%;               /* #F97316 */
+    --primary-foreground: 0 0% 100%;     /* CTA 흰 텍스트 — 17px bold 이상에서만 */
+    --primary-hover: 25 90% 47%;
+    --primary-tint: 28 100% 93%;         /* #FFEDDD 선택 상태·아이콘 컨테이너 배경 */
 
-    --secondary: 35 100% 94%;            /* 크림 */
-    --secondary-foreground: 24 30% 12%;
+    --secondary: 35 100% 94%;            /* 크림 — 히어로·이벤트 배지 1곳 한정 */
+    --secondary-foreground: 25 17% 13%;
     --soft: 33 100% 97%;
 
-    --muted: 33 25% 95%;
-    --muted-foreground: 24 10% 42%;
+    --muted: 27 12% 94%;                 /* #F3F0ED 뉴트럴 컨테이너·secondary 버튼 */
+    --muted-foreground: 26 8% 40%;       /* #6E655D */
+    --faint: 28 8% 58%;                  /* #9C938A 캡션·비활성 */
 
-    --accent: 25 100% 40%;               /* 진한 앰버 — 강조/경고성 정보 */
+    --accent: 26 90% 40%;                /* #C2540A 텍스트용 오렌지 (4.5:1) */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 4 72% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 32 24% 89%;
-    --input: 32 24% 89%;
-    --ring: 33 100% 55%;
+    --border: 27 12% 93%;                /* #F0EDEA 카드 내부 헤어라인 전용 */
+    --input: 30 12% 87%;
+    --ring: 25 95% 53%;
 
     --radius: 0.875rem;
 
@@ -72,27 +76,26 @@
     --avatar-bg: 137 38% 89%;            /* #d9eedf */
     --avatar-fg: 146 30% 32%;            /* #3a6b4f */
 
-    /* --- Depth: 2겹 웜 섀도우 (기존 단일 섀도우 → 레이어드) --- */
+    /* --- Depth: 3단 elevation (L0 배경 / L1 flat 카드 / L2 히어로) --- */
     --gradient-warm: linear-gradient(160deg, hsl(35 100% 95%) 0%, hsl(33 100% 97.5%) 100%);
-    --gradient-primary: linear-gradient(135deg, hsl(38 95% 62%) 0%, hsl(33 95% 55%) 100%);
+    --gradient-primary: linear-gradient(135deg, hsl(27 96% 58%) 0%, hsl(24 94% 50%) 100%);
     --shadow-soft:
-      0 1px 2px hsl(30 40% 30% / 0.05),
-      0 4px 14px -4px hsl(30 45% 35% / 0.08);
+      0 1px 2px hsl(28 20% 15% / 0.04);
     --shadow-card:
-      0 1px 3px hsl(30 40% 30% / 0.06),
-      0 10px 28px -8px hsl(30 50% 35% / 0.12);
-    --shadow-glow: 0 8px 28px -8px hsl(36 95% 55% / 0.45);
+      0 1px 3px hsl(28 20% 15% / 0.05),
+      0 10px 28px -10px hsl(28 30% 20% / 0.12);
+    --shadow-glow: 0 8px 28px -8px hsl(25 95% 53% / 0.4);
 
     --transition-smooth: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 
-    --sidebar-background: 36 45% 98%;
-    --sidebar-foreground: 24 30% 12%;
-    --sidebar-primary: 38 91% 55%;
+    --sidebar-background: 30 15% 96%;
+    --sidebar-foreground: 25 17% 13%;
+    --sidebar-primary: 25 95% 53%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 35 100% 94%;
-    --sidebar-accent-foreground: 24 30% 12%;
-    --sidebar-border: 32 24% 89%;
-    --sidebar-ring: 33 100% 55%;
+    --sidebar-accent-foreground: 25 17% 13%;
+    --sidebar-border: 27 12% 93%;
+    --sidebar-ring: 25 95% 53%;
   }
 
   .dark {
@@ -102,18 +105,21 @@
     --card-foreground: 33 30% 96%;
     --popover: 24 12% 14%;
     --popover-foreground: 33 30% 96%;
-    --primary: 38 91% 60%;
-    --primary-foreground: 24 100% 6%;
+    --primary: 25 95% 58%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 25 90% 52%;
+    --primary-tint: 25 40% 20%;
     --secondary: 26 18% 18%;
     --secondary-foreground: 33 30% 96%;
     --soft: 26 15% 16%;
     --muted: 26 15% 18%;
     --muted-foreground: 30 10% 66%;
-    --accent: 24 100% 58%;
+    --faint: 30 8% 50%;
+    --accent: 26 95% 62%;
     --accent-foreground: 24 100% 6%;
     --border: 26 12% 22%;
     --input: 26 12% 22%;
-    --ring: 38 91% 60%;
+    --ring: 25 95% 58%;
     --status-good: 146 35% 58%;
     --status-good-bg: 146 25% 15%;
     --status-neutral: 30 8% 66%;

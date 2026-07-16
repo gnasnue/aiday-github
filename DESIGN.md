@@ -7,49 +7,49 @@
 - **Project type:** 모바일 우선 웹앱 (390px 고정 프레임, BottomNav)
 
 ## Aesthetic Direction
-- **Direction:** Warm Minimal — 오렌지의 따뜻함을 유지하되, 불필요한 장식 없이 정보를 명확하게
-- **Decoration level:** intentional — 색상과 그림자로만 깊이 표현, 패턴이나 일러스트 없음 (예외 없음. 과거 유일 예외였던 홈 "종합 솔루션" 캐릭터 일러스트는 2026-07-12 홈에서 제거 — `components/CharacterReport.tsx`는 보존)
+- **Direction:** White Report — 토스의 정보 신뢰(그레이 배경 + 순백 카드 면 분리) × 당근의 오렌지 온기(화이트 위 포인트)
+- **Benchmark:** 토스(TDS)·당근(seed design), 2026-07-16 벤치마크 리뷰 — `docs/reviews/2026-07-16-DESIGN-v3-proposal.md`
+- **Decoration level:** intentional — 색과 여백으로만 위계 표현. **이모지 UI 사용 전면 금지**, 일러스트 없음 (예외: outfit 코디 미리보기 캐릭터)
 - **Mood:** 아이를 돌보는 부모가 아침에 빠르게 확인하는 앱. 불안을 줄이고 확신을 주는 느낌. 따뜻하지만 정확하다.
 - **Memorable thing:** "오렌지 날씨 앱 — 아이 걱정이 줄어드는 느낌"
 
 ## Typography
-- **Display/Hero:** Pretendard Variable (weight 700–800) — 한국어 최적, 가독성·모던함 균형
-- **Body:** Pretendard Variable (weight 400–500) — 동일 폰트 패밀리로 통일감
-- **UI/Labels:** Pretendard Variable (weight 500–600)
-- **Data/Tables:** Pretendard Variable (tabular-nums feature) — 온도·수치 표시
-- **Code:** 해당 없음 (개발자 도구 용도 아님)
+- **폰트:** Pretendard Variable 단일 패밀리 (한국어 최적)
 - **Loading:** `https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css`
-- **Scale:**
-  | 이름 | rem | px | 용도 |
-  |------|-----|-----|------|
-  | 2xl  | 1.75rem | 28px | 페이지 타이틀 (날씨 온도) |
-  | xl   | 1.375rem | 22px | 섹션 헤더 |
-  | lg   | 1.125rem | 18px | 카드 타이틀 |
-  | md   | 1rem | 16px | 본문 기본 |
-  | sm   | 0.875rem | 14px | 보조 텍스트, 레이블 |
-  | xs   | 0.75rem | 12px | 캡션, 태그, BottomNav |
+- **Scale (v3):**
+  | 이름 | px / weight | 용도 | 규칙 |
+  |------|------------|------|------|
+  | display | 26 / 800 / -0.02em | 홈 AI 결론(hook) 전용 | 페이지당 1회 |
+  | title-lg | 20 / 700 / -0.01em | 페이지 타이틀 | |
+  | title | 17 / 700 | 섹션 헤더 | 위계 차이는 크기가 아니라 여백으로 |
+  | body | 16 / 400·500 | 본문·리스트 행 | line-height 1.6 |
+  | label | 14 / 500·600 | 보조·버튼(소)·링크 | |
+  | caption | 13 / 400 | 메타·근거·trust line | |
+  | eyebrow | 11 / 700 / +0.08em | 섹션 아이브로우 전용 | **11px 미만 전면 금지** |
+- **숫자:** `.num` (tabular-nums, -0.03em, 600~700) — 온도·수치·시각 전용. 한글 문장 금지.
 
 ## Color
-- **Approach:** restrained — 오렌지 하나가 전부를 이끈다. 색이 드물수록 오렌지가 빛난다.
-- **웜 뉴트럴 원칙 (2026-07 홈 리스타일 v2):** 모든 중립색은 웜톤(24~36 hue). 무채색 그레이 금지 — 오렌지가 "붙인 색"이 아니라 "원래 있던 색"처럼 느껴지게. 원본 토큰은 `app/globals.css`가 단일 진실이며 아래 hex는 근사값.
+- **Approach:** restrained + 오렌지 역할 3분리 — **면(primary solid)** = CTA·활성 탭 아이콘 / **텍스트(accent)** = 링크·강조 수치·활성 레이블 / **배경(primary-tint)** = 선택 상태·아이콘 컨테이너. 경고는 언제나 status-warn.
+- **웜 뉴트럴 원칙:** 모든 중립색은 웜톤(24~36 hue). 원본 토큰은 `app/globals.css`가 단일 진실이며 아래 hex는 근사값.
 
-### Light Mode
+### Light Mode (v3)
 | 변수 | hsl 토큰 | hex(근사) | 용도 |
 |------|----------|-----------|------|
-| primary | `38 91% 55%` | `#F5A623` | 브랜드 오렌지. 버튼 CTA, 활성 상태 |
-| primary-foreground | `24 100% 6%` | `#1F0C00` | primary 위 텍스트 (어두운 갈색, 대비 ≥ 4.5:1) |
-| primary-hover | `38 91% 48%` | `#EA980B` | primary hover |
-| accent | `25 100% 40%` | `#CC5500` | 강조 (경고성 정보, 컬러 텍스트) |
-| background | `36 45% 98%` | `#FCFAF8` | 페이지 배경 (웜 페이퍼) |
-| card | `0 0% 100%` | `#FFFFFF` | 카드·시트 배경 |
-| secondary | `35 100% 94%` | `#FFF2E0` | 따뜻한 크림 (강조 섹션 배경, 태그) |
-| soft | `33 100% 97%` | `#FFF8F0` | 가장 연한 크림 (섹션 구분, 아이콘 컨테이너) |
-| foreground | `24 30% 12%` | `#281D15` | 기본 본문 텍스트 (웜 잉크) |
-| muted-foreground | `24 10% 42%` | `#766960` | 보조 텍스트 |
-| border | `32 24% 89%` | `#EAE3DC` | 구분선 (웜 보더) |
-| muted | `33 25% 95%` | `#F5F3EF` | 비활성 배경 |
+| background | `30 15% 96%` | `#F6F4F2` | 페이지 배경 (웜 그레이 페이퍼) |
+| card | `0 0% 100%` | `#FFFFFF` | 카드·시트. **외곽 보더 금지** |
+| primary | `25 95% 53%` | `#F97316` | 브랜드 오렌지(당근 톤). solid CTA·활성 탭 |
+| primary-foreground | `0 0% 100%` | `#FFFFFF` | CTA 텍스트 — **17px bold 이상에서만 흰색** |
+| primary-hover | `25 90% 47%` | `#E8630A` | primary hover |
+| primary-tint | `28 100% 93%` | `#FFEDDD` | 선택 칩·아이콘 컨테이너 배경 |
+| accent | `26 90% 40%` | `#C2540A` | **텍스트용 오렌지** (4.5:1 대비, 링크·강조) |
+| foreground | `25 17% 13%` | `#26201B` | 본문 잉크 |
+| muted-foreground | `26 8% 40%` | `#6E655D` | 보조 텍스트 |
+| faint | `28 8% 58%` | `#9C938A` | 캡션·비활성·플레이스홀더 |
+| muted | `27 12% 94%` | `#F3F0ED` | 뉴트럴 아이콘 컨테이너·secondary 버튼·게이지 트랙 |
+| border | `27 12% 93%` | `#F0EDEA` | **카드 내부 헤어라인(divider) 전용** |
+| secondary | `35 100% 94%` | `#FFF2E0` | 크림 — 히어로·이벤트 강조 화면당 1곳 한정 |
 
-### Semantic (환경 상태 — 홈 리스타일 1b 기준)
+### Semantic (환경 상태 — 유지)
 3단계 원칙: good(좋음·낮음·적정) / neutral(보통·약함 = 특이사항 없음) / warn·bad(주의·나쁨). 상태 용도 오렌지는 항상 "컬러 텍스트 + 도트" — solid 채움은 브랜드 전용.
 
 | 상태 | hex(근사) | 용도 |
@@ -61,84 +61,64 @@
 | status-info | `#295EA3` | 일반 정보 |
 
 ### Dark Mode
-- primary: 동일 `#F5A623` 유지
-- primary-foreground: `#1A0F00` 유지
-- background: `#1A1A1A`
-- card: `#252525`
-- foreground: `#F5F5F5`
-- muted-foreground: `#A0A0A0`
-- border: `#383838`
-- accent: `#FF7020` (다크에서 10% 밝게)
+- 배경·카드 hue 유지(24~26), primary `25 95% 58%`, accent(텍스트 오렌지) `26 95% 62%`, primary-tint `25 40% 20%`, faint `30 8% 50%`. 나머지는 globals.css `.dark` 블록 참조.
+
+## Surface — 3단 Elevation (카드 보더 폐지)
+| 레벨 | 문법 | 용도 |
+|------|------|------|
+| L0 | `bg-background` | 페이지 바탕. 섹션 구분은 여백(24/32/48px)만 |
+| L1 | `rounded-2xl bg-card p-5 shadow-soft` | 일반 카드. 내부 구분은 `border-t border-border` / `divide-y divide-border` 헤어라인 |
+| L2 | `rounded-2xl bg-card p-5 shadow-card` | 홈 AI 리포트 카드 단 한 곳 |
+
+- `rounded-2xl` = **20px** (tailwind.config 오버라이드, 카드 표준)
+- 그림자 토큰: `shadow-soft`(초경량 flat) / `shadow-card`(히어로) — globals.css 참조
+- **금지:** 카드 외곽 `border border-border`, 그라데이션 게이지·버튼 (칩·컨트롤의 기능적 보더는 허용: chip-good/warn, border-control 체크박스, dashed 추가 버튼)
+
+## Component Grammar
+- **리스트 행 (당근 패턴):** 높이 ≥56px, `아이콘 컨테이너(36px, rounded-xl, bg-muted 뉴트럴 / bg-primary-tint 강조) + 16px/500 레이블 + ChevronRight(text-faint)`. 행 사이 divider. 마이·설정·출처·카테고리 목록에 카드 나열 대신 사용.
+- **CTA 버튼 (토스 패턴):** h-12~52px, rounded-[14px], `bg-primary text-primary-foreground` 17px/700. secondary는 `bg-muted text-foreground`.
+- **칩:** 활성 = `bg-primary-tint text-accent`(solid 채움 금지), 비활성 = `bg-card text-muted-foreground shadow-soft`. 상태 칩은 흰 배경 + 상태색 텍스트 + 도트(기존 유지).
+- **게이지:** 단색 트랙(`bg-muted`) + 상태색 단색 fill. 그라데이션 금지.
+- **아바타:** 이니셜 원(`bg-avatar text-avatar-foreground`, name.charAt(0)) — 이모지 아바타 금지.
 
 ## Spacing
-- **Base unit:** 4px
+- **Base unit:** 4px — 스케일 밖 임의값(5px·9px·11px 등) 지양
 - **Density:** comfortable (모바일 터치 타겟 최소 44px)
-- **Scale:**
-  | 이름 | px | Tailwind |
-  |------|-----|---------|
-  | 2xs | 4px | p-1 |
-  | xs | 8px | p-2 |
-  | sm | 12px | p-3 |
-  | md | 16px | p-4 |
-  | lg | 24px | p-6 |
-  | xl | 32px | p-8 |
-  | 2xl | 48px | p-12 |
-- **터치 타겟:** 모든 인터랙티브 요소 최소 44×44px
-- **BottomNav 높이:** 64px (py-2.5 = 10px 위아래, 아이콘+레이블)
-- **페이지 상단 여백:** 56px (BottomNav 높이 + 여유)
+- **Scale:** 2xs 4 / xs 8 / sm 12 / md 16 / lg 24 / xl 32 / 2xl 48 (Tailwind p-1~p-12)
+- **섹션 간격:** 중요도에 따라 24/32/48px 구분 (모두 같은 mt-8 금지)
+- **BottomNav 높이:** 64px, **페이지 상단 여백:** 56px
 
 ## Layout
-- **Approach:** grid-disciplined — 390px 고정 모바일 컬럼, 벗어나지 않음
-- **Grid:** 단일 컬럼 (모바일 전용 앱)
-- **Max content width:** 390px
-- **Horizontal padding:** 20px (px-5)
-- **Border radius:** (기준 토큰 `--radius: 0.875rem` = 14px, Tailwind 매핑 실측 기준)
+- **Approach:** grid-disciplined — 390px 고정 모바일 컬럼
+- **Max content width:** 390px, **Horizontal padding:** 20px (px-5)
+- **Border radius:** (기준 토큰 `--radius: 0.875rem`)
   | 클래스 | px | 용도 |
   |------|-----|------|
   | rounded-sm | 10px | 뱃지, 태그 |
-  | rounded-md | 12px | 인풋, 버튼, 소형 카드 |
-  | rounded-lg | 14px | 기준 radius (`--radius`) |
-  | rounded-2xl | 16px | **카드 표준** (홈·랜딩 공통) |
-  | rounded-full | 9999px | 알약형 버튼, 아바타 |
+  | rounded-md | 12px | 인풋, 버튼 |
+  | rounded-xl | 12px | 아이콘 컨테이너 |
+  | rounded-2xl | **20px** | **카드 표준** (v3 오버라이드) |
+  | rounded-full | 9999px | 알약 칩, 아바타 |
 
 ## Icons
-- **라이브러리:** Lucide React (이미 설치됨)
-- **크기:** UI 아이콘 20px, BottomNav 22px, 인라인 16px
-- **BottomNav 아이콘 매핑:**
-  | 탭 | Lucide 아이콘 |
-  |----|--------------|
-  | 홈 | `Home` |
-  | 환경정보 | `Wind` |
-  | 옷차림 | `Shirt` |
-  | 건강팁 | `Heart` |
-  | 마이 | `User` |
-- **스타일:** strokeWidth=1.75, 활성 상태: text-accent, 비활성: text-muted-foreground
+- **라이브러리:** Lucide React + 커스텀 `LineIcon`(의류·육아 도메인) 단일 세트. **raw 이모지 UI 사용 전면 금지** (2026-07-16 v3에서 71건 제거)
+- **크기:** UI 20px, BottomNav 22px, 인라인 16px, 컨테이너 내 18px
+- **스타일:** strokeWidth 1.75 (LineIcon은 세트 기본 1.5), 활성: text-primary, 비활성: text-muted-foreground
+- **컨테이너:** 36px rounded-xl — 강조 `bg-primary-tint text-accent`, 뉴트럴 `bg-muted text-muted-foreground`, 상태 `bg-status-*-bg text-status-*`
 
 ## Motion
-- **Approach:** minimal-functional — 이해를 돕는 전환만. 아침에 빠르게 보는 앱이므로 과도한 애니메이션 없음.
+- **Approach:** minimal-functional — 이해를 돕는 전환만
 - **Easing:** enter: ease-out, exit: ease-in, move: ease-in-out
-- **Duration:**
-  | 이름 | ms | 용도 |
-  |------|----|------|
-  | micro | 100ms | 버튼 hover, 탭 전환 |
-  | short | 200ms | 카드 나타남, 아코디언 |
-  | medium | 300ms | 페이지 전환 |
-- **금지:** 스크롤 드리븐 애니메이션, 루프 애니메이션, 과도한 bounce 효과
-
-## Known Issues (코드 수정 필요)
-1. ~~**Font 로딩 없음**~~ — 완료 (Pretendard CDN 추가됨)
-2. **App.css 잔재** — Vite 기본 템플릿 CSS 삭제 필요 (`#root`, `.logo` 등)
-3. **BottomNav 이모지** — Lucide 아이콘으로 교체 필요
-4. ~~**Primary 대비**~~ — 완료 (`primary: #F5A623`, `primary-foreground: #1A0F00`으로 수정됨)
+- **Duration:** micro 100ms / short 200ms / medium 300ms
+- **금지:** 스크롤 드리븐, 루프, 과도한 bounce
 
 ## Decisions Log
 | 날짜 | 결정 | 근거 |
 |------|------|------|
 | 2026-06-06 | 초기 디자인 시스템 생성 | /design-consultation — 기존 오렌지 시스템 계승·정제 |
-| 2026-06-06 | primary-foreground를 어두운 갈색으로 변경 | WCAG 4.5:1 대비비 확보 |
+| 2026-06-06 | primary-foreground를 어두운 갈색으로 변경 | WCAG 4.5:1 대비비 확보 (v3에서 흰색+17px bold 규칙으로 개정) |
 | 2026-06-06 | BottomNav Lucide 아이콘 교체 권장 | OS별 이모지 렌더링 불일치 해소 |
-| 2026-06-06 | 타이포그래피 스케일 6단계 정의 | Tailwind 기본값 의존 탈피, 일관성 확보 |
-| 2026-07-01 | CharacterReport 캐릭터 일러스트를 "일러스트 없음" 규칙의 유일한 예외로 인정 | /design-review — 신체 부위 매핑 안내는 일러스트가 아이콘보다 직관적. 단, calloutsData가 실제 weather/conditions와 무관한 고정값이었던 버그를 같은 세션에서 수정 (지금은 실데이터 연동) |
-| 2026-07-13 | 카드 표준 문법 확정: `rounded-2xl border border-border/60 bg-card p-5 shadow-soft` | /design-review 랜딩 일관성 감사 — 한 페이지 카드 3종 문법을 홈 리스타일 실사용 표준으로 단일화. Color 테이블을 globals.css 웜 뉴트럴 v2에 동기화 (문서 부채 해소) |
-| 2026-07-13 | 랜딩 섹션 템플릿: eyebrow(`normal-case tracking-[0.06em]`) + H2 22px + 배경 위계(기본 background, 강조 1곳만 soft, 히어로·클로징 CTA만 secondary) | /design-review — 쿠키커터 리듬 제거, 홈과 섹션 어휘 통일 |
-| 2026-07-15 | 카드 elevation 2단 규칙 도입: 홈 최상위 AI 리포트 카드만 `shadow-card`(hero), 나머지 카드는 `shadow-soft` 유지 | 홈 1c 리스타일 — 표면 위계로 "오늘의 결론" 카드를 강조. 2026-07-13 단일 `shadow-soft` 표준의 홈 국소 개정. 오렌지 역할 분리(브랜드=solid / warn=status-warn / 완료=status-good)도 함께 정착 |
+| 2026-07-01 | CharacterReport 캐릭터 일러스트를 "일러스트 없음" 규칙의 유일한 예외로 인정 | /design-review — 신체 부위 매핑 안내는 일러스트가 직관적 |
+| 2026-07-13 | 카드 표준 문법 확정: `rounded-2xl border border-border/60 bg-card p-5 shadow-soft` | /design-review 랜딩 일관성 감사 (v3에서 보더 폐지로 개정) |
+| 2026-07-15 | 카드 elevation 2단 규칙(히어로 shadow-card) | 홈 1c 리스타일 (v3 3단 elevation으로 흡수) |
+| 2026-07-16 | **v3 "White Report" 전면 개정** — 토스·당근 벤치마크. 배경 웜 그레이 #F6F4F2, primary #F5A623→#F97316 심화, 오렌지 역할 3분리(solid/text/tint), 카드 보더 폐지·3단 elevation, 타이포 7단 스케일(display 26 / title 17), 이모지 UI 전면 금지(71건 제거), 리스트 행 문법 도입 | 베타 평가 "전문성 부족" 대응. /design-consultation — `docs/reviews/2026-07-16-DESIGN-v3-proposal.md`, before/after: `docs/reviews/2026-07-16-design-v3-toss-karrot-before-after.html` |

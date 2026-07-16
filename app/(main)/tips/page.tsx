@@ -1,8 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { ArrowLeft, ExternalLink, ShieldCheck, BookOpen, AlertTriangle } from "lucide-react";
+import {
+  ArrowLeft,
+  ExternalLink,
+  ShieldCheck,
+  BookOpen,
+  AlertTriangle,
+  Sun,
+  TreeDeciduous,
+  Droplet,
+  Sparkles,
+} from "lucide-react";
+import LineIcon from "@/components/LineIcon";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -25,7 +36,7 @@ type Tip = {
   id: string;
   category: "자외선" | "미세먼지" | "꽃가루" | "건조" | "기온" | "일반";
   severity: "주의" | "경고" | "정보";
-  icon: string;
+  icon: ReactNode;
   title: string;
   summary: string;
   recommendations: string[];
@@ -36,19 +47,20 @@ type Tip = {
 /* ----------------------------- nav ----------------------------- */
 
 
-const sevStyle = (s: Tip["severity"]) =>
+const sevIconBox = (s: Tip["severity"]) =>
   s === "경고"
-    ? "border-destructive/30 bg-destructive/5"
+    ? "bg-destructive/10 text-destructive"
     : s === "주의"
-      ? "border-accent/30 bg-accent/5"
-      : "border-primary/30 bg-secondary/40";
+      ? "bg-status-warn-bg text-status-warn"
+      : "bg-status-info-bg text-status-info";
 
+// v3: 상태 배지는 solid 채움 금지 — 상태색 틴트 배경 + 상태색 텍스트 (브랜드 오렌지는 상태 표현에 사용 불가)
 const sevBadge = (s: Tip["severity"]) =>
   s === "경고"
-    ? "bg-destructive text-destructive-foreground"
+    ? "bg-destructive/10 text-destructive"
     : s === "주의"
-      ? "bg-accent text-accent-foreground"
-      : "bg-primary text-primary-foreground";
+      ? "bg-status-warn-bg text-status-warn"
+      : "bg-status-info-bg text-status-info";
 
 /* ----------------------------- page ----------------------------- */
 const Tips = () => {
@@ -84,7 +96,7 @@ const Tips = () => {
         id: "uv-high",
         category: "자외선",
         severity: env.uv >= 8 ? "경고" : "주의",
-        icon: "☀️",
+        icon: <Sun size={20} strokeWidth={1.75} aria-hidden />,
         title: `자외선 ${env.uv >= 8 ? "매우 높음" : "높음"} — 영유아 피부 보호 필수`,
         summary:
           "영유아 피부는 멜라닌 색소가 적어 성인보다 자외선 손상에 취약합니다. UV 지수 6 이상에서는 적극적 차단이 필요합니다.",
@@ -113,7 +125,7 @@ const Tips = () => {
         id: "pm-high",
         category: "미세먼지",
         severity: bad ? "경고" : "주의",
-        icon: "😷",
+        icon: <LineIcon name="mask" size={20} strokeWidth={1.75} />,
         title: `미세먼지 ${bad ? "나쁨" : "보통~주의"} — 호흡기 보호 가이드`,
         summary:
           "초미세먼지(PM2.5)는 폐포·혈관까지 침투해 소아 천식·알레르기성 비염을 악화시킬 수 있습니다. 어린이는 호흡량이 많아 더 큰 영향을 받습니다.",
@@ -143,7 +155,7 @@ const Tips = () => {
         id: "pollen-high",
         category: "꽃가루",
         severity: personal ? "경고" : "주의",
-        icon: "🌳",
+        icon: <TreeDeciduous size={20} strokeWidth={1.75} aria-hidden />,
         title: `${env.pollenTop.name} 꽃가루 ${env.pollenTop.level}${
           personal ? " — 알레르기 아동 주의" : ""
         }`,
@@ -181,7 +193,7 @@ const Tips = () => {
         id: "dry-skin",
         category: "건조",
         severity: skinFocus ? "경고" : "정보",
-        icon: "💧",
+        icon: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
         title: `습도 ${env.humidity}% — ${
           skinFocus ? "민감·아토피 피부 집중 케어" : "건조 환경 보습 가이드"
         }`,
@@ -217,7 +229,7 @@ const Tips = () => {
       id: "general-hygiene",
       category: "일반",
       severity: "정보",
-      icon: "🧼",
+      icon: <Sparkles size={20} strokeWidth={1.75} aria-hidden />,
       title: "환절기 기본 위생 — 손씻기 30초",
       summary:
         "환절기에는 호흡기 바이러스 전파가 증가합니다. 손씻기는 가장 효과적인 비약물적 예방법으로 알려져 있습니다.",
@@ -261,7 +273,7 @@ const Tips = () => {
               </button>
               <Logo />
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-accent">
+            <div className="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-accent">
               <ShieldCheck className="h-3.5 w-3.5" />
               근거 기반
             </div>
@@ -276,8 +288,10 @@ const Tips = () => {
 
           {/* Profile context */}
           {cur && (
-            <div className="mt-3 flex items-center gap-2 rounded-2xl border border-border bg-card p-3 text-sm shadow-soft">
-              <span className="text-2xl">{cur.emoji}</span>
+            <div className="mt-3 flex items-center gap-2 rounded-2xl bg-card p-3 text-sm shadow-soft">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-avatar text-lg font-bold text-avatar-foreground">
+                {cur.name.charAt(0)}
+              </span>
               <div className="flex-1">
                 <p className="font-semibold text-foreground">
                   {withSubjectSuffix(cur.name)} 위한 오늘의 가이드
@@ -312,10 +326,10 @@ const Tips = () => {
               <button
                 key={c}
                 onClick={() => setFilter(c)}
-                className={`shrink-0 rounded-full border-2 px-3.5 py-1.5 text-xs font-medium transition-smooth ${
+                className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full px-4 text-[13px] transition-smooth ${
                   filter === c
-                    ? "border-primary bg-secondary text-foreground"
-                    : "border-border bg-card text-muted-foreground"
+                    ? "bg-primary-tint font-semibold text-accent"
+                    : "bg-card font-medium text-muted-foreground shadow-soft"
                 }`}
               >
                 {c}
@@ -337,17 +351,23 @@ const Tips = () => {
                   filtered.map((tip) => (
                     <article
                       key={tip.id}
-                      className={`rounded-2xl border p-4 shadow-soft ${sevStyle(tip.severity)}`}
+                      className="rounded-2xl bg-card p-4 shadow-soft"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <span className="text-2xl">{tip.icon}</span>
-                          <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          <span
+                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${sevIconBox(
+                              tip.severity
+                            )}`}
+                          >
+                            {tip.icon}
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
                             {tip.category}
                           </span>
                         </div>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sevBadge(
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${sevBadge(
                             tip.severity
                           )}`}
                         >
@@ -355,17 +375,17 @@ const Tips = () => {
                         </span>
                       </div>
 
-                      <h3 className="mt-3 text-sm font-bold leading-snug text-foreground">
+                      <h3 className="mt-3 text-[16px] font-bold leading-snug text-foreground">
                         {tip.title}
                       </h3>
 
                       {tip.matchedProfile && (
-                        <p className="mt-1.5 inline-block rounded-md bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                        <p className="mt-1.5 inline-block rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
                           내 아이 프로필 매칭: {tip.matchedProfile}
                         </p>
                       )}
 
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                         {tip.summary}
                       </p>
 
@@ -373,30 +393,30 @@ const Tips = () => {
                         {tip.recommendations.map((r, i) => (
                           <li
                             key={i}
-                            className="flex items-start gap-2 text-xs leading-relaxed text-foreground"
+                            className="flex items-start gap-2 text-sm leading-relaxed text-foreground"
                           >
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                             <span>{r}</span>
                           </li>
                         ))}
                       </ul>
 
-                      <div className="mt-3 rounded-xl bg-background/70 p-2.5">
-                        <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          <BookOpen className="h-3 w-3" />
+                      <div className="mt-4 border-t border-border pt-3">
+                        <p className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
+                          <BookOpen className="h-3.5 w-3.5" />
                           출처
                         </p>
-                        <ul className="mt-1.5 space-y-1">
+                        <ul className="mt-1 divide-y divide-border">
                           {tip.sources.map((s) => (
                             <li key={s.url}>
                               <a
                                 href={s.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex items-center gap-1 text-[11px] text-foreground hover:text-accent hover:underline"
+                                className="flex min-h-[44px] items-center gap-2 text-[13px] text-foreground hover:text-accent hover:underline"
                               >
                                 <span className="flex-1">{s.label}</span>
-                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                               </a>
                             </li>
                           ))}
@@ -408,7 +428,7 @@ const Tips = () => {
           </section>
 
           {/* Footer note */}
-          <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
             가이드 기준: 대한소아청소년과학회, 대한피부과학회,
             <br />
             대한이비인후과학회, 대한소아알레르기호흡기학회,

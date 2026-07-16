@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.5.0] - 2026-07-16
+
+### Changed
+- **디자인 시스템 v3 "White Report" 전면 개정** (`app/globals.css`, `tailwind.config.ts`, `DESIGN.md`, 주요 화면 전체) — 베타 평가의 "전문성 부족" 피드백에 대응해 토스(정보 신뢰 문법)·당근(오렌지 온기) 벤치마크로 개정. ① 배경 베이지→웜 그레이 `#F6F4F2` + 순백 카드 면 분리(카드 외곽 보더 폐지, 3단 elevation), ② 브랜드 오렌지 `#F5A623`→`#F97316` 심화 + 역할 3분리(solid CTA / 텍스트 `#C2540A` / 틴트 배경), ③ 타이포 7단 스케일(AI 결론 26px 히어로, 섹션 헤더 17px, 11px 미만 금지), ④ 마이·설정을 당근식 리스트 행 문법으로 전환, ⑤ env 그라데이션 게이지→단색 상태 fill. 근거·비교: `docs/reviews/2026-07-16-DESIGN-v3-proposal.md`, `docs/reviews/2026-07-16-design-v3-toss-karrot-before-after.html`
+- **UI 이모지 전면 제거** (10개 파일 71건) — raw 이모지 아이콘을 Lucide·LineIcon 단일 세트(strokeWidth 1.75)로 교체, 아바타는 이니셜 원으로 통일. OS별 이모지 렌더링 편차 제거
+- **마이 아이 프로필 카드 압축** (`app/(main)/me/page.tsx`) — 상세 9행 나열을 헤더(이니셜 아바타·요약 한 줄·선택됨 배지) + 핵심 2행(민감도, 등원·하원)으로 압축. 상세는 편집 화면에서 확인
+- **홈 알림 벨의 상시 강조 도트 제거** (`app/(main)/home/page.tsx`) — 실제 unread 상태가 없는데 항상 표시되던 거짓 긴급 신호 제거
+
 ### Added
 - **홈 지연 계측(`?perf=1`)** (`lib/perf.ts`, `app/(main)/home/page.tsx`, `app/api/report/route.ts`, `app/auth/landing/page.tsx`) — 로그인 후 home 진입~AI 리포트 안정 구간을 분해 측정하는 경량 계측. `?perf=1`로 켜면(이후 세션 유지, `?perf=0`로 해제) 클라이언트 콘솔에 구간별 Δ/누적 Σ, 서버 Vercel 로그에 `received→firstDelta→hook→done` 분해가 남고, `perfId`로 클라이언트·서버 로그를 같은 요청으로 매칭. 일반 사용자 요청에는 로그를 남기지 않음(`x-perf-id` 헤더 게이팅). 사용법은 `docs/perf-home-latency.md`
 

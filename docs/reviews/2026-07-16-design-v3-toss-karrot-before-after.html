@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AiDay 디자인 시스템 v3 제안 — 토스·당근 벤치마크 Before/After</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  /* ============ 프리뷰 페이지 자체 스타일 ============ */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family:"Pretendard Variable", Pretendard, sans-serif;
+    background:#EDEBE8; color:#26201B;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:1040px; margin:0 auto; padding:48px 24px 96px; }
+  .doc-eyebrow { font-size:12px; font-weight:700; letter-spacing:.12em; color:#C2540A; text-transform:uppercase; }
+  h1 { font-size:30px; font-weight:800; letter-spacing:-0.02em; margin:8px 0 12px; }
+  .doc-sub { font-size:15px; color:#6E655D; line-height:1.7; max-width:640px; }
+  .section { margin-top:64px; }
+  .section > h2 { font-size:21px; font-weight:800; letter-spacing:-0.01em; margin-bottom:6px; }
+  .section > .desc { font-size:14px; color:#6E655D; margin-bottom:24px; line-height:1.7; }
+  .compare { display:flex; gap:32px; flex-wrap:wrap; align-items:flex-start; }
+  .col { flex:1; min-width:340px; }
+  .col-label { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; margin-bottom:12px; }
+  .col-label .tag { padding:3px 10px; border-radius:999px; font-size:11px; font-weight:800; letter-spacing:.06em; }
+  .tag-before { background:#DED9D4; color:#6E655D; }
+  .tag-after { background:#F97316; color:#fff; }
+  .shot { width:390px; max-width:100%; border-radius:24px; box-shadow:0 8px 40px rgba(40,29,21,.16); display:block; }
+  .note { font-size:13px; color:#6E655D; line-height:1.7; margin-top:14px; max-width:390px; }
+  .note b { color:#26201B; }
+  table.spec { width:100%; border-collapse:collapse; font-size:14px; background:#fff; border-radius:16px; overflow:hidden; }
+  table.spec th, table.spec td { text-align:left; padding:12px 16px; border-bottom:1px solid #F0EDEA; vertical-align:top; line-height:1.6; }
+  table.spec th { background:#FAF9F7; font-size:12px; font-weight:700; color:#6E655D; letter-spacing:.04em; }
+  table.spec tr:last-child td { border-bottom:none; }
+  .swatches { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:12px; }
+  .swatch { background:#fff; border-radius:14px; overflow:hidden; box-shadow:0 1px 3px rgba(40,29,21,.06); }
+  .swatch .chip { height:64px; }
+  .swatch .meta { padding:10px 12px; }
+  .swatch .name { font-size:13px; font-weight:700; }
+  .swatch .hex { font-size:12px; color:#6E655D; font-variant-numeric:tabular-nums; }
+
+  /* ============ v3 토큰 (after 목업 전용) ============ */
+  .v3 {
+    --bg:#F6F4F2;            /* 배경: 웜 그레이 페이퍼 (채도 다운) */
+    --card:#FFFFFF;
+    --ink:#26201B;           /* 본문 잉크 */
+    --ink-2:#6E655D;         /* 보조 */
+    --ink-3:#9C938A;         /* 캡션·비활성 */
+    --brand:#F97316;         /* 브랜드 오렌지 (당근 톤으로 심화) */
+    --brand-deep:#C2540A;    /* 텍스트용 오렌지 (대비 확보) */
+    --brand-tint:#FFEDDD;    /* 오렌지 틴트 배경 */
+    --divider:#F0EDEA;       /* 카드 내부 헤어라인 */
+    --good:#3D8B5F; --warn:#D4622A; --bad:#BF2C22;
+    --shadow-hero:0 1px 3px rgba(40,29,21,.05), 0 10px 28px -10px rgba(40,29,21,.12);
+    --shadow-flat:0 1px 2px rgba(40,29,21,.04);
+  }
+  .phone {
+    width:390px; max-width:100%; background:var(--bg);
+    border-radius:24px; overflow:hidden;
+    box-shadow:0 8px 40px rgba(40,29,21,.16);
+    font-family:"Pretendard Variable", Pretendard, sans-serif;
+    color:var(--ink);
+  }
+  .phone svg { flex-shrink:0; }
+  .p-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px 10px;
+  }
+  .p-logo { font-size:19px; font-weight:800; letter-spacing:-0.02em; }
+  .p-logo em { font-style:normal; color:var(--brand); }
+  .p-hicons { display:flex; gap:4px; }
+  .p-hicons .hbtn {
+    width:38px; height:38px; display:flex; align-items:center; justify-content:center;
+    border-radius:12px; color:var(--ink-2);
+  }
+  .p-kids { display:flex; align-items:center; gap:8px; padding:4px 20px 16px; }
+  .kid-chip {
+    display:flex; align-items:center; gap:6px;
+    padding:8px 14px; border-radius:999px; font-size:14px; font-weight:600;
+    background:var(--card); color:var(--ink-2); box-shadow:var(--shadow-flat);
+  }
+  .kid-chip.active { background:var(--brand-tint); color:var(--brand-deep); font-weight:700; }
+  .kid-chip .dot { width:22px; height:22px; border-radius:50%; background:#D9EEDF; color:#3A6B4F; font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .kid-chip.active .dot { background:var(--brand); color:#fff; }
+  .p-loc { margin-left:auto; display:flex; align-items:center; gap:3px; font-size:13px; color:var(--ink-2); font-weight:500; }
+  .p-body { padding:0 16px 0; }
+  .hero {
+    background:var(--card); border-radius:20px; padding:20px;
+    box-shadow:var(--shadow-hero);
+  }
+  .hero-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .hero-label { display:flex; align-items:center; gap:6px; font-size:12px; font-weight:800; letter-spacing:.08em; color:var(--brand-deep); }
+  .hero-meta { font-size:13px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+  .hero h3 { font-size:26px; font-weight:800; line-height:1.32; letter-spacing:-0.02em; word-break:keep-all; }
+  .hero-more { display:flex; align-items:center; gap:2px; margin-top:12px; font-size:14px; font-weight:500; color:var(--ink-2); }
+  .hero-divider { height:1px; background:var(--divider); margin:18px -20px; }
+  .check-head { display:flex; align-items:baseline; justify-content:space-between; margin-bottom:4px; }
+  .check-head .t { font-size:15px; font-weight:700; }
+  .check-head .n { font-size:13px; font-weight:700; color:var(--brand-deep); font-variant-numeric:tabular-nums; }
+  .check-row { display:flex; align-items:center; gap:12px; padding:11px 0; }
+  .check-row + .check-row { border-top:1px solid var(--divider); }
+  .checkbox { width:24px; height:24px; border-radius:50%; border:2px solid #DDD6CE; background:#fff; }
+  .check-ic { width:36px; height:36px; border-radius:12px; background:var(--brand-tint); color:var(--brand-deep); display:flex; align-items:center; justify-content:center; }
+  .check-row .label { font-size:16px; font-weight:500; }
+  .trust { margin-top:14px; font-size:12px; color:var(--ink-3); line-height:1.5; }
+  .sec-head { display:flex; align-items:baseline; justify-content:space-between; margin:28px 4px 12px; }
+  .sec-head h4 { font-size:17px; font-weight:700; letter-spacing:-0.01em; }
+  .sec-head .link { font-size:13px; font-weight:600; color:var(--brand-deep); display:flex; align-items:center; }
+  .tl-scroll { display:flex; gap:10px; overflow:hidden; }
+  .tl-card {
+    min-width:124px; background:var(--card); border-radius:16px; padding:14px;
+    box-shadow:var(--shadow-flat);
+  }
+  .tl-card .when { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:600; color:var(--ink-2); }
+  .tl-card .temp { margin-top:8px; font-size:24px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-0.03em; }
+  .tl-card .temp small { font-size:12px; font-weight:500; color:var(--ink-3); letter-spacing:0; margin-left:4px; }
+  .tl-chip { display:inline-flex; align-items:center; gap:5px; margin-top:10px; font-size:12px; font-weight:600; color:var(--ink-2); }
+  .tl-chip .d { width:6px; height:6px; border-radius:50%; background:#D5CBBD; }
+  .tl-chip.warn { color:var(--warn); } .tl-chip.warn .d { background:var(--warn); }
+  .plan-card { background:var(--card); border-radius:20px; padding:4px 20px; box-shadow:var(--shadow-flat); }
+  .plan-row { display:flex; align-items:center; gap:14px; padding:15px 0; }
+  .plan-row + .plan-row { border-top:1px solid var(--divider); }
+  .plan-row .time { font-size:15px; font-weight:700; font-variant-numeric:tabular-nums; width:44px; color:var(--ink); }
+  .plan-row.now .time { color:var(--brand-deep); }
+  .plan-row .what { flex:1; }
+  .plan-row .what .t { font-size:15px; font-weight:600; }
+  .plan-row .what .s { font-size:13px; color:var(--ink-2); margin-top:2px; }
+  .plan-row .badge { font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; background:var(--brand-tint); color:var(--brand-deep); }
+  .p-nav {
+    margin-top:24px; background:var(--card); border-top:1px solid var(--divider);
+    display:flex; padding:8px 8px 14px;
+  }
+  .p-nav .item { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:600; color:var(--ink-3); }
+  .p-nav .item.active { color:var(--brand); }
+  /* me page mock */
+  .row-card { background:var(--card); border-radius:20px; padding:4px 20px; box-shadow:var(--shadow-flat); }
+  .m-row { display:flex; align-items:center; gap:14px; padding:15px 0; }
+  .m-row + .m-row { border-top:1px solid var(--divider); }
+  .m-row .ic { width:36px; height:36px; border-radius:12px; background:#F3F0ED; color:var(--ink-2); display:flex; align-items:center; justify-content:center; }
+  .m-row .label { flex:1; font-size:16px; font-weight:500; }
+  .m-row .chev { color:#C9C1B9; }
+  .avatar { width:44px; height:44px; border-radius:50%; background:#D9EEDF; color:#3A6B4F; font-size:16px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .prof-head { display:flex; align-items:center; gap:12px; padding:18px 0 14px; }
+  .prof-head .nm { font-size:17px; font-weight:700; }
+  .prof-head .sb { font-size:13px; color:var(--ink-2); margin-top:2px; }
+  .prof-head .sel { margin-left:auto; font-size:11px; font-weight:700; color:var(--brand-deep); background:var(--brand-tint); padding:3px 8px; border-radius:999px; }
+  .kv { display:flex; justify-content:space-between; padding:13px 0; font-size:15px; }
+  .kv + .kv { border-top:1px solid var(--divider); }
+  .kv .k { color:var(--ink-2); font-weight:400; }
+  .kv .v { font-weight:600; }
+  /* component specimens */
+  .spec-board { background:#fff; border-radius:20px; padding:28px; display:flex; flex-direction:column; gap:24px; }
+  .spec-row-label { font-size:12px; font-weight:700; color:#9C938A; letter-spacing:.06em; margin-bottom:10px; }
+  .btn-primary { display:block; width:100%; max-width:350px; padding:15px; border-radius:14px; background:#F97316; color:#fff; font-size:17px; font-weight:700; text-align:center; }
+  .btn-secondary { display:block; width:100%; max-width:350px; padding:15px; border-radius:14px; background:#F3F0ED; color:#26201B; font-size:17px; font-weight:700; text-align:center; margin-top:10px; }
+  .type-sample { border-left:3px solid #F0EDEA; padding-left:16px; margin-bottom:18px; }
+  .type-sample .meta { font-size:12px; color:#9C938A; margin-bottom:4px; font-variant-numeric:tabular-nums; }
+  @media (max-width:860px){ .compare{gap:48px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="doc-eyebrow">Design System v3 Proposal · 2026-07-16</div>
+  <h1>AiDay 디자인 v3 — 토스·당근 벤치마크 Before / After</h1>
+  <p class="doc-sub">
+    큰 틀(390px 프레임, 화면 구조, 오렌지 브랜드, Pretendard)은 그대로 유지합니다.
+    바꾸는 것은 네 가지 — <b>① 이모지 아이콘 전면 제거, ② 크림 베이지 → 웜 그레이+화이트 표면, ③ 보더 카드 → 면 분리 문법, ④ 타이포 위계 재구축</b>.
+    토스에서 정보 신뢰의 문법을, 당근에서 오렌지의 온기 사용법을 가져왔습니다.
+  </p>
+
+  <!-- ============ 홈 비교 ============ -->
+  <div class="section">
+    <h2>1. 홈 — 아침의 첫 판단</h2>
+    <p class="desc">왼쪽은 현재(실측 스크린샷), 오른쪽은 v3 토큰을 실제 CSS로 적용한 목업입니다.</p>
+    <div class="compare">
+      <div class="col">
+        <div class="col-label"><span class="tag tag-before">BEFORE</span> 현재 홈</div>
+        <img class="shot" src="assets/2026-07-16-before-home.png" alt="현재 홈 화면">
+        <p class="note">앰버 solid 프로필 칩, 크림 배경 위 크림 카드, 이모지 준비물 아이콘, 로고 이미지+텍스트 헤더. 전체적으로 따뜻하지만 <b>"베이지 위 베이지"</b>라 위계가 뭉개집니다.</p>
+      </div>
+      <div class="col">
+        <div class="col-label"><span class="tag tag-after">AFTER</span> v3 목업</div>
+        <div class="phone v3">
+          <div class="p-header">
+            <div class="p-logo">ai<em>day</em></div>
+            <div class="p-hicons">
+              <div class="hbtn"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+              <div class="hbtn"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/></svg></div>
+            </div>
+          </div>
+          <div class="p-kids">
+            <div class="kid-chip active"><span class="dot">지</span>지우 · 만 4세</div>
+            <div class="kid-chip"><span class="dot">도</span>도윤</div>
+            <div class="p-loc"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>강남구</div>
+          </div>
+          <div class="p-body">
+            <div class="hero">
+              <div class="hero-top">
+                <div class="hero-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>AI 리포트</div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                  <div class="hero-meta">7월 16일 (목) 18:23</div>
+                  <div style="display:flex; gap:8px; color:var(--ink-2);">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  </div>
+                </div>
+              </div>
+              <h3>낮 30도,<br>땀 많은 지우 더위 조심</h3>
+              <div class="hero-more">자세한 리포트 보기 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></div>
+              <div class="hero-divider"></div>
+              <div class="check-head"><span class="t">오늘 챙길 것</span><span class="n">0 / 3</span></div>
+              <div class="check-row">
+                <div class="checkbox"></div>
+                <div class="check-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg></div>
+                <div class="label">여벌 옷</div>
+              </div>
+              <div class="check-row">
+                <div class="checkbox"></div>
+                <div class="check-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></svg></div>
+                <div class="label">아토피 보습제</div>
+              </div>
+              <div class="check-row">
+                <div class="checkbox"></div>
+                <div class="check-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+                <div class="label">모자</div>
+              </div>
+              <div class="trust">지우 프로필(아토피·비염) 기준 해석 · 기상청·에어코리아 실측 데이터</div>
+            </div>
+
+            <div class="sec-head">
+              <h4>시간대별 환경</h4>
+              <div class="link">전체 보기 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></div>
+            </div>
+            <div class="tl-scroll">
+              <div class="tl-card">
+                <div class="when">등원 09:00 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9C938A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+                <div class="temp">26°<small>체감 25°</small></div>
+                <div class="tl-chip"><span class="d"></span>미세먼지 보통</div>
+              </div>
+              <div class="tl-card">
+                <div class="when">야외 11:00 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9C938A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg></div>
+                <div class="temp">30°<small>체감 28°</small></div>
+                <div class="tl-chip warn"><span class="d"></span>더위 주의</div>
+              </div>
+              <div class="tl-card">
+                <div class="when">하원 18:00</div>
+                <div class="temp">29°<small>체감 27°</small></div>
+                <div class="tl-chip"><span class="d"></span>미세먼지 보통</div>
+              </div>
+            </div>
+
+            <div class="sec-head"><h4>하루 케어 플랜</h4></div>
+            <div class="plan-card">
+              <div class="plan-row">
+                <div class="time">09:00</div>
+                <div class="what"><div class="t">등원</div><div class="s">26° · 미세먼지 보통</div></div>
+                <span class="badge">보습제</span>
+              </div>
+              <div class="plan-row now">
+                <div class="time">18:00</div>
+                <div class="what"><div class="t">하원 · 지금</div><div class="s">29° · 여벌 옷 챙기기</div></div>
+                <span class="badge">여벌 옷</span>
+              </div>
+              <div class="plan-row">
+                <div class="time">21:00</div>
+                <div class="what"><div class="t">저녁</div><div class="s">26° · 실내 보습 케어</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="p-nav">
+            <div class="item active"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>홈</div>
+            <div class="item"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>환경정보</div>
+            <div class="item"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></svg>옷차림</div>
+            <div class="item"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>건강팁</div>
+            <div class="item"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>마이</div>
+          </div>
+        </div>
+        <p class="note"><b>바뀐 것:</b> 배경을 웜 그레이(#F6F4F2)로 낮추고 카드는 순백 + 보더 제거(면 분리). 활성 칩은 solid 앰버 → 오렌지 틴트+딥 오렌지 텍스트. 준비물 아이콘은 이모지 → Lucide 라인 아이콘 + 틴트 컨테이너. 헤드라인 26px/800으로 결론이 첫 시선. 워드마크는 텍스트 로고로 단순화.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 마이페이지 비교 ============ -->
+  <div class="section">
+    <h2>2. 마이 — 리스트 행 문법 (당근 패턴)</h2>
+    <p class="desc">설정·계정류 화면은 카드 나열 대신 당근식 리스트 행으로. 이모지(👧🔔📍) 대신 이니셜 아바타와 라인 아이콘.</p>
+    <div class="compare">
+      <div class="col">
+        <div class="col-label"><span class="tag tag-before">BEFORE</span> 현재 마이</div>
+        <img class="shot" src="assets/2026-07-16-before-me.png" alt="현재 마이 화면" style="max-height:720px; object-fit:cover; object-position:top;">
+      </div>
+      <div class="col">
+        <div class="col-label"><span class="tag tag-after">AFTER</span> v3 목업</div>
+        <div class="phone v3" style="padding-bottom:24px;">
+          <div class="p-header"><div class="p-logo" style="font-size:20px;">마이</div></div>
+          <div class="p-body">
+            <div class="sec-head" style="margin-top:4px;"><h4>아이 프로필</h4><div class="link">아이 추가</div></div>
+            <div class="row-card">
+              <div class="prof-head">
+                <div class="avatar">지</div>
+                <div><div class="nm">지우</div><div class="sb">만 4세 · 여아 · 아토피, 비염</div></div>
+                <span class="sel">선택됨</span>
+              </div>
+              <div class="kv"><span class="k">더위 민감도</span><span class="v">조금 많이 탐</span></div>
+              <div class="kv"><span class="k">등원 · 하원</span><span class="v">09:00 · 18:00</span></div>
+            </div>
+            <div style="height:12px"></div>
+            <div class="row-card">
+              <div class="prof-head" style="padding:14px 0;">
+                <div class="avatar" style="background:#FDE8D2;color:#9A5B1F;">도</div>
+                <div><div class="nm">도윤</div><div class="sb">만 1세 · 남아</div></div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C9C1B9" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="sec-head"><h4>계정</h4></div>
+            <div class="row-card">
+              <div class="m-row">
+                <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+                <div class="label">알림 설정</div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="m-row">
+                <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></div>
+                <div class="label">위치 설정</div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="m-row">
+                <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+                <div class="label">약관 및 정책</div>
+                <svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+              <div class="m-row">
+                <div class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></div>
+                <div class="label">로그아웃</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="note"><b>바뀐 것:</b> 아이 카드에서 상세 필드 9줄 → 핵심 2줄 요약(상세는 진입 후). 계정 메뉴는 이모지 → 라인 아이콘 + 뉴트럴 컨테이너, 행 높이 56px 통일, chevron으로 탭 가능성 명시.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 토큰 스펙 ============ -->
+  <div class="section">
+    <h2>3. v3 컬러 토큰</h2>
+    <p class="desc">웜 뉴트럴 원칙(24~36 hue)은 유지하되 <b>배경 채도 45% → 14%</b>. 오렌지는 당근 톤으로 반 단계 심화하고, 텍스트용(brand-deep)과 면용(brand)을 분리해 대비를 해결합니다. 상태 색은 현행 유지.</p>
+    <div class="swatches">
+      <div class="swatch"><div class="chip" style="background:#F6F4F2"></div><div class="meta"><div class="name">background</div><div class="hex">#F6F4F2 · 30 15% 96%</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FFFFFF;border-bottom:1px solid #F0EDEA"></div><div class="meta"><div class="name">card</div><div class="hex">#FFFFFF</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F97316"></div><div class="meta"><div class="name">brand (primary)</div><div class="hex">#F97316 · 25 95% 53%</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#C2540A"></div><div class="meta"><div class="name">brand-deep (텍스트용)</div><div class="hex">#C2540A · 4.5:1 대비</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#FFEDDD"></div><div class="meta"><div class="name">brand-tint</div><div class="hex">#FFEDDD · 활성 배경</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#26201B"></div><div class="meta"><div class="name">ink (foreground)</div><div class="hex">#26201B</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#6E655D"></div><div class="meta"><div class="name">ink-2 (보조)</div><div class="hex">#6E655D</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#9C938A"></div><div class="meta"><div class="name">ink-3 (캡션)</div><div class="hex">#9C938A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#F0EDEA"></div><div class="meta"><div class="name">divider</div><div class="hex">#F0EDEA · 카드 내부만</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#3D8B5F"></div><div class="meta"><div class="name">status-good</div><div class="hex">#3D8B5F · 유지</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#D4622A"></div><div class="meta"><div class="name">status-warn</div><div class="hex">#D4622A · 유지</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#BF2C22"></div><div class="meta"><div class="name">status-bad</div><div class="hex">#BF2C22 · 유지</div></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>4. 타이포그래피 & 컴포넌트</h2>
+    <p class="desc">토스식 위계: 결론(display)만 크고 굵게, 나머지는 한 단계씩 뚜렷하게 낮춥니다. 9~11px 마이크로 텍스트는 eyebrow 외 금지.</p>
+    <div class="spec-board">
+      <div>
+        <div class="spec-row-label">TYPE SCALE</div>
+        <div class="type-sample"><div class="meta">display · 26px / 800 / -0.02em — AI 결론 전용</div><div style="font-size:26px;font-weight:800;letter-spacing:-0.02em;line-height:1.32;">낮 30도, 땀 많은 지우 더위 조심</div></div>
+        <div class="type-sample"><div class="meta">title-lg · 20px / 700 — 페이지 타이틀</div><div style="font-size:20px;font-weight:700;letter-spacing:-0.01em;">지우를 위한 맞춤 인사이트</div></div>
+        <div class="type-sample"><div class="meta">title · 17px / 700 — 섹션 헤더</div><div style="font-size:17px;font-weight:700;">시간대별 환경</div></div>
+        <div class="type-sample"><div class="meta">body · 16px / 500·400 — 본문·리스트</div><div style="font-size:16px;font-weight:400;line-height:1.6;">얇은 아우터와 흡습 소재 이너를 입혀서 입고 벗을 수 있게 해주세요.</div></div>
+        <div class="type-sample"><div class="meta">label · 14px / 500 — 보조·링크</div><div style="font-size:14px;font-weight:500;color:#6E655D;">자세한 리포트 보기</div></div>
+        <div class="type-sample"><div class="meta">caption · 13px / 400 — 메타·근거</div><div style="font-size:13px;color:#9C938A;">기상청·에어코리아 실측 데이터 · 18:23 생성</div></div>
+        <div class="type-sample" style="margin-bottom:0"><div class="meta">num · tabular + -0.03em — 숫자 전용</div><div style="font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.03em;">30° <span style="font-size:14px;color:#6E655D;letter-spacing:0;">체감 28°</span></div></div>
+      </div>
+      <div>
+        <div class="spec-row-label">BUTTONS — 토스식 CTA (52px, 흰 텍스트는 17px 볼드 이상에서만)</div>
+        <div class="btn-primary">오늘 준비 완료하기</div>
+        <div class="btn-secondary">다음에 하기</div>
+      </div>
+      <div>
+        <div class="spec-row-label">SURFACE 규칙 — 3단 elevation</div>
+        <table class="spec">
+          <tr><th style="width:120px">레벨</th><th>문법</th><th>용도</th></tr>
+          <tr><td><b>L0 배경</b></td><td>#F6F4F2, 장식 없음</td><td>페이지 바탕. 섹션 구분은 여백(24/32px)으로만</td></tr>
+          <tr><td><b>L1 카드</b></td><td>white + radius 20 + shadow-flat(거의 없음), <b>보더 없음</b></td><td>일반 정보 그룹. 내부 구분은 divider 헤어라인</td></tr>
+          <tr><td><b>L2 히어로</b></td><td>white + radius 20 + shadow-hero</td><td>홈 AI 리포트 카드 단 한 곳</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 벤치마크 근거 ============ -->
+  <div class="section">
+    <h2>5. 무엇을 어디서 가져왔나</h2>
+    <table class="spec">
+      <tr><th style="width:200px">벤치마크</th><th>가져온 원칙</th><th>AiDay 적용</th></tr>
+      <tr><td><b>토스</b> — 정보 신뢰</td><td>"한 화면에 유저가 할 단 하나의 액션"이 선명할 것. 그레이 배경 + 순백 카드의 면 분리, 보더 최소화, 타이포가 위계를 전담</td><td>홈 = AI 결론 1개가 히어로. 배경 채도 다운 + 보더 카드 폐지. display 26/800 vs caption 13 대비</td></tr>
+      <tr><td><b>당근</b> — 오렌지의 온기</td><td>오렌지는 화이트 위에서 포인트로 쓸 때 가장 따뜻함. 리스트 행 + chevron 문법. 휴머니스트 톤의 마이크로카피</td><td>solid 앰버 남발 → 틴트+딥 텍스트 조합. 마이·설정을 리스트 행으로. 브랜드 오렌지 #F97316로 반 단계 심화</td></tr>
+      <tr><td><b>두 앱 공통</b></td><td>이모지를 UI 아이콘으로 쓰지 않음. 아이콘은 단일 세트·단일 스트로크</td><td>이모지 71건(10개 파일) → Lucide 1.75 스트로크로 전면 교체</td></tr>
+    </table>
+    <p class="desc" style="margin-top:20px;">
+      <b>유지(SAFE):</b> 오렌지 브랜드 · Pretendard · 390px 프레임 · 화면 구조 · 상태 3단계 색 · 웜 뉴트럴 hue.<br>
+      <b>리스크(확연한 차이를 만드는 곳):</b> ① 배경 베이지 → 웜 그레이(온기 소폭 감소, 전문성 대폭 상승) ② 카드 보더 폐지(문법 전면 개정) ③ 브랜드 오렌지 심화 #F5A623 → #F97316(기존 앰버 아이덴티티와 결별).
+    </p>
+  </div>
+</div>
+</body>
+</html>

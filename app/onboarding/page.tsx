@@ -3,7 +3,22 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation"; ;
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft,
+  CloudSun,
+  Droplet,
+  MessageCircle,
+  Moon,
+  PartyPopper,
+  Sparkles,
+  Sun,
+  Sunrise,
+  Thermometer,
+  TreePine,
+  TriangleAlert,
+  Wind,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -184,7 +199,9 @@ const Onboarding = () => {
       <div className="page-shell">
         <div className="page-frame flex items-center justify-center bg-background px-5">
           <div className="w-full text-center animate-scale-in">
-            <div className="text-7xl">🎉</div>
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-primary-tint">
+              <PartyPopper size={56} strokeWidth={1.75} className="text-accent" />
+            </div>
             <h1 className="mt-6 text-2xl font-bold tracking-tight">
               {s.name}의 첫 번째<br />리포트가 준비됐어요!
             </h1>
@@ -208,7 +225,7 @@ const Onboarding = () => {
 
   const stepNode: Record<number, { q: string; hint?: string; node: React.ReactNode }> = {
     1: {
-      q: "안녕하세요! 😊 먼저 아이의 이름을 알려주세요.",
+      q: "안녕하세요! 먼저 아이의 이름을 알려주세요.",
       hint: "별명도 괜찮아요 (예: 지우, 첫째, 우리 아기)",
       node: (
         <Input
@@ -221,7 +238,7 @@ const Onboarding = () => {
       ),
     },
     2: {
-      q: `${nm}는 언제 태어났나요? 🎂`,
+      q: `${nm}는 언제 태어났나요?`,
       hint: "월령에 따라 적절한 건강 정보가 달라져요",
       node: (
         <div className="grid grid-cols-2 gap-2">
@@ -246,28 +263,23 @@ const Onboarding = () => {
       ),
     },
     3: {
-      q: `${nm}의 성별을 알려주세요 👶`,
+      q: `${nm}의 성별을 알려주세요`,
       node: (
         <div className="grid grid-cols-3 gap-2">
-          {[
-            { l: "남아", e: "👦" },
-            { l: "여아", e: "👧" },
-            { l: "선택 안 함", e: "🙂" },
-          ].map((g) => {
-            const on = s.gender === g.l;
+          {["남아", "여아", "선택 안 함"].map((l) => {
+            const on = s.gender === l;
             return (
               <button
-                key={g.l}
+                key={l}
                 type="button"
-                onClick={() => update({ gender: g.l })}
-                className={`flex h-20 flex-col items-center justify-center gap-1 rounded-xl border-2 text-xs font-medium transition-smooth ${
+                onClick={() => update({ gender: l })}
+                className={`flex h-14 items-center justify-center rounded-xl border-2 text-sm font-medium transition-smooth ${
                   on
                     ? "border-primary bg-secondary text-foreground"
                     : "border-border bg-card text-muted-foreground hover:border-primary/40"
                 }`}
               >
-                <span className="text-2xl">{g.e}</span>
-                {g.l}
+                {l}
               </button>
             );
           })}
@@ -275,7 +287,7 @@ const Onboarding = () => {
       ),
     },
     4: {
-      q: `${nm}에게 해당되는 것을 모두 선택해주세요 🏥`,
+      q: `${nm}에게 해당되는 것을 모두 선택해주세요`,
       hint: "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요",
       node: (
         <div className="space-y-2">
@@ -305,7 +317,7 @@ const Onboarding = () => {
       ),
     },
     5: {
-      q: `${nm}는 또래와 비교했을 때 어떤가요? 🌡️`,
+      q: `${nm}는 또래와 비교했을 때 어떤가요?`,
       hint: "체온 민감도에 따라 옷차림 추천이 달라져요",
       node: (
         <div className="space-y-3">
@@ -330,12 +342,12 @@ const Onboarding = () => {
       ),
     },
     6: {
-      q: `${nm}의 하루 일과를 알려주시면 더 정확한 리포트를 드려요 ⏰`,
+      q: `${nm}의 하루 일과를 알려주시면 더 정확한 리포트를 드려요`,
       hint: "선택 항목이에요. 나중에 설정에서도 입력할 수 있어요",
       node: (
         <div className="space-y-3">
           <div>
-            <p className="mb-1.5 text-sm text-muted-foreground">🌅 등원 시간</p>
+            <p className="mb-1.5 text-sm text-muted-foreground">등원 시간</p>
             <Select value={s.goSchool} onValueChange={(v) => update({ goSchool: v })}>
               <SelectTrigger className="h-12"><SelectValue placeholder="시간 선택" /></SelectTrigger>
               <SelectContent>
@@ -344,7 +356,7 @@ const Onboarding = () => {
             </Select>
           </div>
           <div>
-            <p className="mb-1.5 text-sm text-muted-foreground">☀️ 야외활동 시간대</p>
+            <p className="mb-1.5 text-sm text-muted-foreground">야외활동 시간대</p>
             <div className="grid grid-cols-2 gap-2">
               <Select value={s.outdoorStart} onValueChange={(v) => update({ outdoorStart: v })}>
                 <SelectTrigger className="h-12"><SelectValue placeholder="시작" /></SelectTrigger>
@@ -361,7 +373,7 @@ const Onboarding = () => {
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-sm text-muted-foreground">🏫 하원 시간</p>
+            <p className="mb-1.5 text-sm text-muted-foreground">하원 시간</p>
             <Select value={s.leaveSchool} onValueChange={(v) => update({ leaveSchool: v })}>
               <SelectTrigger className="h-12"><SelectValue placeholder="시간 선택" /></SelectTrigger>
               <SelectContent>
@@ -370,7 +382,7 @@ const Onboarding = () => {
             </Select>
           </div>
           <div>
-            <p className="mb-1.5 text-sm text-muted-foreground">🌇 저녁 야외활동 시간대</p>
+            <p className="mb-1.5 text-sm text-muted-foreground">저녁 야외활동 시간대</p>
             <div className="grid grid-cols-2 gap-2">
               <Select value={s.eveningStart} onValueChange={(v) => update({ eveningStart: v })}>
                 <SelectTrigger className="h-12"><SelectValue placeholder="시작" /></SelectTrigger>
@@ -397,7 +409,7 @@ const Onboarding = () => {
       ),
     },
     7: {
-      q: "언제 알려드릴까요? 🔔",
+      q: "언제 알려드릴까요?",
       hint: "나중에 설정에서 언제든 변경할 수 있어요",
       node: (
         <div className="space-y-3">
@@ -406,14 +418,18 @@ const Onboarding = () => {
             onClick={() => toast.info("카카오톡 연동은 준비 중이에요")}
             className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-kakao text-sm font-semibold text-kakao-foreground"
           >
-            💬 카카오톡 알림 연동
+            <MessageCircle size={16} strokeWidth={1.75} />
+            카카오톡 알림 연동
           </button>
 
           {/* 전날 밤 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl bg-card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">🌙 전날 밤 알림</p>
+                <p className="flex items-center gap-1.5 font-medium">
+                  <Moon size={16} strokeWidth={1.75} className="text-muted-foreground" />
+                  전날 밤 알림
+                </p>
                 <p className="text-xs text-muted-foreground">
                   내일을 미리 준비할 수 있도록 예보 기반 정보를 전날 밤에 알려드려요
                 </p>
@@ -436,10 +452,13 @@ const Onboarding = () => {
           </div>
 
           {/* 당일 아침 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
+          <div className="rounded-xl bg-card p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="font-medium">🌅 당일 아침 알림</p>
+                <p className="flex items-center gap-1.5 font-medium">
+                  <Sunrise size={16} strokeWidth={1.75} className="text-muted-foreground" />
+                  당일 아침 알림
+                </p>
                 <p className="text-xs text-muted-foreground">
                   당일 실시간 관측 데이터 기반으로 등원 준비 전에 알려드려요
                 </p>
@@ -464,8 +483,11 @@ const Onboarding = () => {
           </div>
 
           {/* 상황별 환경 경보 알림 */}
-          <div className="rounded-xl border border-border bg-card p-4">
-            <p className="font-medium">⚠️ 상황별 환경 경보 알림</p>
+          <div className="rounded-xl bg-card p-4">
+            <p className="flex items-center gap-1.5 font-medium">
+              <TriangleAlert size={16} strokeWidth={1.75} className="text-muted-foreground" />
+              상황별 환경 경보 알림
+            </p>
             <p className="mt-0.5 mb-3 text-xs text-muted-foreground">
               아래 환경 조건 충족 시 즉시 알림을 보내드려요. 중복 선택 가능해요
             </p>
@@ -474,49 +496,49 @@ const Onboarding = () => {
                 [
                   {
                     key: "aiWarning" as const,
-                    icon: "🤖",
+                    icon: Sparkles,
                     label: "AI 종합 환경지수 '주의' 이상",
                     desc: "기상·대기·꽃가루 등 종합 분석 결과 위험 수준 도달 시",
                     recommended: true,
                   },
                   {
                     key: "tempDiff" as const,
-                    icon: "🌡️",
+                    icon: Thermometer,
                     label: "일교차 10°C 이상",
                     desc: "아침·낮 기온 편차가 10°C를 초과하는 경우",
                   },
                   {
                     key: "dustBad" as const,
-                    icon: "😷",
+                    icon: Wind,
                     label: "초미세먼지(PM2.5) '나쁨' 이상",
                     desc: "PM2.5 농도 35㎍/㎥ 초과 시",
                   },
                   {
                     key: "pollen" as const,
-                    icon: "🌳",
+                    icon: TreePine,
                     label: "꽃가루 농도 '주의' 이상",
                     desc: "수목·초본류 꽃가루 농도 주의 단계 이상 시",
                   },
                   {
                     key: "dryness" as const,
-                    icon: "💧",
+                    icon: Droplet,
                     label: "건조주의보 발령",
                     desc: "상대습도 35% 미만 또는 기상청 건조주의보 발효 시",
                   },
                   {
                     key: "uvHigh" as const,
-                    icon: "☀️",
+                    icon: Sun,
                     label: "자외선지수 '높음' 이상",
                     desc: "UV 지수 6 이상, 영유아 피부·안구 노출 주의 수준",
                   },
                 ] as {
                   key: keyof AlertSettings;
-                  icon: string;
+                  icon: LucideIcon;
                   label: string;
                   desc: string;
                   recommended?: boolean;
                 }[]
-              ).map(({ key, icon, label, desc, recommended }) => {
+              ).map(({ key, icon: Icon, label, desc, recommended }) => {
                 const isOn = s.notif.alerts[key];
                 return (
                   <label
@@ -539,9 +561,11 @@ const Onboarding = () => {
                       }
                       className="mt-0.5 shrink-0"
                     />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                      <Icon size={18} strokeWidth={1.75} />
+                    </span>
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span>{icon}</span>
                         <span className="text-sm font-medium text-foreground">{label}</span>
                         {recommended && (
                           <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">
@@ -596,8 +620,8 @@ const Onboarding = () => {
         <main className="container-mobile flex flex-1 flex-col py-6">
           <div key={step} className="animate-fade-in">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-xl">
-                🌤️
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-accent">
+                <CloudSun size={20} strokeWidth={1.75} />
               </div>
               <div className="rounded-2xl rounded-tl-sm bg-secondary px-4 py-3">
                 <p className="leading-relaxed text-foreground">{cur.q}</p>

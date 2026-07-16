@@ -1,8 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { ArrowLeft, MapPin, ChevronDown, RefreshCw, Info } from "lucide-react";
+import {
+  ArrowLeft,
+  MapPin,
+  ChevronDown,
+  RefreshCw,
+  Info,
+  Sun,
+  Cloud,
+  CloudSun,
+  CloudSunRain,
+  CloudRain,
+  CloudSnow,
+  Droplet,
+  Droplets,
+  Leaf,
+  TreeDeciduous,
+  TreePine,
+  Sprout,
+} from "lucide-react";
+import LineIcon from "@/components/LineIcon";
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -15,12 +34,28 @@ import { computeOutdoorIndex } from "@/lib/outdoor-index";
 const gradeToLabel = (g: number | null) =>
   g === 1 ? "좋음" : g === 2 ? "보통" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "알 수 없음";
 
-const skyIcon = (sky: number | null, pty: number | null) => {
-  if (pty && pty > 0) return pty === 3 ? "🌨️" : "🌧️";
-  if (sky === 1) return "☀️";
-  if (sky === 3) return "⛅";
-  if (sky === 4) return "☁️";
-  return "🌤️";
+const skyIcon = (sky: number | null, pty: number | null, size = 24) => {
+  const props = { size, strokeWidth: 1.75, "aria-hidden": true as const };
+  if (pty && pty > 0) return pty === 3 ? <CloudSnow {...props} /> : <CloudRain {...props} />;
+  if (sky === 1) return <Sun {...props} />;
+  if (sky === 3) return <CloudSun {...props} />;
+  if (sky === 4) return <Cloud {...props} />;
+  return <CloudSun {...props} />;
+};
+
+/* 주간 예보 API가 내려주는 아이콘 코드(이모지 문자열) → 벡터 아이콘 매핑.
+   아래 case의 이모지는 API 응답 값 비교용 키일 뿐 화면에 렌더링되지 않는다. */
+const weekIcon = (code: string, size = 24) => {
+  const props = { size, strokeWidth: 1.75, "aria-hidden": true as const };
+  switch (code) {
+    case "🌨️": return <CloudSnow {...props} />;
+    case "🌧️": return <CloudRain {...props} />;
+    case "🌦️": return <CloudSunRain {...props} />;
+    case "☁️": return <Cloud {...props} />;
+    case "⛅": return <CloudSun {...props} />;
+    case "☀️": return <Sun {...props} />;
+    default: return <CloudSun {...props} />;
+  }
 };
 
 const skyDesc = (sky: number | null, pty: number | null) => {
@@ -132,7 +167,7 @@ const Environment = () => {
   /* 맞춤 인사이트 — 실측 환경값 + 아이 프로필 조건으로만 생성 (가정값 없음).
      데이터가 없는 항목은 카드를 만들지 않는다(없는 값을 실제처럼 보이지 않게). */
   const insights = useMemo(() => {
-    const list: { icon: string; title: string; body: string; tone: "warn" | "info" | "ok" }[] = [];
+    const list: { icon: ReactNode; title: string; body: string; tone: "warn" | "info" | "ok" }[] = [];
     const conds = cur?.conditions ?? [];
     const hasResp = conds.some((c) => c.includes("호흡기"));
     const hasAllergy = conds.some((c) => c.includes("알레르기"));
@@ -144,7 +179,7 @@ const Environment = () => {
       const g = Math.max(air.pm10Grade ?? 0, air.pm25Grade ?? 0);
       if (g >= 3) {
         list.push({
-          icon: "😷",
+          icon: <LineIcon name="mask" size={20} strokeWidth={1.75} />,
           title: `미세먼지 ${gradeToLabel(air.pm10Grade)} / 초미세 ${gradeToLabel(air.pm25Grade)}`,
           body: sensitive
             ? "호흡기·알레르기가 민감한 아이에겐 부담이 큰 수치예요. 장시간 야외활동은 피하고 KF94 마스크를 챙기세요."
@@ -153,7 +188,7 @@ const Environment = () => {
         });
       } else if (g >= 1) {
         list.push({
-          icon: "🌿",
+          icon: <Leaf size={20} strokeWidth={1.75} aria-hidden />,
           title: `미세먼지 ${gradeToLabel(g)}`,
           body: "야외 활동에 무리 없는 수치예요.",
           tone: "ok",
@@ -168,7 +203,7 @@ const Environment = () => {
     const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
     if (pollenMax != null && pollenMax >= 2) {
       list.push({
-        icon: "🌳",
+        icon: <TreeDeciduous size={20} strokeWidth={1.75} aria-hidden />,
         title: `꽃가루 ${pollenGradeLabel(pollenMax)}`,
         body: sensitive
           ? "호흡기·알레르기 민감 아이는 특히 주의하세요. KF94 마스크·모자, 귀가 후 옷 털기·세안·코 세척이 도움됩니다."
@@ -180,7 +215,7 @@ const Environment = () => {
     // 3) 자외선 — 실측 지수 높음 이상일 때
     if (uv?.uvi != null && uv.uvi >= 6) {
       list.push({
-        icon: "🧴",
+        icon: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
         title: `자외선 ${uvLabel(uv.uvi)} (지수 ${uv.uvi})`,
         body: hasSkin
           ? "민감 피부에는 자외선 차단이 중요해요. 자외선차단제·모자·긴소매로 노출을 줄이세요."
@@ -194,7 +229,7 @@ const Environment = () => {
       const h = weather.humidity;
       if (h <= 35) {
         list.push({
-          icon: "💧",
+          icon: <LineIcon name="droplet" size={20} strokeWidth={1.75} />,
           title: `습도 건조 (${h}%)`,
           body: hasSkin
             ? "민감 피부엔 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
@@ -203,7 +238,7 @@ const Environment = () => {
         });
       } else if (h >= 75) {
         list.push({
-          icon: "💦",
+          icon: <Droplets size={20} strokeWidth={1.75} aria-hidden />,
           title: `습도 높음 (${h}%)`,
           body: "땀·습기로 피부 트러블이 생기기 쉬워요. 통풍이 잘 되는 옷을 입히고 자주 환기해주세요.",
           tone: "info",
@@ -214,7 +249,7 @@ const Environment = () => {
     // 5) 바람 — 실측 풍속
     if (weather?.windSpeed != null && weather.windSpeed >= 5) {
       list.push({
-        icon: "🧣",
+        icon: <LineIcon name="scarf" size={20} strokeWidth={1.75} />,
         title: `바람 ${weather.windSpeed}m/s`,
         body: "체감온도가 낮아질 수 있어요. 얇은 바람막이나 목수건을 챙기면 좋아요.",
         tone: "info",
@@ -306,7 +341,7 @@ const Environment = () => {
           {/* Personalized insights */}
           <section>
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">
+              <h2 className="text-[20px] font-bold tracking-tight">
                 {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
               </h2>
               {/* Location */}
@@ -342,7 +377,17 @@ const Environment = () => {
                           : "border-primary/30 bg-secondary/40"
                     }`}
                   >
-                    <span className="text-2xl">{it.icon}</span>
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                        it.tone === "warn"
+                          ? "bg-status-warn-bg text-status-warn"
+                          : it.tone === "info"
+                            ? "bg-status-info-bg text-status-info"
+                            : "bg-primary-tint text-accent"
+                      }`}
+                    >
+                      {it.icon}
+                    </span>
                     <div className="flex-1">
                       <p className="text-sm font-bold text-foreground">{it.title}</p>
                       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
@@ -351,9 +396,9 @@ const Environment = () => {
                 ))}
               </div>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 지금은 특별히 주의할 환경 요인이 없어요
-                <p className="mt-1 text-xs">쾌적한 하루예요 🌿</p>
+                <p className="mt-1 text-xs">쾌적한 하루예요</p>
               </div>
             )}
           </section>
@@ -362,15 +407,21 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-7 h-28 w-full rounded-2xl" />
           ) : outdoor ? (
-            <section className="mt-7 rounded-2xl border border-border bg-secondary p-5 shadow-soft">
+            <section className="mt-7 rounded-2xl bg-secondary p-5 shadow-soft">
               <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
               <div className="mt-1 flex items-baseline gap-2">
                 <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
                 <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-gradient-to-r from-primary to-accent"
+                  className={`h-full rounded-full ${
+                    outdoor.label === "좋음"
+                      ? "bg-status-good"
+                      : outdoor.label === "보통"
+                        ? "bg-primary"
+                        : "bg-status-warn"
+                  }`}
                   style={{ width: `${outdoor.score}%` }}
                 />
               </div>
@@ -389,7 +440,7 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-accent">현재 날씨</p>
@@ -402,8 +453,8 @@ const Environment = () => {
                     {skyDesc(weather?.sky ?? null, weather?.pty ?? null)}
                   </p>
                 </div>
-                <span className="text-6xl leading-none">
-                  {skyIcon(weather?.sky ?? null, weather?.pty ?? null)}
+                <span className="shrink-0 text-accent">
+                  {skyIcon(weather?.sky ?? null, weather?.pty ?? null, 56)}
                 </span>
               </div>
               <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-background/70 p-3 text-center text-xs">
@@ -431,7 +482,7 @@ const Environment = () => {
 
           {/* Air quality */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">대기질 · 미세먼지</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">대기질 · 미세먼지</h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {[
                 { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
@@ -454,7 +505,7 @@ const Environment = () => {
           {/* Pollen */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">꽃가루 지수</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">꽃가루 지수</h2>
               <a
                 href="https://www.weather.go.kr/w/forecast/life/life-weather-index.do?tabIndex=4"
                 target="_blank"
@@ -469,9 +520,9 @@ const Environment = () => {
             ) : pollen && (pollen.oak !== null || pollen.pine !== null || pollen.weed !== null) ? (
               <div className="mt-3 grid grid-cols-3 gap-2">
                 {[
-                  { k: "참나무", v: pollen.oak, emoji: "🌳" },
-                  { k: "소나무", v: pollen.pine, emoji: "🌲" },
-                  { k: "잡초", v: pollen.weed, emoji: "🌿" },
+                  { k: "참나무", v: pollen.oak, Icon: TreeDeciduous },
+                  { k: "소나무", v: pollen.pine, Icon: TreePine },
+                  { k: "잡초", v: pollen.weed, Icon: Sprout },
                 ].map((d) => {
                   const label = pollenGradeLabel(d.v);
                   return (
@@ -479,7 +530,7 @@ const Environment = () => {
                       key={d.k}
                       className={`rounded-2xl border p-3 text-center ${levelBg(label)}`}
                     >
-                      <p className="text-xl">{d.emoji}</p>
+                      <d.Icon className="mx-auto h-5 w-5 text-accent" strokeWidth={1.75} aria-hidden />
                       <p className="mt-1 text-xs font-medium text-muted-foreground">{d.k}</p>
                       <p className={`mt-1 text-sm font-bold ${levelTone(label)}`}>{label}</p>
                     </div>
@@ -488,13 +539,13 @@ const Environment = () => {
               </div>
             ) : pollen ? (
               // 모든 종이 null = 200 응답이지만 제공 기간이 아님 (참나무·소나무 4~6월, 잡초 8~10월)
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                🌳 지금은 꽃가루 예보 제공 기간이 아니에요
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                지금은 꽃가루 예보 제공 기간이 아니에요
                 <p className="mt-1 text-xs">참나무·소나무는 4~6월, 잡초는 8~10월에 제공돼요</p>
               </div>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                🌳 꽃가루 데이터를 불러오지 못했어요
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+                꽃가루 데이터를 불러오지 못했어요
                 <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
               </div>
             )}
@@ -512,12 +563,20 @@ const Environment = () => {
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-gradient-to-r from-primary via-accent to-destructive"
+                  className={`h-full rounded-full ${
+                    uv?.uvi == null
+                      ? "bg-primary"
+                      : uv.uvi >= 6
+                        ? "bg-status-warn"
+                        : uv.uvi >= 3
+                          ? "bg-primary"
+                          : "bg-status-good"
+                  }`}
                   style={{ width: uv?.uvi != null ? `${Math.min(uv.uvi / 11 * 100, 100)}%` : "0%" }}
                 />
               </div>
             </div>
-            <div className="rounded-2xl border border-border bg-card p-4 shadow-soft">
+            <div className="rounded-2xl bg-card p-4 shadow-soft">
               <p className="text-xs font-medium text-muted-foreground">온·습도</p>
               <p className="mt-1 text-3xl font-bold text-foreground">
                 {weather?.humidity != null ? `${weather.humidity}%` : "--"}
@@ -540,13 +599,13 @@ const Environment = () => {
           {/* Weekly */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">주간 날씨</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">주간 날씨</h2>
             </div>
             {loading ? (
               <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
             ) : weekly && weekly.length > 0 ? (
               <>
-                <div className="mt-3 overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
+                <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-soft">
                   {weekly.map((w, i) => (
                     <div
                       key={w.date}
@@ -564,12 +623,12 @@ const Environment = () => {
                         </p>
                         <p className="text-[10px] text-muted-foreground">{w.date}</p>
                       </div>
-                      <span className="text-2xl">{w.icon}</span>
+                      <span className="shrink-0 text-accent">{weekIcon(w.icon, 24)}</span>
                       <div className="flex-1">
                         <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
                           {w.low != null && w.high != null && weekTempRange && (
                             <div
-                              className="absolute h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                              className="absolute h-full rounded-full bg-primary/70"
                               style={{
                                 left: `${((w.low - weekTempRange.min) / weekTempRange.span) * 100}%`,
                                 width: `${Math.max((w.high - w.low) / weekTempRange.span * 100, 6)}%`,
@@ -584,11 +643,12 @@ const Environment = () => {
                         <span className="font-bold text-foreground">{w.high != null ? `${w.high}°` : "--"}</span>
                       </p>
                       <p
-                        className={`w-10 text-right text-[11px] font-medium ${
+                        className={`inline-flex w-10 items-center justify-end gap-0.5 text-right text-[11px] font-medium ${
                           w.rain >= 50 ? "text-accent" : "text-muted-foreground"
                         }`}
                       >
-                        💧{w.rain}%
+                        <Droplet size={12} strokeWidth={1.75} aria-hidden />
+                        {w.rain}%
                       </p>
                     </div>
                   ))}
@@ -599,7 +659,7 @@ const Environment = () => {
                 </p>
               </>
             ) : (
-              <div className="mt-3 rounded-2xl border border-border bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
                 주간 예보를 불러오지 못했어요
                 <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
               </div>

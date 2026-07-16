@@ -13,9 +13,11 @@ import {
   Wind,
   Droplets,
   Umbrella,
+  Footprints,
   type LucideIcon,
 } from "lucide-react";
 import Logo from "@/components/Logo";
+import LineIcon, { type LineIconName } from "@/components/LineIcon";
 const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,18 +28,49 @@ import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
 
 type Category = "아우터" | "이너" | "하의" | "악세사리";
 
+// 아이템 아이콘 참조 — LineIcon 이름, 로컬 보완 아이콘("pants"), 또는 lucide 컴포넌트
+type ItemIconRef = LineIconName | "pants" | LucideIcon;
+
 interface OutfitItem {
-  emoji: string;
+  icon: ItemIconRef;
   name: string;
   note?: string;
   category: Category;
 }
 
 interface AvoidItem {
-  emoji: string;
+  icon: ItemIconRef;
   name: string;
   reason: string;
 }
+
+// LineIcon 세트에 없는 하의(바지) 아이콘 — 동일 규격(24 viewBox, round cap/join) 로컬 보완
+const PANTS_PATHS = ["M7.5 3h9", "M7.5 3 6 21h4l2-9.5L14 21h4L16.5 3"];
+
+const ItemIcon = ({ icon, size = 18 }: { icon: ItemIconRef; size?: number }) => {
+  if (icon === "pants") {
+    return (
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={1.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        {PANTS_PATHS.map((d) => (
+          <path key={d} d={d} />
+        ))}
+      </svg>
+    );
+  }
+  if (typeof icon === "string") return <LineIcon name={icon} size={size} />;
+  const Icon = icon;
+  return <Icon size={size} strokeWidth={1.75} />;
+};
 
 interface OutfitPlan {
   temp: number | null;
@@ -88,68 +121,68 @@ function baseItems(temp: number | null): OutfitItem[] {
   if (t >= 28) {
     // 한여름 — 아우터 없이 가볍게
     return [
-      { category: "이너", emoji: "👕", name: "반팔 티셔츠", note: "통기성 좋은 면" },
-      { category: "이너", emoji: "🎽", name: "민소매 이너", note: "땀 배출" },
-      { category: "하의", emoji: "🩳", name: "면 반바지", note: "시원하게" },
+      { category: "이너", icon: "shirt", name: "반팔 티셔츠", note: "통기성 좋은 면" },
+      { category: "이너", icon: "shirt", name: "민소매 이너", note: "땀 배출" },
+      { category: "하의", icon: "pants", name: "면 반바지", note: "시원하게" },
     ];
   }
   if (t >= 25) {
     // 더움 — 반팔 위주, 아우터 없이
     return [
-      { category: "이너", emoji: "👕", name: "반팔 티셔츠", note: "통기성 면" },
-      { category: "이너", emoji: "🧥", name: "얇은 긴팔 티", note: "자외선·냉방 대비" },
-      { category: "하의", emoji: "🩳", name: "면 반바지", note: "시원하게" },
-      { category: "하의", emoji: "👖", name: "7부 면 팬츠", note: "활동성 ↑" },
+      { category: "이너", icon: "shirt", name: "반팔 티셔츠", note: "통기성 면" },
+      { category: "이너", icon: "shirt", name: "얇은 긴팔 티", note: "자외선·냉방 대비" },
+      { category: "하의", icon: "pants", name: "면 반바지", note: "시원하게" },
+      { category: "하의", icon: "pants", name: "7부 면 팬츠", note: "활동성 ↑" },
     ];
   }
   if (t >= 21) {
     // 따뜻 — 얇은 겉옷 하나 정도
     return [
-      { category: "아우터", emoji: "🧥", name: "얇은 가디건", note: "아침·냉방 대비" },
-      { category: "이너", emoji: "👕", name: "반팔 티셔츠", note: "면 소재" },
-      { category: "하의", emoji: "👖", name: "면 조거 팬츠", note: "활동성 ↑" },
+      { category: "아우터", icon: "cardigan", name: "얇은 가디건", note: "아침·냉방 대비" },
+      { category: "이너", icon: "shirt", name: "반팔 티셔츠", note: "면 소재" },
+      { category: "하의", icon: "pants", name: "면 조거 팬츠", note: "활동성 ↑" },
     ];
   }
   if (t >= 17) {
     // 선선
     return [
-      { category: "아우터", emoji: "🧥", name: "얇은 자켓", note: "가벼운 겉옷" },
-      { category: "아우터", emoji: "🧢", name: "후드집업", note: "탈착 쉬움" },
-      { category: "이너", emoji: "👕", name: "긴팔 티셔츠", note: "면 소재" },
-      { category: "하의", emoji: "👖", name: "면 긴바지", note: "활동성 ↑" },
+      { category: "아우터", icon: "cardigan", name: "얇은 자켓", note: "가벼운 겉옷" },
+      { category: "아우터", icon: "cardigan", name: "후드집업", note: "탈착 쉬움" },
+      { category: "이너", icon: "shirt", name: "긴팔 티셔츠", note: "면 소재" },
+      { category: "하의", icon: "pants", name: "면 긴바지", note: "활동성 ↑" },
     ];
   }
   if (t >= 12) {
     // 쌀쌀
     return [
-      { category: "아우터", emoji: "🧥", name: "바람막이 자켓", note: "바람 차단" },
-      { category: "이너", emoji: "🧶", name: "얇은 니트", note: "보온 레이어" },
-      { category: "이너", emoji: "👕", name: "긴팔 이너", note: "받쳐 입기" },
-      { category: "하의", emoji: "👖", name: "면 긴바지", note: "활동성 ↑" },
+      { category: "아우터", icon: "cardigan", name: "바람막이 자켓", note: "바람 차단" },
+      { category: "이너", icon: "shirt", name: "얇은 니트", note: "보온 레이어" },
+      { category: "이너", icon: "shirt", name: "긴팔 이너", note: "받쳐 입기" },
+      { category: "하의", icon: "pants", name: "면 긴바지", note: "활동성 ↑" },
     ];
   }
   if (t >= 9) {
     // 추움
     return [
-      { category: "아우터", emoji: "🧥", name: "두꺼운 코트", note: "보온 겉옷" },
-      { category: "이너", emoji: "🧶", name: "니트 스웨터", note: "따뜻한 보온" },
-      { category: "하의", emoji: "👖", name: "면 긴바지", note: "활동성 ↑" },
+      { category: "아우터", icon: "cardigan", name: "두꺼운 코트", note: "보온 겉옷" },
+      { category: "이너", icon: "shirt", name: "니트 스웨터", note: "따뜻한 보온" },
+      { category: "하의", icon: "pants", name: "면 긴바지", note: "활동성 ↑" },
     ];
   }
   if (t >= 5) {
     // 많이 추움
     return [
-      { category: "아우터", emoji: "🧥", name: "패딩 · 두꺼운 코트", note: "체온 유지" },
-      { category: "이너", emoji: "👕", name: "히트텍 이너", note: "발열 보온" },
-      { category: "이너", emoji: "🧶", name: "니트 스웨터", note: "레이어드" },
-      { category: "하의", emoji: "👖", name: "기모 바지", note: "하체 보온" },
+      { category: "아우터", icon: "cardigan", name: "패딩 · 두꺼운 코트", note: "체온 유지" },
+      { category: "이너", icon: "shirt", name: "히트텍 이너", note: "발열 보온" },
+      { category: "이너", icon: "shirt", name: "니트 스웨터", note: "레이어드" },
+      { category: "하의", icon: "pants", name: "기모 바지", note: "하체 보온" },
     ];
   }
   // 한겨울
   return [
-    { category: "아우터", emoji: "🧥", name: "두꺼운 패딩", note: "한파 대비" },
-    { category: "이너", emoji: "🧶", name: "기모 이너 + 니트", note: "발열·보온" },
-    { category: "하의", emoji: "👖", name: "기모 바지", note: "하체 보온" },
+    { category: "아우터", icon: "cardigan", name: "두꺼운 패딩", note: "한파 대비" },
+    { category: "이너", icon: "shirt", name: "기모 이너 + 니트", note: "발열·보온" },
+    { category: "하의", icon: "pants", name: "기모 바지", note: "하체 보온" },
   ];
 }
 
@@ -190,16 +223,16 @@ function buildOutfit(
   const items: OutfitItem[] = [...baseItems(temp)];
 
   if (windStrong) {
-    items.push({ category: "악세사리", emoji: "🧣", name: "면 목수건", note: `바람 ${weather?.windSpeed}m/s` });
+    items.push({ category: "악세사리", icon: "scarf", name: "면 목수건", note: `바람 ${weather?.windSpeed}m/s` });
   }
   if (rainy) {
-    items.push({ category: "악세사리", emoji: "☂️", name: "우산", note: "강수 예보" });
+    items.push({ category: "악세사리", icon: Umbrella, name: "우산", note: "강수 예보" });
   }
   if (hasRhinitis) {
-    items.push({ category: "악세사리", emoji: "😷", name: "KF94 마스크", note: "호흡기 보호" });
+    items.push({ category: "악세사리", icon: "mask", name: "KF94 마스크", note: "호흡기 보호" });
   }
   if (sensitiveSkin) {
-    items.push({ category: "악세사리", emoji: "🧴", name: "보습 로션", note: "외출 전 도포" });
+    items.push({ category: "악세사리", icon: "droplet", name: "보습 로션", note: "외출 전 도포" });
   }
 
   // Avoid list — "당연한 말"(더운데 패딩 등)은 배제하고, 현재 날씨 요인에서 놓치기 쉬운 비자명한 조언만.
@@ -214,7 +247,7 @@ function buildOutfit(
   if (rainRisk) {
     avoidCandidates.push({
       theme: "shoes",
-      emoji: "👟",
+      icon: Footprints,
       name: "가죽 · 스웨이드 운동화",
       reason: "젖으면 잘 마르지 않고 쉽게 상해요. 방수되는 신발을 신겨 주세요.",
     });
@@ -223,7 +256,7 @@ function buildOutfit(
   if (sunny && temp != null && temp >= 22) {
     avoidCandidates.push({
       theme: "color",
-      emoji: "🖤",
+      icon: "shirt",
       name: "검은색 · 진한 색 옷",
       reason: "햇빛을 흡수해 체감온도를 높여요. 자외선이 강한 날엔 밝은 색이 시원해요.",
     });
@@ -232,14 +265,14 @@ function buildOutfit(
   if (humid && temp != null && temp >= 22) {
     avoidCandidates.push({
       theme: "material",
-      emoji: "👚",
+      icon: "shirt",
       name: "땀이 안 마르는 두꺼운 면 상의",
       reason: `습도 ${weather?.humidity}%로 땀이 잘 안 말라 눅눅해요. 속건 기능성 소재가 쾌적해요.`,
     });
   } else if (temp != null && temp >= 24) {
     avoidCandidates.push({
       theme: "material",
-      emoji: "👕",
+      icon: "shirt",
       name: "통풍 안 되는 합성섬유 상의",
       reason: "통풍이 안 돼 땀이 갇히면 땀띠가 생기기 쉬워요. 통기성 좋은 면·린넨이 좋아요.",
     });
@@ -248,7 +281,7 @@ function buildOutfit(
   if (windStrong) {
     avoidCandidates.push({
       theme: "hat",
-      emoji: "👒",
+      icon: "cap",
       name: "챙 넓은 모자",
       reason: `바람이 ${weather?.windSpeed}m/s로 강해 잘 날아가요. 끈 있는 모자가 안전해요.`,
     });
@@ -257,21 +290,21 @@ function buildOutfit(
   if (temp != null && temp >= 24) {
     avoidCandidates.push({
       theme: "fit",
-      emoji: "🫧",
+      icon: "shirt",
       name: "몸에 딱 붙는 옷",
       reason: "통풍이 안 돼 땀이 차고 답답해요. 약간 여유 있는 핏이 시원해요.",
     });
   } else if (temp != null && temp <= 8) {
     avoidCandidates.push({
       theme: "fit",
-      emoji: "🧦",
+      icon: "pants",
       name: "발목 드러나는 바지 · 양말",
       reason: "찬바람이 살에 직접 닿아 체온이 빠르게 떨어져요. 발목까지 감싸 주세요.",
     });
   } else if (temp != null && temp <= 15) {
     avoidCandidates.push({
       theme: "fit",
-      emoji: "🧥",
+      icon: "cardigan",
       name: "한 겹짜리 두꺼운 외투",
       reason: "일교차가 커요. 두꺼운 한 겹보다 벗고 입기 쉬운 레이어드가 체온 조절에 유리해요.",
     });
@@ -279,7 +312,7 @@ function buildOutfit(
   if (avoidCandidates.length === 0) {
     avoidCandidates.push({
       theme: "fit",
-      emoji: "🫧",
+      icon: "shirt",
       name: "몸에 딱 붙는 옷",
       reason: "공기가 통하지 않아 활동 중 땀이 차기 쉬워요. 약간 여유 있는 핏이 좋아요.",
     });
@@ -291,7 +324,7 @@ function buildOutfit(
   for (const c of avoidCandidates) {
     if (seenThemes.has(c.theme)) continue;
     seenThemes.add(c.theme);
-    avoidTop.push({ emoji: c.emoji, name: c.name, reason: c.reason });
+    avoidTop.push({ icon: c.icon, name: c.name, reason: c.reason });
     if (avoidTop.length >= 3) break;
   }
 
@@ -387,7 +420,7 @@ const Outfit = () => {
           {loading ? (
             <Skeleton className="mt-4 h-36 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl border border-border/60 bg-card p-4 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-4 shadow-soft animate-fade-up">
               <div className="flex items-stretch gap-3.5">
                 {/* 온도 */}
                 <div className="flex shrink-0 flex-col items-center justify-center text-center">
@@ -439,7 +472,7 @@ const Outfit = () => {
 
           {/* Recommended items - OOTD style by category */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">추천 아이템</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">추천 아이템</h2>
 
             <div className="mt-3 space-y-3">
               {categoryOrder.map((cat) => {
@@ -448,7 +481,7 @@ const Outfit = () => {
                 return (
                   <div
                     key={cat}
-                    className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft"
+                    className="rounded-2xl bg-card p-4 shadow-soft"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-baseline gap-2">
@@ -467,9 +500,11 @@ const Outfit = () => {
                       {list.map((it) => (
                         <div
                           key={it.name}
-                          className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-background p-3"
+                          className="flex items-center gap-2.5 rounded-xl bg-muted/60 p-3"
                         >
-                          <span className="text-2xl">{it.emoji}</span>
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
+                            <ItemIcon icon={it.icon} />
+                          </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] font-semibold text-foreground">
                               {it.name}
@@ -492,7 +527,7 @@ const Outfit = () => {
           {/* Today's Look board */}
           <section className="mt-7">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
               <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
                 AI코디 추천
               </span>
@@ -500,7 +535,7 @@ const Outfit = () => {
             <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground break-keep">
               추천 아이템을 실제 코디로 미리 확인해보세요. 매일 날씨와 아이 체질에 맞춰 업데이트돼요.
             </p>
-            <div className="mt-3 overflow-hidden rounded-2xl border border-border/60 bg-card shadow-soft">
+            <div className="mt-3 overflow-hidden rounded-2xl bg-card shadow-soft">
               <img
                 src={ootdLook}
                 alt={`${cur?.name ?? "우리 아이"}의 오늘 코디 미리보기`}
@@ -512,15 +547,17 @@ const Outfit = () => {
 
           {/* Avoid */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">피해주세요</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">피해주세요</h2>
             <ul className="mt-3 space-y-2">
               {plan.avoid.map((a) => (
                 <li
                   key={a.name}
-                  className="rounded-2xl border border-border/60 bg-card p-4 shadow-soft"
+                  className="rounded-2xl bg-card p-4 shadow-soft"
                 >
                   <div className="flex items-center gap-2.5">
-                    <span className="text-xl">{a.emoji}</span>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-status-warn-bg text-status-warn">
+                      <ItemIcon icon={a.icon} />
+                    </span>
                     <p className="text-[14px] font-semibold text-foreground">{a.name}</p>
                   </div>
                   <div className="mt-2 flex items-start gap-1.5 rounded-xl bg-soft px-3 py-2">

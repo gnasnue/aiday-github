@@ -50,7 +50,9 @@ export default {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
           hover: "hsl(var(--primary-hover))",
+          tint: "hsl(var(--primary-tint))",
         },
+        faint: "hsl(var(--faint))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -90,6 +92,8 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // v3 카드 표준: rounded-2xl = 20px (면 분리 문법)
+        "2xl": "1.25rem",
       },
       keyframes: {
         "accordion-down": {

@@ -78,7 +78,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {pains.map((p, i) => (
-                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                <div key={i} className="rounded-2xl bg-card p-5 shadow-soft">
                   <p className="text-sm font-medium leading-relaxed text-foreground break-keep">{p}</p>
                 </div>
               ))}
@@ -95,7 +95,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-3">
               {diffs.map((d, i) => (
-                <div key={d.title} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                <div key={d.title} className="rounded-2xl bg-card p-5 shadow-soft">
                   <div className="flex items-baseline gap-2.5">
                     <span className="text-xs font-bold tabular-nums text-accent">{String(i + 1).padStart(2, "0")}</span>
                     <h3 className="text-base font-semibold break-keep">{d.title}</h3>
@@ -116,7 +116,7 @@ export default function IndexPage() {
             </h2>
             <div className="mt-6 space-y-4">
               {reviews.map((r, i) => (
-                <div key={i} className="rounded-2xl border border-border/60 bg-card p-5 shadow-soft">
+                <div key={i} className="rounded-2xl bg-card p-5 shadow-soft">
                   <p className="text-sm leading-relaxed text-foreground break-keep">
                     {r.text}
                   </p>
