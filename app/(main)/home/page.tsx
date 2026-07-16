@@ -21,7 +21,7 @@ import {
 import { buildRecommendation } from "@/lib/recommendation-engine";
 import { mockWeather } from "@/lib/weather-mock";
 import type { WeatherData } from "@/lib/weather-api";
-import { buildTimeline, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
+import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
@@ -394,14 +394,13 @@ const Home = () => {
           pollen: null,
         });
         if (w && !w.error) {
-          const dustGrade = a?.pm10Grade ?? 1;
-          const dustLabel = (["좋음", "보통", "나쁨", "매우나쁨"] as const)[dustGrade - 1] ?? "보통";
           const windLabel = w.windSpeed >= 9 ? "강함" : w.windSpeed >= 4 ? "보통" : "약함";
           setWeatherData({
             ...mockWeather,
             temp: w.temperature ?? mockWeather.temp,
             humidity: w.humidity ?? mockWeather.humidity,
-            dustLevel: dustLabel,
+            // 타임라인 카드와 동일한 매핑 사용 — null(측정 실패)은 "보통"으로 통일
+            dustLevel: dustLabel(a?.pm10Grade ?? null),
             windSpeed: windLabel,
           });
           setCurWeather({
@@ -478,8 +477,8 @@ const Home = () => {
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    // v12: 체질 민감도 코드→한국어 변환(버그 B) — 프롬프트 입력 변경으로 구캐시 무효화
-    const cacheKey = `aiday:report:v12:${cur.id}:${localDateStr()}`;
+    // v14: 자외선 등급 표기(숫자 금지)를 message까지 확장 — 프롬프트 변경으로 구캐시 무효화
+    const cacheKey = `aiday:report:v14:${cur.id}:${localDateStr()}`;
 
     // 주의: 이 effect는 hook 도착 시 setAiLoading(false)로 자기 dep을 스트림 도중 바꾼다.
     // 따라서 cleanup에서 fetch를 abort하면 SSE가 done 전에 끊긴다 — abort를 쓰지 않는다.
@@ -1103,19 +1102,21 @@ const Home = () => {
             </section>
           ) : (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
-              {/* 카드 헤더 — 아이브로우 + 메타 + 새로고침·공유 */}
-              <div className="flex items-center gap-2">
-                <span className="eyebrow shrink-0 text-accent">AI 리포트</span>
-                <span className="num min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
+              {/* 카드 헤더 — 크림(secondary) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
+                  구분하고 "AI 리포트"임을 앵커링. 헤더 텍스트·아이콘은 블랙(foreground),
+                  라벨·날짜는 섹션 헤더("오늘 챙길 것")와 동일한 15px/bold. */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-secondary px-5 py-3">
+                <span className="shrink-0 text-[15px] font-bold text-foreground">AI 리포트</span>
+                <span className="num min-w-0 flex-1 truncate text-[15px] font-bold text-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
                 </span>
-                <div className="-mr-1.5 flex shrink-0 items-center text-muted-foreground">
+                <div className="-mr-1.5 flex shrink-0 items-center text-foreground">
                   <button
                     onClick={refreshReport}
                     disabled={aiLoading}
                     aria-label="리포트 새로고침"
-                    className="rounded-full p-2.5 transition-smooth hover:bg-muted disabled:opacity-40"
+                    className="rounded-full p-2 transition-smooth hover:bg-foreground/5 disabled:opacity-40"
                   >
                     <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
                   </button>
@@ -1123,7 +1124,7 @@ const Home = () => {
                     onClick={handleShare}
                     disabled={sharing}
                     aria-label="공유"
-                    className="rounded-full p-2.5 transition-smooth hover:bg-muted disabled:opacity-40"
+                    className="rounded-full p-2 transition-smooth hover:bg-foreground/5 disabled:opacity-40"
                   >
                     {sharing ? (
                       <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.75} />
@@ -1136,7 +1137,7 @@ const Home = () => {
 
               {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트 (현재날씨·체감·강수·미세먼지·습도) */}
               {nowWeatherLine && (
-                <p className="mt-2.5 text-[11.5px] font-medium tabular-nums text-muted-foreground break-keep">
+                <p className="text-[11.5px] font-medium tabular-nums text-muted-foreground break-keep">
                   {nowWeatherLine}
                 </p>
               )}
@@ -1179,7 +1180,7 @@ const Home = () => {
                       <button
                         onClick={() => setReportExpanded((v) => !v)}
                         aria-expanded={reportExpanded}
-                        className="mt-2 flex min-h-11 items-center gap-1 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
+                        className="mt-2 flex min-h-11 w-full items-center justify-end gap-1 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
                       >
                         {reportExpanded ? "간단히 접기" : "자세한 리포트 보기"}
                         <ChevronDown

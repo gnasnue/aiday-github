@@ -61,8 +61,9 @@ const parseHour = (t?: string): number | null => {
   return Number.isNaN(h) ? null : h;
 };
 
-// 에어코리아 통합대기 등급(1~4) → 라벨
-const dustLabel = (g: number | null): DustLevel =>
+// 에어코리아 통합대기 등급(1~4) → 라벨 (홈 상단 환경 한 줄·시간대 카드 공용).
+// null(측정 실패)은 "좋음"이 아니라 중립값 "보통"으로 — 데이터가 없을 때 거짓 안심을 주지 않는다.
+export const dustLabel = (g: number | null): DustLevel =>
   g === 1 ? "좋음" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "보통";
 
 // 꽃가루 위험지수(0~4) → 라벨 (홈 상단 환경 칩·시간대 카드 공용)

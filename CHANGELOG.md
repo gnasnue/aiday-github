@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.8.0] - 2026-07-17
+
+### Fixed
+- **홈 현재 날씨 지표 null → mock 무음 폴백 해소** (`app/api/weather/route.ts`) — 자정~02:30 구간에 아직 발표되지 않은 당일 0200 단기예보를 요청하고, 현재값을 정확 정시(예: 0000)로만 찾다가 그 정시가 비면 기온·체감·습도·강수 스칼라가 통째로 null이 돼 홈 상단이 오류 표시 없이 mock(15°/습도 42%)으로 새던 문제. `getBaseDateTime`을 전날 2300 발표본으로 롤백하고, 현재값을 '지금'에 가장 가까운 예보 정시로 최근접 매칭하도록 개선 — 상단 현재 환경 한 줄이 항상 실측(시간대별 카드·AI 리포트와 정합)으로 표시됨
+- **미세먼지 등급 null 폴백 불일치** (`lib/timeline.ts`, `app/(main)/home/page.tsx`) — 측정 실패 시 상단 한 줄은 "좋음"(거짓 안심), 시간대 카드는 "보통"으로 달랐다. `dustLabel`을 export해 양쪽이 공유하도록 하고 null→"보통"으로 통일
+
+### Changed
+- **AI 리포트 자외선 등급 표기 + checklist 접두어 제거** (`lib/prompts/report.ts`, `app/(main)/home/page.tsx`) — hook·message에서 "자외선 9" 같은 수치 대신 "자외선 강함"/"자외선 매우강함" 등급으로 표기하고, checklist 이름의 건강 특이사항 접두어 제거("아토피 자외선차단제"→"자외선차단제"). 프롬프트 변경 반영 위해 리포트 캐시 키 v12→v14 갱신
+- **홈 AI 리포트 카드 헤더 크림 밴드** (`app/(main)/home/page.tsx`) — 화면당 하나뿐인 히어로 카드 상단에 크림(`secondary`) 풀-블리드 띠 도입으로 "AI 리포트" 앵커링·가독성 강화. 라벨·날짜를 섹션 헤더("오늘 챙길 것")와 동일한 15px/bold 블랙으로, 새로고침·공유 아이콘 블랙, "자세한 리포트 보기" 우측 정렬
+
 ## [0.3.7.0] - 2026-07-17
 
 ### Changed

@@ -51,6 +51,18 @@ function getBaseDateTime(): { base_date: string; base_time: string } {
   const baseTimes = [2, 5, 8, 11, 14, 17, 20, 23];
   const currentMinutes = hour * 60 + minute;
 
+  // 02:30 이전엔 당일 첫 발표본(0200)이 아직 없다 — 전날 2300 발표본으로 롤백한다.
+  // (미발표 발표본을 요청하면 NO_DATA로 시간대별 예보가 통째로 비고, 현재값 정시(0000 등)도
+  //  0200 발표본엔 없어 스칼라가 전부 null이 된다 → 홈이 mock으로 조용히 폴백)
+  if (currentMinutes < baseTimes[0] * 60 + 30) {
+    const y = new Date(kst.getTime() - 24 * 60 * 60 * 1000);
+    const base_date =
+      String(y.getUTCFullYear()) +
+      String(y.getUTCMonth() + 1).padStart(2, "0") +
+      String(y.getUTCDate()).padStart(2, "0");
+    return { base_date, base_time: "2300" };
+  }
+
   let selectedHour = baseTimes[0];
   for (const t of baseTimes) {
     if (currentMinutes >= t * 60 + 30) {
@@ -136,23 +148,37 @@ export async function GET(request: NextRequest) {
       String(kst.getUTCMonth() + 1).padStart(2, "0") +
       String(kst.getUTCDate()).padStart(2, "0");
 
-    const currentHour = kst.getUTCHours();
-    const nearestHour = Math.ceil(currentHour / 3) * 3;
-    const wrapsToNextDay = nearestHour >= 24;
-    const fcstTime = String(wrapsToNextDay ? 0 : nearestHour).padStart(2, "0") + "00";
-
-    // 22~23시엔 nearestHour가 24(=다음날 0시)로 넘어가므로, 조회 날짜도 함께 하루 넘겨야 함
-    const targetDate = wrapsToNextDay
-      ? new Date(kst.getTime() + 24 * 60 * 60 * 1000)
-      : kst;
-    const targetDateStr =
-      String(targetDate.getUTCFullYear()) +
-      String(targetDate.getUTCMonth() + 1).padStart(2, "0") +
-      String(targetDate.getUTCDate()).padStart(2, "0");
+    // 현재값(상단 '현재 환경' 스칼라): '지금'에 가장 가까운 예보 정시를 고른다.
+    // 특정 정시를 정확히 일치시키던 종전 방식은 발표본 경계(자정 직후 등)에서 그 정시가
+    // 비면 스칼라가 통째로 null이 돼 홈이 mock으로 새는 문제가 있었다. 최근접 매칭으로
+    // 데이터가 하나라도 있으면 항상 실측 현재값을 노출한다. (fcstDate/Time을 KST 벽시계로
+    // 해석해 epoch 비교 — uv 라우트와 동일 패턴, +9h는 차분에서 상쇄되어 무관)
+    const nowShiftedMs = kst.getTime();
+    const fcstMs = (it: FcstItem) =>
+      Date.UTC(
+        Number(it.fcstDate.slice(0, 4)),
+        Number(it.fcstDate.slice(4, 6)) - 1,
+        Number(it.fcstDate.slice(6, 8)),
+        Number(it.fcstTime.slice(0, 2)),
+        Number(it.fcstTime.slice(2, 4))
+      );
+    // 최신 발표본에 항목이 없으면(콜드 응답 등) 보조 0200 발표본으로 폴백
+    const currentItems = items.length ? items : fillItems;
+    let curDate = "";
+    let curTime = "";
+    let bestDiff = Infinity;
+    for (const item of currentItems) {
+      const diff = Math.abs(fcstMs(item) - nowShiftedMs);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        curDate = item.fcstDate;
+        curTime = item.fcstTime;
+      }
+    }
 
     const forecast: Record<string, string> = {};
-    for (const item of items) {
-      if (item.fcstDate === targetDateStr && item.fcstTime === fcstTime) {
+    for (const item of currentItems) {
+      if (item.fcstDate === curDate && item.fcstTime === curTime) {
         forecast[item.category] = item.fcstValue;
       }
     }
