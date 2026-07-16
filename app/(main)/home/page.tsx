@@ -166,16 +166,18 @@ const renderRich = (text: string) => {
   });
 };
 
-// AI hook(히어로 헤드라인)을 두 줄로 — "조건, 행동" 또는 "조건 — 행동" 형태를 분리.
-// 구분자(쉼표·대시)가 없으면 한 줄로 두고 자연 줄바꿈에 맡긴다.
+// AI hook(히어로 헤드라인)을 두 줄로 — "조건 — 행동" 또는 "조건, 행동" 형태를 분리.
+// 프롬프트 규칙상 hook은 "[공감] — [행동]" 구조라 대시가 1차 구분자다. 행동절에 쉼표가
+// 섞여도(예: "자외선 매우강함 — 땀도 많은 날, 대비하세요") 대시에서 갈리도록 대시를 먼저 본다.
+// 대시가 없을 때만 쉼표를 폴백 구분자로 쓰고, 둘 다 없으면 한 줄로 두고 자연 줄바꿈에 맡긴다.
 const splitHook = (hook: string): string[] => {
-  const comma = hook.search(/[,，]/);
-  if (comma > 0 && comma < hook.length - 1) {
-    return [hook.slice(0, comma + 1).trim(), hook.slice(comma + 1).trim()];
-  }
   const dash = hook.match(/\s+[—–-]\s+/);
   if (dash && dash.index != null) {
     return [hook.slice(0, dash.index).trim(), hook.slice(dash.index + dash[0].length).trim()];
+  }
+  const comma = hook.search(/[,，]/);
+  if (comma > 0 && comma < hook.length - 1) {
+    return [hook.slice(0, comma + 1).trim(), hook.slice(comma + 1).trim()];
   }
   return [hook];
 };
@@ -267,6 +269,10 @@ const Home = () => {
   const [aiError, setAiError] = useState(false);
   // 현재 표시 중인 리포트의 생성 시각 — 헤더에 "7월 13일 (월) 07:30" 형태로 노출
   const [reportTs, setReportTs] = useState<number | null>(null);
+  // 리포트 본문(message) 펼침 여부 — 랜딩 시엔 hook만 노출하고 본문은 접어둔다.
+  // 바쁜 부모가 앱을 켰을 때 "아침의 결론(hook)"이 한눈에 들어오게 하고,
+  // 자세한 설명은 원할 때만 펼쳐본다. 매 진입마다 접힌 상태로 시작(의도된 기본값).
+  const [reportExpanded, setReportExpanded] = useState(false);
   const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
   const lastManualRefreshRef = useRef(0);
   const weatherRawRef = useRef<object | null>(null);
@@ -813,6 +819,16 @@ const Home = () => {
 
   const message = aiMessage || fallbackMessage;
 
+  // 리포트 본문 문단 — 펼침 영역과 hook 없는 폴백에서 공통으로 재사용
+  const messageParagraphs = message
+    .split("\n")
+    .filter(Boolean)
+    .map((line, i) => (
+      <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
+        {renderRich(line)}
+      </p>
+    ));
+
   // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
   const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
     if (aiChecklist.length > 0) {
@@ -1002,26 +1018,44 @@ const Home = () => {
                       ))}
                     </h1>
                   )}
-                  {/* message — 상세 설명. 스트리밍 중 본문이 아직 안 온 구간엔 스켈레톤 */}
+                  {/* message — 상세 설명(리포트 본문).
+                      · 스트리밍 중 본문이 아직 안 온 구간엔 스켈레톤.
+                      · hook이 있으면 랜딩 시 본문을 접어두고 [자세한 리포트 보기 ▼]로 펼친다
+                        (바쁜 부모가 hook 한 문장만 먼저 보게 하는 게 목적).
+                      · hook이 없는 폴백(규칙 기반 기본 추천)에선 접을 히어로가 없으므로 본문을 바로 노출. */}
                   {aiStreaming && !aiMessage ? (
                     <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
                       <Skeleton className="h-3.5 w-full rounded-full" />
                       <Skeleton className="h-3.5 w-5/6 rounded-full" />
                       <Skeleton className="h-3.5 w-4/6 rounded-full" />
                     </div>
+                  ) : aiHook ? (
+                    <>
+                      <button
+                        onClick={() => setReportExpanded((v) => !v)}
+                        aria-expanded={reportExpanded}
+                        className="mt-2 flex min-h-11 items-center gap-1 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
+                      >
+                        {reportExpanded ? "간단히 접기" : "자세한 리포트 보기"}
+                        <ChevronDown
+                          className={`h-3.5 w-3.5 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
+                          strokeWidth={2}
+                        />
+                      </button>
+                      {reportExpanded && (
+                        <div className="mt-0.5 space-y-1.5 animate-fade-up">{messageParagraphs}</div>
+                      )}
+                    </>
                   ) : (
-                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
-                      {message.split("\n").filter(Boolean).map((line, i) => (
-                        <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
-                          {renderRich(line)}
-                        </p>
-                      ))}
-                    </div>
+                    <div className="mt-3 space-y-2">{messageParagraphs}</div>
                   )}
                 </>
               )}
 
-              {/* 환경 칩 — warn=주황, good=초록(흰bg+도트), 보통=플랫 그레이 */}
+              {/* 환경 칩 — warn=주황, good=초록(흰bg+도트), 보통=플랫 그레이.
+                  message와 함께 접힘 대상: hook이 있고 접힌 상태면 숨기고, 펼치면 본문 아래 노출.
+                  hook이 없는 폴백에선 본문이 바로 보이므로 칩도 함께 노출. */}
+              {(!aiHook || reportExpanded) && (
               <div className="mt-3.5 flex flex-wrap gap-1.5">
                 {badges.map((b) => {
                   const t = badgeTone(b.tone);
@@ -1045,6 +1079,7 @@ const Home = () => {
                   );
                 })}
               </div>
+              )}
 
               {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄.
                   리포트가 정착(hook·message·checklist 도착)하기 전까지는 스켈레톤 유지.
