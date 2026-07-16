@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter } from "next/navigation"; ;
+import { usePathname } from "next/navigation";
 import {
-  ArrowLeft,
   Info,
   Sun,
   Cloud,
@@ -16,7 +15,7 @@ import {
   Footprints,
   type LucideIcon,
 } from "lucide-react";
-import Logo from "@/components/Logo";
+import PageHeader from "@/components/PageHeader";
 import LineIcon, { type LineIconName } from "@/components/LineIcon";
 const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
@@ -338,7 +337,6 @@ function buildOutfit(
 }
 
 const Outfit = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
   const activeId = (() => {
@@ -405,26 +403,10 @@ const Outfit = () => {
   return (
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => router.back()}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
-                aria-label="뒤로가기"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <Logo />
-            </div>
-          </div>
-        </header>
+        <PageHeader />
 
         <main className="container-mobile pt-5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-accent">
-            Today's OOTD
-          </p>
-          <h1 className="mt-1 text-xl font-bold tracking-tight">
+          <h1 className="text-[20px] font-bold tracking-tight">
             {cur ? `${cur.name}의 오늘 코디` : "오늘의 코디"}
           </h1>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -499,14 +481,9 @@ const Outfit = () => {
                     className="rounded-2xl bg-card p-4 shadow-soft"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[13px] font-bold text-foreground">
-                          {categoryMeta[cat].label}
-                        </span>
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {categoryMeta[cat].hint}
-                        </span>
-                      </div>
+                      <span className="text-[14px] font-bold text-foreground">
+                        {categoryMeta[cat].label}
+                      </span>
                       <span className="rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                         {list.length}개
                       </span>

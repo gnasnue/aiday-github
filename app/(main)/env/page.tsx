@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation"; ;
+import { usePathname } from "next/navigation";
 import {
-  ArrowLeft,
   MapPin,
   ChevronDown,
   RefreshCw,
@@ -22,7 +21,7 @@ import {
   Sprout,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
-import Logo from "@/components/Logo";
+import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
@@ -98,7 +97,6 @@ const o3Grade = (ppm: number | null): number | null =>
 /* ----------------------------- page ----------------------------- */
 
 const Environment = () => {
-  const router = useRouter();
   const pathname = usePathname();
   const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
   const activeId = (() => {
@@ -308,36 +306,26 @@ const Environment = () => {
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => router.back()}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
-                aria-label="뒤로가기"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <Logo />
-            </div>
+        <PageHeader
+          right={
             <button
               onClick={refresh}
               disabled={refreshing}
-              className="rounded-full p-2 text-foreground hover:bg-muted disabled:opacity-50"
+              className={headerBtn}
               aria-label="새로고침"
             >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`h-5 w-5 ${refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
             </button>
-          </div>
-        </header>
+          }
+        />
 
         <main className="container-mobile pt-5">
           {/* Personalized insights */}
           <section>
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-[20px] font-bold tracking-tight">
+              <h1 className="text-[20px] font-bold tracking-tight">
                 {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
-              </h2>
+              </h1>
               {/* Location */}
               <button
                 onClick={() => toast("위치 변경은 준비 중이에요")}

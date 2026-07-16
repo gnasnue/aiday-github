@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import {
-  ArrowLeft,
   ExternalLink,
   ShieldCheck,
   BookOpen,
@@ -14,7 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
-import Logo from "@/components/Logo";
+import PageHeader from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
@@ -261,24 +260,14 @@ const Tips = () => {
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
         {/* Header */}
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => router.back()}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
-                aria-label="뒤로가기"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
-              <Logo />
-            </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-accent">
-              <ShieldCheck className="h-3.5 w-3.5" />
+        <PageHeader
+          right={
+            <div className="flex items-center gap-1.5 rounded-full bg-primary-tint px-2.5 py-1 text-xs font-medium text-accent">
+              <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
               근거 기반
             </div>
-          </div>
-        </header>
+          }
+        />
 
         <main className="container-mobile pt-5">
           <h1 className="text-xl font-bold tracking-tight">건강팁</h1>

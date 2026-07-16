@@ -16,7 +16,7 @@ import {
   Baby,
   type LucideIcon,
 } from "lucide-react";
-import Logo from "@/components/Logo";
+import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -188,27 +188,26 @@ const My = () => {
   return (
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <Logo />
-            <div className="flex items-center gap-1">
+        <PageHeader
+          right={
+            <>
               <button
                 onClick={() => toast("새 알림이 없어요")}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="알림"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-5 w-5" strokeWidth={1.75} />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className="rounded-full p-2 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="설정"
               >
-                <Settings className="h-5 w-5" />
+                <Settings className="h-5 w-5" strokeWidth={1.75} />
               </button>
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <main className="container-mobile pt-5">
           <div>

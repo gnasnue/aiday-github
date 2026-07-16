@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
-import Logo from "@/components/Logo";
+import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
@@ -994,27 +994,26 @@ const Home = () => {
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
         {/* Top nav */}
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <Logo />
-            <div className="flex items-center gap-1">
+        <PageHeader
+          right={
+            <>
               <button
                 onClick={() => toast("새 알림이 없어요")}
-                className="relative rounded-full p-3 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="알림"
               >
                 <Bell className="h-5 w-5" strokeWidth={1.75} />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className="rounded-full p-3 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="설정"
               >
                 <Settings className="h-5 w-5" strokeWidth={1.75} />
               </button>
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <main className="container-mobile pt-5">
           {/* 상단 라인 — 프로필 탭(좌, 가로 스크롤) + 위치(우, 고정) */}
