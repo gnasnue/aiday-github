@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.6.0] - 2026-07-16
+
 ### Changed
 - **상품 추천 섹션을 홈 → 옷차림 하단으로 이동** (`app/(main)/home/page.tsx`, `app/(main)/outfit/page.tsx`) — 홈은 "판단·실행"에 집중하고 커머스성 정보는 옷차림 페이지 최하단 "오늘 필요한 아이템"으로 분리. 일러스트 카드 가로 스크롤 → 텍스트+가격 심플 리스트(이름·근거·가격)로 교체. 추천은 오늘 코디(plan.items) 파생으로 규칙 엔진(`buildItemRecommendations`)을 재사용해 코디와 상품이 어긋나지 않게 유지. 실연동 전이라 탭 동작을 제거하고 "가격은 참고용 · 구매 연동 준비 중" 명시(가짜 affordance 제거)
 
