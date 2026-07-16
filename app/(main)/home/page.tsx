@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
-import Logo from "@/components/Logo";
+import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
@@ -231,6 +231,11 @@ const Home = () => {
   const [checked, setChecked] = useState<number[]>([]);
   const [loading, setLoading] = useState(true);
   const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  // 현재 날씨 스칼라(지금 날씨 카드용) — weatherData는 축약본이라 원본 스칼라를 따로 보관
+  const [curWeather, setCurWeather] = useState<{
+    temperature: number | null; feelsLike: number | null; windSpeed: number | null;
+    humidity: number | null; pop: number | null; sky: number | null; pty: number | null;
+  } | null>(null);
   const [envRaw, setEnvRaw] = useState<EnvRaw | null>(null);
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
@@ -398,6 +403,15 @@ const Home = () => {
             humidity: w.humidity ?? mockWeather.humidity,
             dustLevel: dustLabel,
             windSpeed: windLabel,
+          });
+          setCurWeather({
+            temperature: w.temperature ?? null,
+            feelsLike: w.feelsLike ?? null,
+            windSpeed: w.windSpeed ?? null,
+            humidity: w.humidity ?? null,
+            pop: w.pop ?? null,
+            sky: w.sky ?? null,
+            pty: w.pty ?? null,
           });
         }
         setLoading(false);
@@ -860,6 +874,19 @@ const Home = () => {
     return `${base} ${hh}:${mm}`;
   })();
 
+  // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만)
+  const nowWeatherLine = (() => {
+    const parts: string[] = [];
+    const t = curWeather?.temperature ?? weatherData.temp;
+    if (t != null) parts.push(`${t}°`);
+    if (curWeather?.feelsLike != null) parts.push(`체감 ${curWeather.feelsLike}°`);
+    if (curWeather?.pop != null) parts.push(`강수 ${curWeather.pop}%`);
+    if (weatherData.dustLevel) parts.push(`미세먼지 ${weatherData.dustLevel}`);
+    const hum = curWeather?.humidity ?? weatherData.humidity;
+    if (hum != null) parts.push(`습도 ${hum}%`);
+    return parts.join(" · ");
+  })();
+
   // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
   // 모바일 네이티브 공유 시트(navigator.share)로 넘긴다. 미지원(주로 데스크톱)이면
   // 클립보드 복사로 폴백. 사용자 제스처(클릭) 안에서만 호출되므로 권한 이슈 없음.
@@ -994,27 +1021,26 @@ const Home = () => {
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
         {/* Top nav */}
-        <header className="sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-md">
-          <div className="container-mobile flex h-14 items-center justify-between">
-            <Logo />
-            <div className="flex items-center gap-1">
+        <PageHeader
+          right={
+            <>
               <button
                 onClick={() => toast("새 알림이 없어요")}
-                className="relative rounded-full p-3 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="알림"
               >
                 <Bell className="h-5 w-5" strokeWidth={1.75} />
               </button>
               <button
                 onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className="rounded-full p-3 text-foreground hover:bg-muted"
+                className={headerBtn}
                 aria-label="설정"
               >
                 <Settings className="h-5 w-5" strokeWidth={1.75} />
               </button>
-            </div>
-          </div>
-        </header>
+            </>
+          }
+        />
 
         <main className="container-mobile pt-5">
           {/* 상단 라인 — 프로필 탭(좌, 가로 스크롤) + 위치(우, 고정) */}
@@ -1108,6 +1134,13 @@ const Home = () => {
                 </div>
               </div>
 
+              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트 (현재날씨·체감·강수·미세먼지·습도) */}
+              {nowWeatherLine && (
+                <p className="mt-2.5 text-[11.5px] font-medium tabular-nums text-muted-foreground break-keep">
+                  {nowWeatherLine}
+                </p>
+              )}
+
               {/* hook + message — 로딩 중엔 skeleton */}
               {aiLoading ? (
                 <div className="mt-3 space-y-2">
@@ -1162,35 +1195,6 @@ const Home = () => {
                     <div className="mt-3 space-y-2">{messageParagraphs}</div>
                   )}
                 </>
-              )}
-
-              {/* 환경 칩 — warn=주황, good=초록(흰bg+도트), 보통=플랫 그레이.
-                  message와 함께 접힘 대상: hook이 있고 접힌 상태면 숨기고, 펼치면 본문 아래 노출.
-                  hook이 없는 폴백에선 본문이 바로 보이므로 칩도 함께 노출. */}
-              {(!aiHook || reportExpanded) && (
-              <div className="mt-3.5 flex flex-wrap gap-1.5">
-                {badges.map((b) => {
-                  const t = badgeTone(b.tone);
-                  return t === "neutral" ? (
-                    <span
-                      key={b.label}
-                      className="rounded-full bg-muted px-[11px] py-[5px] text-[12px] text-muted-foreground"
-                    >
-                      {b.label} {b.value}
-                    </span>
-                  ) : (
-                    <span
-                      key={b.label}
-                      className={`inline-flex items-center gap-1.5 rounded-full border px-[11px] py-[5px] text-[12px] font-semibold ${
-                        t === "warn" ? "chip-warn" : "chip-good"
-                      }`}
-                    >
-                      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-current" aria-hidden="true" />
-                      {b.label} {b.value}
-                    </span>
-                  );
-                })}
-              </div>
               )}
 
               {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄.
@@ -1322,7 +1326,6 @@ const Home = () => {
                           </div>
                         ))}
                       </dl>
-                      {/* 준비물 칩은 하루 케어 플랜에만 노출 — 강수확률 warn 행이 근거를 전달 (중복 제거) */}
                     </article>
                   ))}
             </div>

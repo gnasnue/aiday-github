@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>홈 상단 재구성 목업 — 날씨 카드 이동</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Pretendard Variable",Pretendard,sans-serif;background:#EDEBE8;color:#26201B;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:40px 20px 80px}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.12em;color:#C2540A;text-transform:uppercase}
+  h1{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:6px 0 10px}
+  .sub{font-size:14px;color:#6E655D;line-height:1.7;max-width:600px}
+  .cols{display:flex;gap:28px;flex-wrap:wrap;margin-top:32px;align-items:flex-start}
+  .col{flex:1;min-width:340px}
+  .lbl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:12px}
+  .tag{padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.05em}
+  .tb{background:#DED9D4;color:#6E655D}.ta{background:#F97316;color:#fff}
+
+  /* v3 tokens */
+  .v3{--bg:#F6F4F2;--card:#FFFFFF;--ink:#26201B;--ink2:#6E655D;--ink3:#9C938A;--brand:#F97316;--deep:#C2540A;--tint:#FFEDDD;--divider:#F0EDEA;--warn:#D4622A}
+  .phone{width:390px;max-width:100%;background:var(--bg);border-radius:22px;overflow:hidden;box-shadow:0 8px 40px rgba(40,29,21,.16);color:var(--ink)}
+  .hd{display:flex;align-items:center;justify-content:space-between;padding:13px 20px 10px}
+  .logo{font-size:18px;font-weight:800}.logo em{font-style:normal;color:var(--brand)}
+  .hicons{display:flex;gap:6px;color:var(--ink2)}
+  .kids{display:flex;align-items:center;gap:8px;padding:2px 20px 14px}
+  .chip{display:flex;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;font-size:13px;font-weight:600;background:var(--card);color:var(--ink2);box-shadow:0 1px 2px rgba(40,29,21,.04)}
+  .chip.on{background:var(--tint);color:var(--deep);font-weight:700}
+  .chip .d{width:20px;height:20px;border-radius:50%;background:#D9EEDF;color:#3A6B4F;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center}
+  .chip.on .d{background:var(--brand);color:#fff}
+  .loc{margin-left:auto;display:flex;align-items:center;gap:3px;font-size:12px;color:var(--ink2)}
+  .body{padding:0 16px 18px}
+  .hero{background:var(--card);border-radius:20px;padding:18px;box-shadow:0 1px 3px rgba(40,29,21,.05),0 10px 28px -10px rgba(40,29,21,.12)}
+  .hero .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  .hlabel{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:800;letter-spacing:.06em;color:var(--deep)}
+  .hmeta{font-size:12px;color:var(--ink3)}
+  .hero h3{font-size:24px;font-weight:800;line-height:1.32;letter-spacing:-.02em}
+  .hmore{display:flex;align-items:center;gap:2px;margin-top:10px;font-size:13px;color:var(--ink2)}
+  .hr{height:1px;background:var(--divider);margin:16px -18px}
+  .chead{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+  .chead .t{font-size:15px;font-weight:700}.chead .n{font-size:13px;font-weight:700;color:var(--deep)}
+  .crow{display:flex;align-items:center;gap:11px;padding:9px 0}
+  .crow+.crow{border-top:1px solid var(--divider)}
+  .cbox{width:22px;height:22px;border-radius:50%;border:2px solid #DDD6CE;background:#fff}
+  .cic{width:34px;height:34px;border-radius:11px;background:var(--tint);color:var(--deep);display:flex;align-items:center;justify-content:center}
+  .crow .lb{font-size:15px;font-weight:500}
+
+  /* ▼ 시간대별 환경 raw 카드 (BEFORE에서 제거 대상) */
+  .sec-h{font-size:17px;font-weight:700;margin:24px 4px 12px;letter-spacing:-.01em}
+  .tl{display:flex;gap:10px;overflow:hidden}
+  .tlc{min-width:150px;background:var(--card);border-radius:16px;padding:14px;box-shadow:0 1px 2px rgba(40,29,21,.04)}
+  .tlc .w{font-size:13px;font-weight:600;color:var(--ink2)}
+  .tlc .tmp{margin-top:6px;font-size:24px;font-weight:700;letter-spacing:-.03em}
+  .tlc dl{margin-top:10px;font-size:11px;color:var(--ink2)}
+  .tlc dl div{display:flex;justify-content:space-between;padding:2px 0}
+  .strike{position:relative;opacity:.5}
+  .strike::after{content:"제거";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(191,44,34,.08);color:#BF2C22;font-size:13px;font-weight:800;border:2px dashed rgba(191,44,34,.4);border-radius:16px}
+
+  /* ▼ NEW: 지금 날씨 카드 (AFTER, 히어로 아래) */
+  .now{margin-top:14px;background:var(--card);border-radius:20px;padding:16px;box-shadow:0 1px 2px rgba(40,29,21,.04)}
+  .now .row{display:flex;align-items:stretch;gap:14px}
+  .now .temp{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .now .temp .sky{display:flex;align-items:center;gap:4px;font-size:11px;color:var(--ink2)}
+  .now .temp .big{margin-top:2px;font-size:40px;font-weight:700;line-height:1;letter-spacing:-.03em}
+  .now .temp .feel{margin-top:4px;font-size:11px;color:var(--ink3)}
+  .now .div{width:1px;background:var(--divider);flex-shrink:0}
+  .now .msg{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+  .now .msg .h{font-size:14px;font-weight:600;line-height:1.4}
+  .now .msg .s{margin-top:4px;font-size:12px;color:var(--ink2);line-height:1.5}
+  .now .metrics{margin-top:12px;display:flex;gap:16px;border-top:1px solid var(--divider);padding-top:10px}
+  .now .metrics div{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ink2)}
+  .now .metrics b{font-weight:600;color:var(--ink)}
+  .now .link{margin-top:12px;display:flex;align-items:center;justify-content:flex-end;gap:2px;font-size:13px;font-weight:600;color:var(--deep)}
+
+  .plancard{margin-top:0;background:var(--card);border-radius:18px;padding:2px 18px;box-shadow:0 1px 2px rgba(40,29,21,.04)}
+  .prow{display:flex;align-items:center;gap:12px;padding:13px 0}.prow+.prow{border-top:1px solid var(--divider)}
+  .prow .tm{font-size:14px;font-weight:700;width:42px}.prow.now2 .tm{color:var(--deep)}
+  .prow .wt{flex:1}.prow .wt .t{font-size:14px;font-weight:600}.prow .wt .s{font-size:12px;color:var(--ink2);margin-top:1px}
+  .prow .bd{font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:var(--tint);color:var(--deep)}
+  .note{font-size:13px;color:#6E655D;line-height:1.7;margin-top:14px;max-width:390px}
+  .note b{color:#26201B}
+  svg{flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Home Redesign · 2026-07-16</div>
+  <h1>홈 상단 재구성 — 날씨 카드 이동</h1>
+  <p class="sub">왼쪽(현재)은 AI 히어로 아래에 <b>raw "시간대별 환경" 카드</b>가 env 데이터를 복제. 오른쪽(제안)은 그 자리를 사용자가 좋아한 <b>결론형 "지금 날씨" 카드</b>로 교체하고, 상세는 env로 위임(전체 보기 링크). AI 결론은 그대로 #1 히어로.</p>
+
+  <div class="cols">
+    <!-- BEFORE -->
+    <div class="col">
+      <div class="lbl"><span class="tag tb">BEFORE</span> 현재 홈</div>
+      <div class="phone v3">
+        <div class="hd"><div class="logo">ai<em>day</em></div>
+          <div class="hicons">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </div>
+        </div>
+        <div class="kids"><div class="chip on"><span class="d">지</span>지우·만4세</div><div class="chip"><span class="d">도</span>도윤</div><div class="loc">강남구</div></div>
+        <div class="body">
+          <div class="hero">
+            <div class="top"><span class="hlabel">✦ AI 리포트</span><span class="hmeta">7월 16일 (목)</span></div>
+            <h3>오늘 더위 심해요<br>땀 관리 신경써주세요</h3>
+            <div class="hmore">자세한 리포트 보기 ⌄</div>
+            <div class="hr"></div>
+            <div class="chead"><span class="t">오늘 챙길 것</span><span class="n">0 / 4</span></div>
+            <div class="crow"><span class="cbox"></span><span class="cic">👕</span><span class="lb">여벌 옷</span></div>
+            <div class="crow"><span class="cbox"></span><span class="cic">💧</span><span class="lb">아토피 보습제</span></div>
+          </div>
+
+          <div class="sec-h">시간대별 환경</div>
+          <div class="strike">
+          <div class="tl">
+            <div class="tlc"><div class="w">등원 09:00</div><div class="tmp">26°</div><dl><div><span>미세먼지</span><span>보통</span></div><div><span>자외선</span><span>낮음</span></div><div><span>습도</span><span>70%</span></div></dl></div>
+            <div class="tlc"><div class="w">야외 11:00</div><div class="tmp">30°</div><dl><div><span>미세먼지</span><span>보통</span></div><div><span>자외선</span><span>낮음</span></div><div><span>습도</span><span>55%</span></div></dl></div>
+          </div>
+          </div>
+
+          <div class="sec-h">하루 케어 플랜</div>
+          <div class="plancard">
+            <div class="prow"><div class="tm">09:00</div><div class="wt"><div class="t">등원</div><div class="s">26° · 미세먼지 보통</div></div><span class="bd">보습제</span></div>
+            <div class="prow"><div class="tm">18:00</div><div class="wt"><div class="t">하원</div><div class="s">29° · 여벌 옷</div></div><span class="bd">여벌 옷</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="note">AI 결론 아래 <b>raw 환경 데이터 카드</b>가 env를 복제 — 홈에서 가장 데이터 덤프처럼 보이는 부분. 사용자 지적한 "중복"의 실체.</p>
+    </div>
+
+    <!-- AFTER -->
+    <div class="col">
+      <div class="lbl"><span class="tag ta">AFTER</span> 제안</div>
+      <div class="phone v3">
+        <div class="hd"><div class="logo">ai<em>day</em></div>
+          <div class="hicons">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+          </div>
+        </div>
+        <div class="kids"><div class="chip on"><span class="d">지</span>지우·만4세</div><div class="chip"><span class="d">도</span>도윤</div><div class="loc">강남구</div></div>
+        <div class="body">
+          <div class="hero">
+            <div class="top"><span class="hlabel">✦ AI 리포트</span><span class="hmeta">7월 16일 (목)</span></div>
+            <h3>오늘 더위 심해요<br>땀 관리 신경써주세요</h3>
+            <div class="hmore">자세한 리포트 보기 ⌄</div>
+            <div class="hr"></div>
+            <div class="chead"><span class="t">오늘 챙길 것</span><span class="n">0 / 4</span></div>
+            <div class="crow"><span class="cbox"></span><span class="cic">👕</span><span class="lb">여벌 옷</span></div>
+            <div class="crow"><span class="cbox"></span><span class="cic">💧</span><span class="lb">아토피 보습제</span></div>
+          </div>
+
+          <!-- NEW: 지금 날씨 카드 -->
+          <div class="now">
+            <div class="row">
+              <div class="temp">
+                <div class="sky"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9C938A" stroke-width="1.75"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>맑음</div>
+                <div class="big">25°</div>
+                <div class="feel">체감 25°</div>
+              </div>
+              <div class="div"></div>
+              <div class="msg">
+                <div class="h">더위 관리가 필요한 하루예요</div>
+                <div class="s">땀이 많은 지우, 통풍 잘 되는 옷과 자주 수분 보충을 챙겨주세요.</div>
+              </div>
+            </div>
+            <div class="metrics">
+              <div>바람 <b>0.2m/s</b></div><div>습도 <b>80%</b></div><div>강수 <b>0%</b></div>
+            </div>
+            <div class="link">환경정보 전체 보기 ›</div>
+          </div>
+
+          <div class="sec-h">하루 케어 플랜</div>
+          <div class="plancard">
+            <div class="prow"><div class="tm">09:00</div><div class="wt"><div class="t">등원</div><div class="s">26° · 미세먼지 보통</div></div><span class="bd">보습제</span></div>
+            <div class="prow"><div class="tm">18:00</div><div class="wt"><div class="t">하원</div><div class="s">29° · 여벌 옷</div></div><span class="bd">여벌 옷</span></div>
+          </div>
+        </div>
+      </div>
+      <p class="note"><b>지금 날씨 카드</b>(사용자가 좋아한 outfit 카드) = 결론형 근거: 온도·한줄 해석·핵심 3지표. 히어로보다 시각적으로 가벼워(flat) 위계 충돌 없음. 상세는 <b>"환경정보 전체 보기 →"</b>로 env에 위임. 위계: 판단 → 지금 근거 → 실행.</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
