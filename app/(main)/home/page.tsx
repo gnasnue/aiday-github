@@ -6,7 +6,6 @@ import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbr
 import Logo from "@/components/Logo";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import ItemIllustration from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
 import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
 import { withSubjectSuffix } from "@/lib/korean";
@@ -25,7 +24,6 @@ import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
-import { buildItemRecommendations, type RecommendedItem } from "@/lib/item-recommend";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
@@ -187,14 +185,6 @@ const splitHook = (hook: string): string[] => {
 
 // 환경 보호용 준비물(강수·미세먼지·꽃가루·자외선 대응)은 컬러 강조, 나머지(보습·보온)는 아웃라인.
 const CRITICAL_PREP = new Set(["우산", "마스크", "선크림"]);
-
-// 추천 아이템 근거 톤: 오늘의 실제 신호(fromToday)에서 파생된 환경 경고만 warn(주황).
-// 상시·예방 근거(체질 상비템·카탈로그 채움) 및 비경고 근거(일교차·보온·보습)는 neutral.
-// fromToday를 함께 보므로, 비 예보 없는 날 채움으로 들어온 "비 대비" 우산은 주황이 되지 않는다.
-// 주의: 맨 '비'는 "대비"·"상비템"의 비와 겹치므로 비(rain)는 "비 "(뒤 공백)·"비옷"으로만 매칭.
-const WARN_REASON = /비\s|비옷|우산|미세먼지|자외선|꽃가루|햇빛|폭염|한파|소나기|강수/;
-const reasonTone = (reason: string, fromToday: boolean): "warn" | "neutral" =>
-  fromToday && WARN_REASON.test(reason) ? "warn" : "neutral";
 
 // 슬롯 라벨 정리: "등원시간" → "등원", "하원시간" → "하원"
 const careLabel = (label: string) => label.replace(/시간$/, "");
@@ -848,18 +838,6 @@ const Home = () => {
     return baseChecklist;
   }, [aiChecklist, baseChecklist]);
 
-  // 오늘의 추천 아이템 — 상단 신호(체크리스트 > 시간대 준비물 > 체질)의 파생.
-  // 독립 추천이 아니라 위 결론과 일치하도록 규칙 엔진으로 도출한다.
-  const recommendedItems = useMemo<RecommendedItem[]>(
-    () =>
-      buildItemRecommendations({
-        checklist: activeChecklist.map((c) => `${c.icon} ${c.text}`),
-        prepBySlot: slotPrep,
-        conditions: cur?.conditions ?? [],
-      }),
-    [activeChecklist, slotPrep, cur?.conditions]
-  );
-
   const allDone = checked.length === activeChecklist.length;
 
   // 하루 케어 플랜 "지금" 슬롯 — 지나간 마지막 슬롯(진행 중), 아직 없으면 첫 슬롯
@@ -1432,40 +1410,6 @@ const Home = () => {
                       </div>
                     );
                   })}
-            </div>
-          </section>
-
-          {/* Recommended items */}
-          <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em] break-keep">
-              {withSubjectSuffix(cur.name)} 위한 오늘의 추천 아이템
-            </h2>
-            <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
-              {loading
-                ? Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-44 w-[130px] shrink-0 rounded-2xl" />
-                  ))
-                : recommendedItems.map((it) => (
-                    <button
-                      key={it.art}
-                      onClick={() => toast("외부 구매 페이지로 이동합니다")}
-                      className="w-[132px] shrink-0 rounded-2xl bg-card p-2.5 text-left shadow-soft transition-smooth"
-                    >
-                      <div className="relative flex h-24 items-center justify-center rounded-xl bg-soft">
-                        <ItemIllustration art={it.art} />
-                        {/* 추천 근거 — 경고 연동(비 대비 등)만 warn, 나머지는 neutral */}
-                        <span
-                          className={`absolute left-1.5 top-1.5 max-w-[112px] truncate rounded-full bg-card/90 px-1.5 py-0.5 text-[9px] font-semibold shadow-sm ${
-                            reasonTone(it.reason, it.fromToday) === "warn" ? "text-status-warn" : "text-status-neutral"
-                          }`}
-                        >
-                          {it.reason}
-                        </span>
-                      </div>
-                      <p className="mt-2.5 line-clamp-2 break-keep px-0.5 text-[13px] font-semibold text-foreground leading-snug">{it.name}</p>
-                      <p className="num mt-1 px-0.5 text-xs text-muted-foreground">{it.price}</p>
-                    </button>
-                  ))}
             </div>
           </section>
 
