@@ -477,8 +477,8 @@ const Home = () => {
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    // v14: 자외선 등급 표기(숫자 금지)를 message까지 확장 — 프롬프트 변경으로 구캐시 무효화
-    const cacheKey = `aiday:report:v14:${cur.id}:${localDateStr()}`;
+    // v15: 이름 조사 받침 규칙 교정(withTopicParticle) — 프롬프트 변경으로 구캐시 무효화
+    const cacheKey = `aiday:report:v15:${cur.id}:${localDateStr()}`;
 
     // 주의: 이 effect는 hook 도착 시 setAiLoading(false)로 자기 dep을 스트림 도중 바꾼다.
     // 따라서 cleanup에서 fetch를 abort하면 SSE가 done 전에 끊긴다 — abort를 쓰지 않는다.
@@ -873,17 +873,18 @@ const Home = () => {
     return `${base} ${hh}:${mm}`;
   })();
 
-  // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만)
-  const nowWeatherLine = (() => {
-    const parts: string[] = [];
+  // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만).
+  // 라벨(옅게)+값(진하게) 쌍으로 렌더해 한 줄에서 각 지표가 바로 스캔되게 한다.
+  const nowWeatherItems = (() => {
+    const items: { label: string; value: string }[] = [];
     const t = curWeather?.temperature ?? weatherData.temp;
-    if (t != null) parts.push(`${t}°`);
-    if (curWeather?.feelsLike != null) parts.push(`체감 ${curWeather.feelsLike}°`);
-    if (curWeather?.pop != null) parts.push(`강수 ${curWeather.pop}%`);
-    if (weatherData.dustLevel) parts.push(`미세먼지 ${weatherData.dustLevel}`);
+    if (t != null) items.push({ label: "현재날씨", value: `${t}°` });
+    if (curWeather?.feelsLike != null) items.push({ label: "체감", value: `${curWeather.feelsLike}°` });
+    if (curWeather?.pop != null) items.push({ label: "강수", value: `${curWeather.pop}%` });
+    if (weatherData.dustLevel) items.push({ label: "미세먼지", value: weatherData.dustLevel });
     const hum = curWeather?.humidity ?? weatherData.humidity;
-    if (hum != null) parts.push(`습도 ${hum}%`);
-    return parts.join(" · ");
+    if (hum != null) items.push({ label: "습도", value: `${hum}%` });
+    return items;
   })();
 
   // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
@@ -1135,10 +1136,21 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트 (현재날씨·체감·강수·미세먼지·습도) */}
-              {nowWeatherLine && (
-                <p className="text-[11.5px] font-medium tabular-nums text-muted-foreground break-keep">
-                  {nowWeatherLine}
+              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 라벨은 옅게(faint),
+                  값은 진하게(foreground/bold, 숫자는 .num)로 대비를 줘 가독성을 높인다. */}
+              {nowWeatherItems.length > 0 && (
+                <p className="text-[12px] leading-[1.5] break-keep">
+                  {nowWeatherItems.map((it, i) => (
+                    <span key={it.label}>
+                      {i > 0 && <span className="text-faint"> · </span>}
+                      <span className="text-faint">{it.label} </span>
+                      <span
+                        className={`font-semibold text-foreground ${/\d/.test(it.value) ? "num" : ""}`}
+                      >
+                        {it.value}
+                      </span>
+                    </span>
+                  ))}
                 </p>
               )}
 
@@ -1154,14 +1166,41 @@ const Home = () => {
                 </div>
               ) : (
                 <>
-                  {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론 */}
+                  {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론.
+                      '자세히' 토글은 마지막 줄에 우측 정렬로 얹어, 히어로와 한 덩어리로 읽히게 한다
+                      (본문이 준비된 뒤에만 노출 — 스트리밍 중엔 토글 없이 hook만). */}
                   {aiHook && (
                     <h1 className="mt-3 text-[26px] font-extrabold leading-[1.32] tracking-[-0.02em] text-foreground break-keep">
-                      {splitHook(aiHook).map((ln, i) => (
-                        <span key={i} className="block">
-                          {ln}
-                        </span>
-                      ))}
+                      {(() => {
+                        const lines = splitHook(aiHook);
+                        const canExpand = !(aiStreaming && !aiMessage);
+                        return lines.map((ln, i) => {
+                          const isLast = i === lines.length - 1;
+                          if (!(isLast && canExpand)) {
+                            return (
+                              <span key={i} className="block">
+                                {ln}
+                              </span>
+                            );
+                          }
+                          return (
+                            <span key={i} className="flex items-end justify-between gap-3">
+                              <span className="min-w-0">{ln}</span>
+                              <button
+                                onClick={() => setReportExpanded((v) => !v)}
+                                aria-expanded={reportExpanded}
+                                className="-my-2 flex shrink-0 items-center gap-0.5 whitespace-nowrap py-2 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
+                              >
+                                {reportExpanded ? "접기" : "자세히"}
+                                <ChevronDown
+                                  className={`h-3.5 w-3.5 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
+                                  strokeWidth={2}
+                                />
+                              </button>
+                            </span>
+                          );
+                        });
+                      })()}
                     </h1>
                   )}
                   {/* message — 상세 설명(리포트 본문).
@@ -1176,22 +1215,9 @@ const Home = () => {
                       <Skeleton className="h-3.5 w-4/6 rounded-full" />
                     </div>
                   ) : aiHook ? (
-                    <>
-                      <button
-                        onClick={() => setReportExpanded((v) => !v)}
-                        aria-expanded={reportExpanded}
-                        className="mt-2 flex min-h-11 w-full items-center justify-end gap-1 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
-                      >
-                        {reportExpanded ? "간단히 접기" : "자세한 리포트 보기"}
-                        <ChevronDown
-                          className={`h-3.5 w-3.5 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
-                          strokeWidth={2}
-                        />
-                      </button>
-                      {reportExpanded && (
-                        <div className="mt-0.5 space-y-1.5 animate-fade-up">{messageParagraphs}</div>
-                      )}
-                    </>
+                    reportExpanded && (
+                      <div className="mt-2 space-y-1.5 animate-fade-up">{messageParagraphs}</div>
+                    )
                   ) : (
                     <div className="mt-3 space-y-2">{messageParagraphs}</div>
                   )}
