@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2, Sparkles } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
-import WeatherNowCard from "@/components/WeatherNowCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
@@ -875,6 +874,19 @@ const Home = () => {
     return `${base} ${hh}:${mm}`;
   })();
 
+  // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만)
+  const nowWeatherLine = (() => {
+    const parts: string[] = [];
+    const t = curWeather?.temperature ?? weatherData.temp;
+    if (t != null) parts.push(`${t}°`);
+    if (curWeather?.feelsLike != null) parts.push(`체감 ${curWeather.feelsLike}°`);
+    if (curWeather?.pop != null) parts.push(`강수 ${curWeather.pop}%`);
+    if (weatherData.dustLevel) parts.push(`미세먼지 ${weatherData.dustLevel}`);
+    const hum = curWeather?.humidity ?? weatherData.humidity;
+    if (hum != null) parts.push(`습도 ${hum}%`);
+    return parts.join(" · ");
+  })();
+
   // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
   // 모바일 네이티브 공유 시트(navigator.share)로 넘긴다. 미지원(주로 데스크톱)이면
   // 클립보드 복사로 폴백. 사용자 제스처(클릭) 안에서만 호출되므로 권한 이슈 없음.
@@ -1071,27 +1083,9 @@ const Home = () => {
             </button>
           </div>
 
-          {/* 지금 날씨 — 결론형 근거 카드(공용). 상세 시간대·주간은 환경정보 탭으로 위임 */}
-          {loading ? (
-            <Skeleton className="mt-4 h-24 w-full rounded-2xl" />
-          ) : (
-            <div className="mt-4">
-              <WeatherNowCard
-                temp={curWeather?.temperature ?? weatherData.temp}
-                feelsLike={curWeather?.feelsLike}
-                sky={curWeather?.sky}
-                pty={curWeather?.pty}
-                windSpeed={curWeather?.windSpeed}
-                humidity={curWeather?.humidity}
-                pop={curWeather?.pop}
-                href="/env"
-              />
-            </div>
-          )}
-
           {/* AI message card */}
           {loading ? (
-            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-card">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
                 <div className="flex-1 space-y-2">
@@ -1108,13 +1102,10 @@ const Home = () => {
               <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
-            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-card animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
               {/* 카드 헤더 — 아이브로우 + 메타 + 새로고침·공유 */}
               <div className="flex items-center gap-2">
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-bold tracking-[0.02em] text-accent">
-                  <Sparkles className="h-3 w-3" strokeWidth={2} />
-                  AI 리포트
-                </span>
+                <span className="eyebrow shrink-0 text-accent">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
@@ -1142,6 +1133,13 @@ const Home = () => {
                   </button>
                 </div>
               </div>
+
+              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트 (현재날씨·체감·강수·미세먼지·습도) */}
+              {nowWeatherLine && (
+                <p className="mt-2.5 text-[11.5px] font-medium tabular-nums text-muted-foreground break-keep">
+                  {nowWeatherLine}
+                </p>
+              )}
 
               {/* hook + message — 로딩 중엔 skeleton */}
               {aiLoading ? (
