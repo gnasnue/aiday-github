@@ -472,7 +472,7 @@ const Outfit = () => {
 
           {/* Recommended items - OOTD style by category */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">추천 아이템</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">추천 아이템</h2>
 
             <div className="mt-3 space-y-3">
               {categoryOrder.map((cat) => {
@@ -527,7 +527,7 @@ const Outfit = () => {
           {/* Today's Look board */}
           <section className="mt-7">
             <div className="flex items-center justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
               <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
                 AI코디 추천
               </span>
@@ -547,7 +547,7 @@ const Outfit = () => {
 
           {/* Avoid */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">피해주세요</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">피해주세요</h2>
             <ul className="mt-3 space-y-2">
               {plan.avoid.map((a) => (
                 <li
