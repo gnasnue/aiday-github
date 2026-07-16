@@ -341,7 +341,7 @@ const Environment = () => {
           {/* Personalized insights */}
           <section>
             <div className="flex items-start justify-between gap-2">
-              <h2 className="text-[22px] font-bold tracking-tight">
+              <h2 className="text-[20px] font-bold tracking-tight">
                 {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 인사이트` : "맞춤 인사이트"}
               </h2>
               {/* Location */}
@@ -413,9 +413,15 @@ const Environment = () => {
                 <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
                 <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-background/60">
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-gradient-to-r from-primary to-accent"
+                  className={`h-full rounded-full ${
+                    outdoor.label === "좋음"
+                      ? "bg-status-good"
+                      : outdoor.label === "보통"
+                        ? "bg-primary"
+                        : "bg-status-warn"
+                  }`}
                   style={{ width: `${outdoor.score}%` }}
                 />
               </div>
@@ -434,7 +440,7 @@ const Environment = () => {
           {loading ? (
             <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl bg-secondary p-5 shadow-soft animate-fade-up">
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-xs font-medium text-accent">현재 날씨</p>
@@ -476,7 +482,7 @@ const Environment = () => {
 
           {/* Air quality */}
           <section className="mt-7">
-            <h2 className="text-[22px] font-bold tracking-tight">대기질 · 미세먼지</h2>
+            <h2 className="text-[17px] font-bold tracking-tight">대기질 · 미세먼지</h2>
             <div className="mt-3 grid grid-cols-3 gap-2">
               {[
                 { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
@@ -499,7 +505,7 @@ const Environment = () => {
           {/* Pollen */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">꽃가루 지수</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">꽃가루 지수</h2>
               <a
                 href="https://www.weather.go.kr/w/forecast/life/life-weather-index.do?tabIndex=4"
                 target="_blank"
@@ -557,7 +563,15 @@ const Environment = () => {
               </p>
               <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                 <div
-                  className="h-full bg-gradient-to-r from-primary via-accent to-destructive"
+                  className={`h-full rounded-full ${
+                    uv?.uvi == null
+                      ? "bg-primary"
+                      : uv.uvi >= 6
+                        ? "bg-status-warn"
+                        : uv.uvi >= 3
+                          ? "bg-primary"
+                          : "bg-status-good"
+                  }`}
                   style={{ width: uv?.uvi != null ? `${Math.min(uv.uvi / 11 * 100, 100)}%` : "0%" }}
                 />
               </div>
@@ -585,7 +599,7 @@ const Environment = () => {
           {/* Weekly */}
           <section className="mt-7">
             <div className="flex items-baseline justify-between">
-              <h2 className="text-[22px] font-bold tracking-tight">주간 날씨</h2>
+              <h2 className="text-[17px] font-bold tracking-tight">주간 날씨</h2>
             </div>
             {loading ? (
               <Skeleton className="mt-3 h-64 w-full rounded-2xl" />
@@ -614,7 +628,7 @@ const Environment = () => {
                         <div className="relative h-1.5 overflow-hidden rounded-full bg-muted">
                           {w.low != null && w.high != null && weekTempRange && (
                             <div
-                              className="absolute h-full rounded-full bg-gradient-to-r from-primary to-accent"
+                              className="absolute h-full rounded-full bg-primary/70"
                               style={{
                                 left: `${((w.low - weekTempRange.min) / weekTempRange.span) * 100}%`,
                                 width: `${Math.max((w.high - w.low) / weekTempRange.span * 100, 6)}%`,

@@ -47,13 +47,6 @@ type Tip = {
 /* ----------------------------- nav ----------------------------- */
 
 
-const sevStyle = (s: Tip["severity"]) =>
-  s === "경고"
-    ? "border-destructive/30 bg-destructive/5"
-    : s === "주의"
-      ? "border-accent/30 bg-accent/5"
-      : "border-primary/30 bg-secondary/40";
-
 const sevIconBox = (s: Tip["severity"]) =>
   s === "경고"
     ? "bg-destructive/10 text-destructive"
@@ -279,7 +272,7 @@ const Tips = () => {
               </button>
               <Logo />
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[11px] font-medium text-accent">
+            <div className="flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-xs font-medium text-accent">
               <ShieldCheck className="h-3.5 w-3.5" />
               근거 기반
             </div>
@@ -332,10 +325,10 @@ const Tips = () => {
               <button
                 key={c}
                 onClick={() => setFilter(c)}
-                className={`shrink-0 rounded-full border-2 px-3.5 py-1.5 text-xs font-medium transition-smooth ${
+                className={`inline-flex min-h-[44px] shrink-0 items-center rounded-full px-4 text-[13px] transition-smooth ${
                   filter === c
-                    ? "border-primary bg-secondary text-foreground"
-                    : "border-border bg-card text-muted-foreground"
+                    ? "bg-primary-tint font-semibold text-accent"
+                    : "bg-card font-medium text-muted-foreground shadow-soft"
                 }`}
               >
                 {c}
@@ -357,7 +350,7 @@ const Tips = () => {
                   filtered.map((tip) => (
                     <article
                       key={tip.id}
-                      className={`rounded-2xl border p-4 shadow-soft ${sevStyle(tip.severity)}`}
+                      className="rounded-2xl bg-card p-4 shadow-soft"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -368,12 +361,12 @@ const Tips = () => {
                           >
                             {tip.icon}
                           </span>
-                          <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted-foreground">
                             {tip.category}
                           </span>
                         </div>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${sevBadge(
+                          className={`rounded-full px-2 py-0.5 text-xs font-bold ${sevBadge(
                             tip.severity
                           )}`}
                         >
@@ -381,17 +374,17 @@ const Tips = () => {
                         </span>
                       </div>
 
-                      <h3 className="mt-3 text-sm font-bold leading-snug text-foreground">
+                      <h3 className="mt-3 text-[16px] font-bold leading-snug text-foreground">
                         {tip.title}
                       </h3>
 
                       {tip.matchedProfile && (
-                        <p className="mt-1.5 inline-block rounded-md bg-accent/10 px-2 py-0.5 text-[11px] font-medium text-accent">
+                        <p className="mt-1.5 inline-block rounded-md bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
                           내 아이 프로필 매칭: {tip.matchedProfile}
                         </p>
                       )}
 
-                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                         {tip.summary}
                       </p>
 
@@ -399,30 +392,30 @@ const Tips = () => {
                         {tip.recommendations.map((r, i) => (
                           <li
                             key={i}
-                            className="flex items-start gap-2 text-xs leading-relaxed text-foreground"
+                            className="flex items-start gap-2 text-sm leading-relaxed text-foreground"
                           >
-                            <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
+                            <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />
                             <span>{r}</span>
                           </li>
                         ))}
                       </ul>
 
-                      <div className="mt-3 rounded-xl bg-background/70 p-2.5">
-                        <p className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                          <BookOpen className="h-3 w-3" />
+                      <div className="mt-4 border-t border-border pt-3">
+                        <p className="flex items-center gap-1 text-xs font-bold text-muted-foreground">
+                          <BookOpen className="h-3.5 w-3.5" />
                           출처
                         </p>
-                        <ul className="mt-1.5 space-y-1">
+                        <ul className="mt-1 divide-y divide-border">
                           {tip.sources.map((s) => (
                             <li key={s.url}>
                               <a
                                 href={s.url}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="flex items-center gap-1 text-[11px] text-foreground hover:text-accent hover:underline"
+                                className="flex min-h-[44px] items-center gap-2 text-[13px] text-foreground hover:text-accent hover:underline"
                               >
                                 <span className="flex-1">{s.label}</span>
-                                <ExternalLink className="h-3 w-3 shrink-0" />
+                                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
                               </a>
                             </li>
                           ))}
@@ -434,7 +427,7 @@ const Tips = () => {
           </section>
 
           {/* Footer note */}
-          <p className="mt-6 text-center text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-6 text-center text-xs leading-relaxed text-muted-foreground">
             가이드 기준: 대한소아청소년과학회, 대한피부과학회,
             <br />
             대한이비인후과학회, 대한소아알레르기호흡기학회,
