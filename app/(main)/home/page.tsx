@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import ItemIllustration from "@/components/ItemIllustration";
 import LineIcon from "@/components/LineIcon";
+import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
@@ -273,6 +274,8 @@ const Home = () => {
   // 바쁜 부모가 앱을 켰을 때 "아침의 결론(hook)"이 한눈에 들어오게 하고,
   // 자세한 설명은 원할 때만 펼쳐본다. 매 진입마다 접힌 상태로 시작(의도된 기본값).
   const [reportExpanded, setReportExpanded] = useState(false);
+  const [sharing, setSharing] = useState(false); // 공유 이미지 생성 중
+  const shareCardRef = useRef<HTMLDivElement>(null); // 공유 캡처 대상(off-screen)
   const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
   const lastManualRefreshRef = useRef(0);
   const weatherRawRef = useRef<object | null>(null);
@@ -876,6 +879,130 @@ const Home = () => {
     return `${base} ${hh}:${mm}`;
   })();
 
+  // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
+  // 모바일 네이티브 공유 시트(navigator.share)로 넘긴다. 미지원(주로 데스크톱)이면
+  // 클립보드 복사로 폴백. 사용자 제스처(클릭) 안에서만 호출되므로 권한 이슈 없음.
+  const buildShareText = () => {
+    const lines: string[] = [];
+    lines.push(`[AiDay] ${withSubjectSuffix(cur.name)} 위한 오늘의 리포트`);
+    lines.push(reportMeta);
+    if (aiHook) lines.push("", splitHook(aiHook).join(" "));
+    // 자세한 리포트 본문 — 마크다운 강조(**)는 평문에서 노이즈이므로 제거해 공유.
+    const bodyText = message
+      .split("\n")
+      .map((l) => l.replace(/\*\*/g, "").trim())
+      .filter(Boolean)
+      .join("\n");
+    if (bodyText) lines.push("", bodyText);
+    if (activeChecklist.length > 0) {
+      lines.push("", "오늘 챙길 것");
+      activeChecklist.forEach((c) => lines.push(`· ${c.icon} ${c.text}`));
+    }
+    if (badges.length > 0) {
+      lines.push("", badges.map((b) => `${b.label} ${b.value}`).join(" / "));
+    }
+    lines.push("", "날씨·대기질을 아이 체질로 해석 — AiDay");
+    return lines.join("\n");
+  };
+
+  // 공유 이미지 카드에 넘길 데이터 — 화면 렌더 상태(hook·본문·칩·체크리스트)에서 파생.
+  const shareCardData: ShareReportData = {
+    childName: cur.name,
+    dateLabel: reportMeta,
+    hook: aiHook ? splitHook(aiHook).join(" ") : "",
+    paragraphs: message
+      .split("\n")
+      .map((l) => l.replace(/\*\*/g, "").trim())
+      .filter(Boolean),
+    badges: badges.map((b) => ({ label: b.label, value: b.value, tone: badgeTone(b.tone) })),
+    checklist: activeChecklist.map((c) => {
+      // "제목 (사유)" → 제목/사유 분리 (체크리스트 렌더와 동일 규칙)
+      const m = c.text.match(/^(.*?)\s*[（(](.+?)[)）]\s*$/);
+      return { icon: c.icon, title: m ? m[1].trim() : c.text, reason: m ? m[2].trim() : "" };
+    }),
+  };
+
+  // 텍스트 공유 폴백 — 이미지 생성이 안 되거나 파일 공유 미지원일 때.
+  const shareAsText = async () => {
+    const text = buildShareText();
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "AiDay 오늘의 리포트", text });
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast("리포트를 클립보드에 복사했어요");
+    } catch {
+      toast("공유를 지원하지 않는 환경이에요");
+    }
+  };
+
+  const handleShare = async () => {
+    if (aiLoading || aiStreaming) {
+      toast("리포트를 준비 중이에요");
+      return;
+    }
+    if (sharing) return;
+    const node = shareCardRef.current;
+    if (!node) {
+      await shareAsText();
+      return;
+    }
+    setSharing(true);
+    try {
+      // 폰트가 준비된 뒤 캡처해야 한글이 폴백 폰트로 새지 않는다.
+      if (typeof document !== "undefined" && document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+      // html-to-image는 공유 시점에만 필요하므로 동적 로드 — 초기 홈 번들에서 제외.
+      const { toPng } = await import("html-to-image");
+      // skipFonts: Pretendard CDN은 교차 출처라 임베드가 막힌다(cssRules 접근 불가).
+      // 임베드를 건너뛰면 캡처는 시스템 한글 폰트로 렌더되고, 무의미한 CORS 에러 로그도 사라진다.
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        cacheBust: true,
+        skipFonts: true,
+        backgroundColor: "#FFF8F0",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], "aiday-report.png", { type: "image/png" });
+
+      // 1) 네이티브 파일 공유 — 모바일 우선. 이미지가 그대로 카톡·인스타로.
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({ files: [file], title: "AiDay 오늘의 리포트" });
+          return;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+          // 그 외 오류는 다운로드 폴백으로 진행
+        }
+      }
+
+      // 2) 다운로드 폴백 — 파일 공유 미지원(주로 데스크톱)
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = "aiday-report.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast("리포트 이미지를 저장했어요");
+    } catch {
+      // 이미지 생성 자체가 실패하면 텍스트 공유로 폴백
+      await shareAsText();
+    } finally {
+      setSharing(false);
+    }
+  };
+
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
 
@@ -987,11 +1114,16 @@ const Home = () => {
                     <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
                   </button>
                   <button
-                    onClick={() => toast("공유는 준비 중이에요")}
+                    onClick={handleShare}
+                    disabled={sharing}
                     aria-label="공유"
-                    className="rounded-full p-2.5 transition-smooth hover:bg-muted"
+                    className="rounded-full p-2.5 transition-smooth hover:bg-muted disabled:opacity-40"
                   >
-                    <Share2 className="h-4 w-4" strokeWidth={1.75} />
+                    {sharing ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Share2 className="h-4 w-4" strokeWidth={1.75} />
+                    )}
                   </button>
                 </div>
               </div>
@@ -1334,6 +1466,17 @@ const Home = () => {
                   ))}
             </div>
           </section>
+
+          {/* 공유용 이미지 카드 — 화면 밖에 렌더해두고 공유 시 html-to-image로 PNG 캡처.
+              display:none이면 캡처가 레이아웃을 못 잡으므로 off-screen 고정으로 둔다. */}
+          {!loading && (
+            <div
+              aria-hidden="true"
+              style={{ position: "fixed", left: -99999, top: 0, pointerEvents: "none", zIndex: -1 }}
+            >
+              <ShareReportCard ref={shareCardRef} data={shareCardData} />
+            </div>
+          )}
         </main>
       </div>
     </div>
