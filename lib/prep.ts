@@ -32,11 +32,18 @@ export function buildPrepKeywords(
 
   const out: Candidate[] = [];
 
-  // 강수: 실제 강수 형태가 있거나 확률 30% 이상.
-  // 상단 체크리스트·AI 리포트가 30%대에도 우산을 권하므로 임계값을 맞춰,
-  // 케어 플랜에서만 우산 칩이 비는 상단-하단 불일치를 없앤다.
-  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 30)) {
+  // 강수: 노출 창(이 슬롯~다음 슬롯) 기준 2단계 판정.
+  //  - 강수형태 예보 또는 창 max 확률 ≥60%: 확정 신호 (시간대 카드의 강수확률 warn 임계값 60과 동일)
+  //  - 창 max 확률 40~50%: 예비 신호 — 낮은 우선순위라 더 급한 신호(폭염·미세먼지 등)가 있으면
+  //    슬롯당 2개 경쟁에서 밀려나고, 한가한 슬롯에서만 노출된다.
+  // 종전 "슬롯 정시값 ≥30%"는 여름 흐린 날 배경 수준(30%)에 전 슬롯 최우선 발화해 신호가 죽었고,
+  // 정시값만 봐서 시점이 어긋난 소나기 예보(창 안 80%)는 놓치는 문제가 있었다.
+  const windowPop = slot.popWindow ?? slot.pop;
+  const windowRain = slot.rainWindow || (slot.pty != null && slot.pty > 0);
+  if (windowRain || (windowPop != null && windowPop >= 60)) {
     out.push({ keyword: "우산", priority: 100 });
+  } else if (windowPop != null && windowPop >= 40) {
+    out.push({ keyword: "우산", priority: 55 });
   }
 
   // 폭염권 기온 — 모자는 햇빛 차단 목적이므로 자외선이 낮은 시간대(저녁 등)엔 제외

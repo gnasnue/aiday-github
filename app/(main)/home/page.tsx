@@ -477,8 +477,8 @@ const Home = () => {
   useEffect(() => {
     if (!aiLoading || !cur) return;
 
-    // v16: 이슈 우선순위 규칙(보통·낮음 지표 언급 금지) + 마스크 연령 가드 — 프롬프트 변경으로 구캐시 무효화
-    const cacheKey = `aiday:report:v16:${cur.id}:${localDateStr()}`;
+    // v17: 우산 강수확률 임계값(60%/40~50% 2단계) 프롬프트 명시 — 프롬프트 변경으로 구캐시 무효화
+    const cacheKey = `aiday:report:v17:${cur.id}:${localDateStr()}`;
 
     // 주의: 이 effect는 hook 도착 시 setAiLoading(false)로 자기 dep을 스트림 도중 바꾼다.
     // 따라서 cleanup에서 fetch를 abort하면 SSE가 done 전에 끊긴다 — abort를 쓰지 않는다.
