@@ -17,6 +17,11 @@ export type HomeTimeSlot = {
   sky: number | null; // SKY 1=맑음 3=구름많음 4=흐림
   pty: number | null; // PTY 0=없음 1=비 2=비/눈 3=눈 4=소나기
   pop: number | null; // 강수확률 %
+  // 강수 노출 창(이 슬롯 시각 ~ 다음 슬롯 시각) 집계 — 우산 판단용.
+  // 창 내 최댓값을 쓰는 이유: 비는 창 안 어느 한 시점만 와도 젖으므로(합집합 확률 ≥ max ≥ 평균),
+  // 슬롯 정시값만 보면 시점이 몇 시간 어긋난 소나기 예보를 놓친다. mock 폴백 경로엔 없는 값(옵셔널).
+  popWindow?: number | null; // 창 내 최대 강수확률 %
+  rainWindow?: boolean; // 창 내 강수형태(PTY>0) 예보 존재 여부
   temp: number;
   feels: number;
   dust: DustLevel;
@@ -154,6 +159,7 @@ export function buildTimeline(
   ];
 
   const slots: HomeTimeSlot[] = [];
+  const slotHours: number[] = []; // slots와 같은 인덱스의 슬롯 시(hour) — 창 경계 계산용
   for (const d of defs) {
     const time = d.time || d.fallback;
     if (!time) continue;
@@ -162,6 +168,7 @@ export function buildTimeline(
     const w = nearestWeather(hours, th);
     if (!w) continue;
     const wind = w.windSpeed ?? null;
+    slotHours.push(th);
     slots.push({
       time: d.label,
       hour: time,
@@ -176,6 +183,23 @@ export function buildTimeline(
       humidity: w.humidity ?? 0,
       wind: windLevel(wind),
     });
+  }
+
+  // 강수 노출 창 집계: [이 슬롯 시각, 다음 슬롯 시각] 범위의 예보 점들로 popWindow(최대)·
+  // rainWindow(PTY>0 존재)를 채운다. 경계 시각의 점은 양쪽 슬롯에 모두 포함 —
+  // 전환 시각의 비는 두 슬롯 모두에 유효한 신호다. 마지막 슬롯은 +3시간(예보 해상도 1스텝).
+  for (let i = 0; i < slots.length; i++) {
+    const start = slotHours[i];
+    const end = i + 1 < slots.length ? slotHours[i + 1] : start + 3;
+    const inWindow = hours.filter((h) => {
+      const hh = parseHour(h.hour);
+      return hh != null && hh >= start && hh <= end;
+    });
+    const pops = inWindow.map((h) => h.pop).filter((v): v is number => v != null);
+    if (slots[i].pop != null) pops.push(slots[i].pop as number); // 슬롯 자체 최근접값 포함(창에 예보 점이 없어도 유지)
+    slots[i].popWindow = pops.length ? Math.max(...pops) : null;
+    slots[i].rainWindow =
+      inWindow.some((h) => h.pty != null && h.pty > 0) || (slots[i].pty != null && (slots[i].pty as number) > 0);
   }
 
   return slots.length ? slots : null;
