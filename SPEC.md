@@ -405,15 +405,19 @@ components/CharacterReport.tsx와 /images/character-*.png는 보존 — 베타 �
   - 누구나 아는 일반 조언 ("물 자주 마시게 하세요" 등)
   - 건강 특이사항을 오늘 환경과 실제 무관하게 억지로 연결
   - 2인칭 표현 ("너는", "네가", 이름+야/아 호칭) — 항상 "{이름}는/{이름}이는" 3인칭
+  - 문제없는 지표 언급 — "미세먼지는 보통이라 괜찮아요" 같은 무정보 안심 문장 (등급은 화면 뱃지가 담당)
   - 코드블록(```) — JSON 한 줄만 반환
-- **Few-shot 3개 내장:** 비염×꽃가루, 일교차(특이사항 없음), 아토피×자외선 — 각각 입력 조건과 hook/message/checklist 출력 예시 페어
-- **출력 스키마:** `{"hook": "...", "message": "...", "checklist": ["..."]}`
+- **Few-shot 5개 내장:** 비염×꽃가루, 일교차(특이사항 없음), 아토피×자외선, 폭염(특이사항 없음·미세먼지 보통 무언급), 호흡기 민감 영아×폭염+미세먼지 나쁨(마스크 대신 외출 조정) — 각각 입력 조건과 hook/message/checklist/prep 출력 예시 페어
+- **이슈 우선순위 규칙:** 오늘 실제 문제인 환경 이슈 1~2개만 다루고, 좋음·보통·낮음·적정 등급 지표는 hook/message/checklist에서 언급 금지
+- **마스크 규칙:** 미세먼지 나쁨 이상 또는 꽃가루 높음 이상일 때만 권고. 만 2세(24개월) 미만은 마스크 대신 외출 자제·시간 단축·실내 대체로 안내
+- **출력 스키마:** `{"hook": "...", "message": "...", "checklist": ["..."], "prep": {"등원": ["..."]}}`
   - `hook`: 25자 이내, "[공감] — [행동]" 구조 (예: "꽃가루 최악이에요 — 마스크 필수")
   - `message`: 250자 이내(공백 포함), 문장마다 `\n` 구분, 핵심 키워드는 `**단어**` 강조
   - `checklist`: 3~4개, "이모지 짧은이름" 형식
+  - `prep`: 일정 슬롯별 준비물 키워드 1~2개 (환경이 튀는 슬롯만)
 - **입력 컨텍스트:** 아이 정보(이름·나이·성별·건강 특이사항·체온 민감도) + 오늘 일정별 날씨(등원/야외활동/하원/저녁 시간대 매핑) + 현재 대기질(PM10/PM2.5/통합대기 등급)
 - **파싱 안전장치:** 코드블록 제거 → JSON.parse, 실패 시 `{}` 블록 직접 추출 재시도, 최종 실패 시 빈 응답 반환 → 클라이언트가 `lib/recommendation-engine.ts`의 규칙 기반 fallback 사용
-- **캐싱:** 클라이언트에서 아이 ID + 날짜별 localStorage **당일 고정** 캐시 (`aiday:report:v10:{childId}:{YYYY-MM-DD}`). 아침 첫 생성본을 하루 내내 유지하고, 생성 시점 환경 스냅샷(`env`) 대비 **급변**(비 소식 생김/사라짐, 강수확률 ±30%p, 미세먼지 나쁨 경계 통과, 같은 시각 기온 ±3°C)일 때만 자동 재생성. 헤더에 생성 시각 표시 + 수동 새로고침 버튼(60초 쿨다운) 제공 (`app/(main)/home/page.tsx: envSignature/envChanged/refreshReport`)
+- **캐싱:** 클라이언트에서 아이 ID + 날짜별 localStorage **당일 고정** 캐시 (`aiday:report:v16:{childId}:{YYYY-MM-DD}` — 프롬프트/스키마 변경 시 버전 상향). 아침 첫 생성본을 하루 내내 유지하고, 생성 시점 환경 스냅샷(`env`) 대비 **급변**(비 소식 생김/사라짐, 강수확률 ±30%p, 미세먼지 나쁨 경계 통과, 같은 시각 기온 ±3°C)일 때만 자동 재생성. 헤더에 생성 시각 표시 + 수동 새로고침 버튼(60초 쿨다운) 제공 (`app/(main)/home/page.tsx: envSignature/envChanged/refreshReport`)
 
 ---
 
@@ -715,7 +719,7 @@ Today's OOTD
 | `aiweather:profiles` | ChildProfile[] 전체 | `lib/profile.ts` |
 | `aiweather:activeProfileId` | 선택된 아이 ID | 홈/환경/옷차림/팁/마이/온보딩 |
 | `aiweather:onboarding` | 온보딩 진행 상태 (단계+입력값, 완료 시 삭제) | 온보딩 |
-| `aiday:report:v10:{childId}:{YYYY-MM-DD}` | AI 리포트 당일 고정 캐시 (`hook, message, checklist, prep, ts, env` — env는 급변 판정용 환경 스냅샷) | 홈 |
+| `aiday:report:v16:{childId}:{YYYY-MM-DD}` | AI 리포트 당일 고정 캐시 (`hook, message, checklist, prep, ts, env` — env는 급변 판정용 환경 스냅샷) | 홈 |
 | `aiday:prepFrozen:v1:{childId}:{YYYY-MM-DD}` | 지나간 시간대 슬롯의 AI 준비물 고정값 | 홈 |
 
 > ⚠️ 네임스페이스가 `aiweather:`와 `aiday:`로 혼재 — **`aiday:`로 통일하기로 확정** (1회성 마이그레이션 포함, 프로필 포맷 정규화 작업에서 처리 — [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3-4)
