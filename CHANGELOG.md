@@ -6,6 +6,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.11.0] - 2026-07-17
+
+### Fixed
+- **홈 "구버전 화면 잔상 → 전환" 제거** (`app/providers.tsx`, `app/api/version/route.ts`, `next.config.ts`) — 서비스워커 부재 상태에서 bfcache/PWA 홈스크린이 직전 배포 번들로 렌더된 페이지를 복원해, 승인 전 옛 화면이 잠깐 뜬 뒤 리로드로 전환되던 문제. 기존 `pageshow` 무조건 리로드(같은 번들에도 매번 리로드·옛 프레임 노출)를 걷어내고, 현재 라이브 배포 식별자(`/api/version`, no-store)와 번들에 인라인된 `NEXT_PUBLIC_BUILD_ID`(Vercel 커밋 SHA)를 비교해 **버전이 실제로 다를 때만** 마스킹 오버레이 후 리로드하도록 변경. 로컬·미배포는 양쪽 "dev"로 일치해 리로드 없음.
+
+### Changed
+- **홈 재방문 리포트 지연 제거** (`app/(main)/home/page.tsx`) — 당일 캐시가 있어도 리포트를 uv·꽃가루 게이트(공공 API 콜드미스 시 1s+) 뒤에서만 읽어 재방문자가 매번 기다리던 워터폴 해소. 마운트 즉시 캐시를 읽어 리포트를 바로 노출(`reportPrimed`)하고, 환경 도착 후 `envChanged`만 조용히 재검증해 급변 시에만 재생성. 기존 stale/single-flight 방어는 보존.
+
 ## [0.3.10.0] - 2026-07-17
 
 ### Fixed
