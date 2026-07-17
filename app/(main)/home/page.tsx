@@ -269,9 +269,15 @@ const Home = () => {
   // 바쁜 부모가 앱을 켰을 때 "아침의 결론(hook)"이 한눈에 들어오게 하고,
   // 자세한 설명은 원할 때만 펼쳐본다. 매 진입마다 접힌 상태로 시작(의도된 기본값).
   const [reportExpanded, setReportExpanded] = useState(false);
+  // 마운트 즉시 당일 캐시로 리포트를 이미 그렸는지 — true면 env(uv/pollen) 게이트를
+  // 기다리는 동안·재검증 중에도 스켈레톤 없이 캐시 내용을 유지한다(재방문 체감 지연 제거).
+  const [reportPrimed, setReportPrimed] = useState(false);
   const [sharing, setSharing] = useState(false); // 공유 이미지 생성 중
   const shareCardRef = useRef<HTMLDivElement>(null); // 공유 캡처 대상(off-screen)
   const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
+  // reportPrimed의 동기 미러 — 마운트 시 생성된 env effect 클로저가 항상 최신 값을 읽게 한다
+  // (state는 클로저에 갇혀 stale해지므로, env 흐름 분기는 ref로 판정).
+  const primedRef = useRef(false);
   const lastManualRefreshRef = useRef(0);
   const weatherRawRef = useRef<object | null>(null);
   const airRawRef = useRef<object | null>(null);
@@ -436,9 +442,12 @@ const Home = () => {
         const uvIndex = u && !u.error && typeof u.uvi === "number" ? u.uvi : 0;
         setWeatherData((prev) => ({ ...prev, pollenLevel, uvIndex }));
         if (w && !w.error) {
-          setAiLoading(true);
-          setAiHook("");
-          setAiMessage("");
+          setAiLoading(true); // 리포트 effect 착수(캐시 재검증) — primed면 스켈레톤은 안 뜸
+          // 이미 캐시로 그려둔 경우엔 지우지 않는다(재검증 중 잔상·깜빡임 방지).
+          if (!primedRef.current) {
+            setAiHook("");
+            setAiMessage("");
+          }
           setAiError(false);
         } else {
           // 날씨 실측이 없으면 AI 리포트를 생성할 수 없다(날씨가 핵심 입력).
@@ -726,6 +735,31 @@ const Home = () => {
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 마운트·프로필 전환 즉시 당일 캐시를 읽어 리포트를 바로 노출한다. 기존엔 리포트를
+  // env(uv/pollen) 게이트 뒤에서만 읽어, 캐시가 있어도 재방문자가 공공 API 콜드미스만큼
+  // 기다렸다(워터폴). 여기서 먼저 그려두고, env 도착 후 리포트 effect가 envChanged를
+  // 재검증해 급변일 때만 조용히 재생성한다. 이 effect는 [active] 클리어 effect 뒤에 정의해
+  // 전환 시 클리어를 덮어쓰고(새 아이 캐시로) 최신 상태가 남게 한다. 강제 새로고침 땐 프라임 안 함.
+  useEffect(() => {
+    primedRef.current = false;
+    setReportPrimed(false);
+    if (!cur || forceRefreshRef.current) return;
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem(`aiday:report:v15:${cur.id}:${localDateStr()}`) ?? "null"
+      );
+      if (cached && cached.message && Array.isArray(cached.checklist)) {
+        setAiHook(cached.hook ?? "");
+        setAiMessage(cached.message);
+        if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
+        setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
+        setReportTs(typeof cached.ts === "number" ? cached.ts : null);
+        primedRef.current = true;
+        setReportPrimed(true);
+      }
+    } catch {}
+  }, [cur?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // 언마운트 시 진행 중인 리포트 요청 취소 (서버 Anthropic 스트림까지 abort). 빈 deps라
   // aiLoading 변화로는 트리거되지 않아 스트리밍 도중 자기 요청을 끊지 않는다.
   useEffect(() => () => activeReportRef.current?.ctrl.abort(), []);
@@ -740,6 +774,9 @@ const Home = () => {
     }
     lastManualRefreshRef.current = now;
     forceRefreshRef.current = true;
+    // 강제 재생성 — 캐시로 그려둔 내용을 비우고 스켈레톤을 노출한다(재생성 중임을 명확히).
+    primedRef.current = false;
+    setReportPrimed(false);
     setAiHook("");
     setAiError(false);
     setAiLoading(true);
@@ -1154,8 +1191,8 @@ const Home = () => {
                 </p>
               )}
 
-              {/* hook + message — 로딩 중엔 skeleton */}
-              {aiLoading ? (
+              {/* hook + message — 로딩 중엔 skeleton (단, 캐시로 이미 그린 경우엔 유지) */}
+              {aiLoading && !reportPrimed ? (
                 <div className="mt-3 space-y-2">
                   <Skeleton className="h-6 w-3/4 rounded-full" />
                   <div className="mt-3 space-y-1.5">
@@ -1228,8 +1265,9 @@ const Home = () => {
                   리포트가 정착(hook·message·checklist 도착)하기 전까지는 스켈레톤 유지.
                   aiLoading은 hook 도착 즉시 false가 되므로, 본문·체크리스트가 아직 없는
                   스트리밍 구간(aiStreaming)까지 함께 봐야 규칙 폴백(추천 이유 2줄·0/3)이
-                  잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출. */}
-              {aiLoading || aiStreaming ? (
+                  잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출.
+                  캐시로 이미 그린 경우(reportPrimed)엔 재검증 중에도 캐시 체크리스트를 유지. */}
+              {(aiLoading || aiStreaming) && !reportPrimed ? (
                 <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
               ) : (
               <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
