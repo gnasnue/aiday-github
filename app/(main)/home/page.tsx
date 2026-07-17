@@ -35,6 +35,11 @@ const localDateStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+// AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
+// 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
+// (예전에 두 곳에 하드코딩해 버전이 어긋나며 프라임이 캐시를 못 찾던 회귀가 있었다).
+const reportCacheKey = (childId: string) => `aiday:report:v17:${childId}:${localDateStr()}`;
+
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
   rain: string; // 시각별 강수 형태 유무 ("06:00:0,09:00:1,...")
@@ -487,7 +492,7 @@ const Home = () => {
     if (!aiLoading || !cur) return;
 
     // v17: 우산 강수확률 임계값(60%/40~50% 2단계) 프롬프트 명시 — 프롬프트 변경으로 구캐시 무효화
-    const cacheKey = `aiday:report:v17:${cur.id}:${localDateStr()}`;
+    const cacheKey = reportCacheKey(cur.id);
 
     // 주의: 이 effect는 hook 도착 시 setAiLoading(false)로 자기 dep을 스트림 도중 바꾼다.
     // 따라서 cleanup에서 fetch를 abort하면 SSE가 done 전에 끊긴다 — abort를 쓰지 않는다.
@@ -746,7 +751,7 @@ const Home = () => {
     if (!cur || forceRefreshRef.current) return;
     try {
       const cached = JSON.parse(
-        localStorage.getItem(`aiday:report:v15:${cur.id}:${localDateStr()}`) ?? "null"
+        localStorage.getItem(reportCacheKey(cur.id)) ?? "null"
       );
       if (cached && cached.message && Array.isArray(cached.checklist)) {
         setAiHook(cached.hook ?? "");

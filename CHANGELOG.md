@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.11.1] - 2026-07-17
+
+### Fixed
+- **홈 재방문 프라임 캐시 무효화 회귀** (`app/(main)/home/page.tsx`) — 0.3.11.0의 마운트 프라임 effect가 리포트 캐시 키를 `v15`로 하드코딩해, #108(0.3.10.0)에서 `v17`로 올라간 실제 캐시를 못 읽어 재방문 즉시 표시가 무효화되던 문제(0.3.11.0과 0.3.10.0 리베이스 과정에서 발생한 버전 스큐). 캐시 키를 단일 헬퍼 `reportCacheKey()`로 추출해 생성·프라임 두 effect가 항상 같은 키를 쓰도록 하고 재발을 차단. 프로덕션 실측에서 재방문 `cache_hit` 444ms·스켈레톤 0 확인.
+
 ## [0.3.11.0] - 2026-07-17
 
 ### Fixed
