@@ -18,6 +18,11 @@ import {
   TreeDeciduous,
   TreePine,
   Sprout,
+  Home,
+  Trees,
+  Umbrella,
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
@@ -26,6 +31,23 @@ import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
 import { withSubjectSuffix } from "@/lib/korean";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
+import {
+  judgeWeekendDay,
+  pickOutingPlaces,
+  weekendConstitutionNote,
+  mapSearchUrl,
+  type WeekendVerdict,
+} from "@/lib/weekend-outing";
+
+// 주간 API를 서울 좌표로 호출하므로 나들이 시드도 서울 기준 (위치 기능 도입 시 확장)
+const WEEKEND_REGION = "서울";
+
+// verdict → 배지 표시 (v3: 순백 카드 위 상태색 텍스트, 브랜드 오렌지는 데이터에 안 씀)
+const VERDICT_META: Record<WeekendVerdict, { label: string; tone: string; Icon: typeof Home }> = {
+  indoor: { label: "실내 추천", tone: "text-status-info", Icon: Home },
+  outdoor: { label: "실외 좋아요", tone: "text-status-good", Icon: Trees },
+  caution: { label: "실외 대비", tone: "text-status-warn", Icon: Umbrella },
+};
 
 /* ----------------------------- helpers ----------------------------- */
 
@@ -133,6 +155,14 @@ const Environment = () => {
     high: number | null; low: number | null; rain: number; weekend: boolean;
   };
   const [weekly, setWeekly] = useState<WeekDay[] | null>(null);
+
+  // 인앱 수요 프로브 — "주말 추천 더 보고 싶어요" 클릭 여부(로컬 dedup)
+  const [outingProbed, setOutingProbed] = useState(false);
+  useEffect(() => {
+    try {
+      setOutingProbed(localStorage.getItem("aiday:probe:weekend-outing") === "1");
+    } catch {}
+  }, []);
 
   const fetchAll = useCallback(async () => {
     const [wRes, aRes, pRes, uRes, weekRes] = await Promise.allSettled([
@@ -260,6 +290,43 @@ const Environment = () => {
     const max = Math.max(...temps);
     return { min, span: max === min ? 1 : max - min };
   }, [weekly]);
+
+  /* 이번 주말 나들이 판단 — 주간 데이터에서 주말(토/일) 최대 2일을 뽑아
+     날씨(강수확률·기온·하늘상태)로 실내/실외를 판단하고, 아이 체질 한 줄 + 장소를 붙인다.
+     미래일이라 대기질·자외선 예보는 없어 판단은 날씨 기반으로 한정된다. */
+  const weekendPlan = useMemo(() => {
+    if (!weekly) return null;
+    const days = weekly.filter((w) => w.weekend).slice(0, 2);
+    if (days.length === 0) return null;
+    return days.map((d) => {
+      const j = judgeWeekendDay(d);
+      return {
+        ...j,
+        places: pickOutingPlaces(j.verdict, WEEKEND_REGION),
+        note: weekendConstitutionNote(j.verdict, cur?.conditions),
+      };
+    });
+  }, [weekly, cur]);
+
+  const sendOutingProbe = async () => {
+    if (outingProbed) return;
+    setOutingProbed(true);
+    try {
+      localStorage.setItem("aiday:probe:weekend-outing", "1");
+    } catch {}
+    try {
+      await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          feature: "weekend-outing",
+          action: "want-more",
+          meta: { verdicts: (weekendPlan ?? []).map((d) => d.verdict).join(",") },
+        }),
+      });
+    } catch {}
+    toast("의견 고마워요! 더 좋은 주말 추천을 준비할게요");
+  };
 
   /* 오늘의 야외활동 지수 — 환경 수치 종합 (데이터 로딩 전엔 null) */
   const outdoor = useMemo(() => {
@@ -636,6 +703,100 @@ const Environment = () => {
               </div>
             )}
           </section>
+
+          {/* 이번 주말 나들이 — 주간날씨 하단. 날씨로 실내/실외 판단 + 서울 큐레이션 장소.
+             장소 "검색"이 아니라 판단 지원(코어)의 연장. 실사용 수요는 하단 프로브로 검증. */}
+          {!loading && weekendPlan && weekendPlan.length > 0 && (
+            <section className="mt-7">
+              <h2 className="text-[17px] font-bold tracking-tight">이번 주말 나들이</h2>
+              <p className="mt-1 text-xs text-muted-foreground">
+                주말 날씨로 실내·실외를 판단하고, 그 조건에 맞는 서울 나들이 장소를 추천해요
+              </p>
+
+              <div className="mt-3 space-y-3">
+                {weekendPlan.map((d) => {
+                  const v = VERDICT_META[d.verdict];
+                  return (
+                    <div key={d.date} className="rounded-2xl bg-card p-4 shadow-soft">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {d.day === "오늘" ? "오늘" : `${d.day}요일`}
+                          </span>
+                          <span className="text-xs text-faint">{d.date}</span>
+                          <span className="text-xs text-muted-foreground">· 강수 {d.rain}%</span>
+                        </div>
+                        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-soft px-2.5 py-1 text-[11px] font-bold ${v.tone}`}>
+                          <v.Icon size={13} strokeWidth={1.75} aria-hidden />
+                          {v.label}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 text-xs leading-relaxed text-foreground">{d.reason}</p>
+                      {d.note && (
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{d.note}</p>
+                      )}
+
+                      {d.places.length > 0 && (
+                        <ul className="mt-3 space-y-2">
+                          {d.places.map((p) => (
+                            <li key={p.name}>
+                              <a
+                                href={mapSearchUrl(p.name)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2.5 rounded-xl bg-muted/60 p-3"
+                              >
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
+                                  {p.kind === "indoor" ? (
+                                    <Home size={18} strokeWidth={1.75} aria-hidden />
+                                  ) : (
+                                    <Trees size={18} strokeWidth={1.75} aria-hidden />
+                                  )}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[13px] font-semibold text-foreground">{p.name}</p>
+                                  <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                                    {p.area} · {p.note}
+                                  </p>
+                                </div>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-accent" strokeWidth={2} aria-hidden />
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* 인앱 수요 프로브 — 클릭은 이벤트만 기록, 가짜 기능 없음 */}
+              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center">
+                {outingProbed ? (
+                  <p className="text-xs leading-relaxed text-muted-foreground">
+                    의견 고마워요! 더 좋은 주말 추천을 준비할게요
+                  </p>
+                ) : (
+                  <>
+                    <p className="text-[13px] font-semibold text-foreground">
+                      이런 주말 추천, 더 보고 싶으세요?
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      관심을 남겨주시면 더 많은 지역·장소로 넓혀갈게요
+                    </p>
+                    <button
+                      onClick={sendOutingProbe}
+                      className="mt-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+                    >
+                      <Sparkles className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+                      더 보고 싶어요
+                    </button>
+                  </>
+                )}
+              </div>
+            </section>
+          )}
 
         </main>
       </div>
