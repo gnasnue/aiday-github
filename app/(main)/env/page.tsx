@@ -25,6 +25,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
+import WeatherNowCard from "@/components/WeatherNowCard";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -54,15 +55,6 @@ const VERDICT_META: Record<WeekendVerdict, { label: string; tone: string; Icon: 
 const gradeToLabel = (g: number | null) =>
   g === 1 ? "좋음" : g === 2 ? "보통" : g === 3 ? "나쁨" : g === 4 ? "매우나쁨" : "알 수 없음";
 
-const skyIcon = (sky: number | null, pty: number | null, size = 24) => {
-  const props = { size, strokeWidth: 1.75, "aria-hidden": true as const };
-  if (pty && pty > 0) return pty === 3 ? <CloudSnow {...props} /> : <CloudRain {...props} />;
-  if (sky === 1) return <Sun {...props} />;
-  if (sky === 3) return <CloudSun {...props} />;
-  if (sky === 4) return <Cloud {...props} />;
-  return <CloudSun {...props} />;
-};
-
 /* 주간 예보 API가 내려주는 아이콘 코드(이모지 문자열) → 벡터 아이콘 매핑.
    아래 case의 이모지는 API 응답 값 비교용 키일 뿐 화면에 렌더링되지 않는다. */
 const weekIcon = (code: string, size = 24) => {
@@ -76,17 +68,6 @@ const weekIcon = (code: string, size = 24) => {
     case "☀️": return <Sun {...props} />;
     default: return <CloudSun {...props} />;
   }
-};
-
-const skyDesc = (sky: number | null, pty: number | null) => {
-  if (pty === 1) return "비";
-  if (pty === 2) return "비/눈";
-  if (pty === 3) return "눈";
-  if (pty === 4) return "소나기";
-  if (sky === 1) return "맑음";
-  if (sky === 3) return "구름많음";
-  if (sky === 4) return "흐림";
-  return "알 수 없음";
 };
 
 /* ----------------------------- helpers ----------------------------- */
@@ -136,7 +117,7 @@ const Environment = () => {
     humidity: number | null; windSpeed: number | null; pop: number | null;
   };
   const [weather, setWeather] = useState<{
-    temperature: number | null; sky: number | null; pty: number | null;
+    temperature: number | null; feelsLike: number | null; sky: number | null; pty: number | null;
     humidity: number | null; windSpeed: number | null; pop: number | null;
     hourlyForecast?: HourlyForecast[];
   } | null>(null);
@@ -401,48 +382,22 @@ const Environment = () => {
             </p>
           </section>
 
-          {/* Current weather hero — 최상단 배치 */}
+          {/* 지금 날씨 카드 — outfit 화면과 동일한 공용 WeatherNowCard.
+             오른쪽 메시지는 env 실데이터인 야외활동 지수로 채운다. */}
           {loading ? (
-            <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
+            <Skeleton className="mt-4 h-36 w-full rounded-2xl" />
           ) : (
-            <section className="mt-4 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-medium text-accent">현재 날씨</p>
-                  <div className="mt-1 flex items-baseline gap-2">
-                    <span className="text-5xl font-bold text-foreground">
-                      {weather?.temperature != null ? `${weather.temperature}°` : "--°"}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-sm text-foreground">
-                    {skyDesc(weather?.sky ?? null, weather?.pty ?? null)}
-                  </p>
-                </div>
-                <span className="shrink-0 text-accent">
-                  {skyIcon(weather?.sky ?? null, weather?.pty ?? null, 56)}
-                </span>
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-muted/60 p-3 text-center text-xs">
-                <div>
-                  <p className="text-muted-foreground">습도</p>
-                  <p className="mt-0.5 font-bold text-foreground">
-                    {weather?.humidity != null ? `${weather.humidity}%` : "--"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">바람</p>
-                  <p className="mt-0.5 font-bold text-foreground">
-                    {weather?.windSpeed != null ? `${weather.windSpeed}m/s` : "--"}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-muted-foreground">강수확률</p>
-                  <p className="mt-0.5 font-bold text-foreground">
-                    {weather?.pop != null ? `${weather.pop}%` : "--"}
-                  </p>
-                </div>
-              </div>
-            </section>
+            <div className="mt-4 animate-fade-up">
+              <WeatherNowCard
+                temp={weather?.temperature ?? null}
+                feelsLike={weather?.feelsLike}
+                sky={weather?.sky}
+                pty={weather?.pty}
+                windSpeed={weather?.windSpeed}
+                humidity={weather?.humidity}
+                pop={weather?.pop}
+              />
+            </div>
           )}
 
           {/* Outdoor activity index */}
