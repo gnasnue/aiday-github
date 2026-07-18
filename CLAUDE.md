@@ -8,9 +8,12 @@
 npm run dev     # 개발 서버 (localhost:3000)
 npm run build   # 프로덕션 빌드 — ship 전 필수 통과
 npm run lint    # ESLint — ship 전 필수 통과
+npm test        # vitest — lib 유닛 테스트
+node scripts/verify-env-accuracy.mjs   # 홈 환경 지표 정합성 검증 (기본 프로덕션, --base http://localhost:3000 로컬)
+# ↑ 매일 07시 Claude 스케줄 태스크 `aiday-daily-env-accuracy`(~/.claude/scheduled-tasks, repo 외부)가 자동 실행
 ```
 
-테스트 스위트는 아직 없다. 검증은 실제 구동(dev 서버 + 화면 확인)으로 한다. 환경 변수는 `.env.example` 참조 (`.env.local`에 설정).
+lib 도메인 로직은 vitest 유닛 테스트(`npm test`)로, 화면 동작은 실제 구동(dev 서버 + 화면 확인)으로 검증한다. 환경 변수는 `.env.example` 참조 (`.env.local`에 설정).
 
 ## Structure
 

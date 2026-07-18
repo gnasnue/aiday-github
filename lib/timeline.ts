@@ -1,4 +1,5 @@
 import type { DustLevel, PollenLevel, UvLevel, WindLevel } from "./weather-api";
+import { feelsLikeC } from "./feels-like";
 
 /**
  * 홈 화면 "시간대별 환경" 카드 데이터 빌더.
@@ -176,7 +177,7 @@ export function buildTimeline(
       pty: w.pty,
       pop: w.pop,
       temp: Math.round(w.temp),
-      feels: Math.round(w.temp - 0.7 * (wind ?? 0)),
+      feels: feelsLikeC(w.temp, w.humidity, wind),
       dust: dustLabel(dustAt(env.air?.hourly, th, dustG)),
       uv: uvLevel(nearestUv(env.uv?.hourly, th) ?? env.uv?.uvi ?? null),
       pollen: pollenLabel(pollenG),

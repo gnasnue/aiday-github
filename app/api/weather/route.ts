@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { feelsLikeC } from "@/lib/feels-like";
+import { getNcstBaseDateTime } from "@/lib/kma-time";
 
 // 위경도 → 기상청 격자 좌표 변환 (Lambert Conformal Conic Projection)
 function latLonToGrid(lat: number, lon: number): { nx: number; ny: number } {
@@ -115,11 +117,31 @@ export async function GET(request: NextRequest) {
     // 기상청 단기예보는 base_time 이후 시각만 반환해, 오후에는 오늘 오전 시간대(06·09·12시)가
     // 최신 발표본에서 빠진다. 당일 0200 발표본은 하루 전체를 커버하므로 함께 받아
     // 지나간 시각 슬롯을 그날 아침에 봤던 값 그대로 고정해 채운다.
-    const [res, fillRes] = await Promise.all([
+    // 초단기실황: '현재' 스칼라(기온·습도·풍속·강수형태)의 1차 소스. 예보(단기예보)는
+    // 발표 후 최대 3시간 지난 값이라 실황과 상시 1~3°C 어긋난다 — 실황을 우선하고
+    // 실황 실패 시에만 종전처럼 예보 최근접값으로 폴백한다. base_time이 URL에 포함돼
+    // 캐시 키가 매시 갱신된다.
+    const ncst = getNcstBaseDateTime();
+    const ncstUrl = (bd: string, bt: string) => {
+      const params = new URLSearchParams({
+        serviceKey: apiKey,
+        numOfRows: "10",
+        pageNo: "1",
+        dataType: "JSON",
+        base_date: bd,
+        base_time: bt,
+        nx: String(nx),
+        ny: String(ny),
+      });
+      return `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?${params}`;
+    };
+
+    const [res, fillRes, ncstRes] = await Promise.all([
       fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }), // 30분 캐시
       base_time !== "0200"
         ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null)
         : Promise.resolve(null),
+      fetch(ncstUrl(ncst.base_date, ncst.base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null),
     ]);
     if (!res.ok) {
       return NextResponse.json(
@@ -139,6 +161,31 @@ export async function GET(request: NextRequest) {
         const fillData = await fillRes.json();
         fillItems = fillData?.response?.body?.items?.item ?? [];
       } catch {}
+    }
+
+    // 실황 관측값 — 실패해도 예보 폴백으로 기존과 동일하게 동작한다
+    const obs: Record<string, string> = {};
+    const parseObs = async (r: Response | null) => {
+      if (!r?.ok) return;
+      try {
+        const d = await r.json();
+        const its: Array<{ category: string; obsrValue: string }> =
+          d?.response?.body?.items?.item ?? [];
+        for (const it of its) obs[it.category] = it.obsrValue;
+      } catch {}
+    };
+    await parseObs(ncstRes);
+    // 발표 지연으로 이번 시각 실황이 비어 있으면(빈 200 응답이 30분 캐시에 고정될 수 있음)
+    // 직전 시각 발표본으로 한 번 더 시도한다 — URL이 달라 별도 캐시 엔트리라 안전하다.
+    let obsBase = ncst;
+    if (obs["T1H"] == null) {
+      const prev = getNcstBaseDateTime(new Date(Date.now() + 9 * 60 * 60 * 1000 - 60 * 60 * 1000));
+      const prevRes = await fetch(ncstUrl(prev.base_date, prev.base_time), {
+        next: { revalidate: 1800 },
+        signal: AbortSignal.timeout(8000),
+      }).catch(() => null);
+      await parseObs(prevRes);
+      obsBase = prev;
     }
 
     // 오늘 날짜 기준 현재 시각에 가장 가까운 예보만 추출
@@ -216,14 +263,41 @@ export async function GET(request: NextRequest) {
 
     // SKY: 1=맑음, 3=구름많음, 4=흐림
     // PTY: 0=없음, 1=비, 2=비/눈, 3=눈, 4=소나기
+    // 현재 스칼라: 실황(T1H·REH·WSD·PTY) 우선, 없으면 예보 최근접값.
+    // SKY·POP은 실황에 없는 예보 전용 항목이라 예보값 유지.
+    // 값 검증: KMA는 결측을 ±900대 센티널(-998/-999 등)로 표기한다 — 범위 밖은 결측 처리해
+    // 센티널이 실측인 척 화면과 검증 스크립트에 흘러가지 않게 한다.
+    const num = (v: string | undefined, min: number, max: number): number | null => {
+      if (v == null || v === "") return null;
+      const n = Number(v);
+      return Number.isNaN(n) || n < min || n > max ? null : n;
+    };
+    // 실황 PTY는 0~7(5=빗방울 6=빗방울눈날림 7=눈날림) — 소비처가 가정하는 예보 코드(0~4)로 정규화
+    const normPty = (p: number | null): number | null =>
+      p == null ? null : p === 5 ? 1 : p === 6 ? 2 : p === 7 ? 3 : p;
+    const obsTemp = num(obs["T1H"], -50, 50);
+    // 부분 관측 방지: 기온이 유효할 때만 실황 세트를 쓴다 (출처 표기가 거짓이 되지 않게)
+    const usingNcst = obsTemp != null;
+    const rawTemp = usingNcst ? obsTemp : num(forecast["TMP"], -50, 50);
+    // 실황 T1H는 소수 1자리("27.3") — 예보와 동일하게 정수로 반올림해 표시 회귀를 막는다
+    const temperature = rawTemp != null ? Math.round(rawTemp) : null;
+    const humidity = (usingNcst ? num(obs["REH"], 0, 100) : null) ?? num(forecast["REH"], 0, 100);
+    const windSpeed = (usingNcst ? num(obs["WSD"], 0, 70) : null) ?? num(forecast["WSD"], 0, 70);
+    const pty =
+      (usingNcst ? normPty(num(obs["PTY"], 0, 7)) : null) ?? num(forecast["PTY"], 0, 4);
     return NextResponse.json({
-      temperature: forecast["TMP"] ? Number(forecast["TMP"]) : null,
-      feelsLike: forecast["WSD"] ? Math.round(Number(forecast["TMP"]) - 0.7 * Number(forecast["WSD"])) : null,
-      sky: forecast["SKY"] ? Number(forecast["SKY"]) : null,
-      pty: forecast["PTY"] ? Number(forecast["PTY"]) : null,
-      humidity: forecast["REH"] ? Number(forecast["REH"]) : null,
-      windSpeed: forecast["WSD"] ? Number(forecast["WSD"]) : null,
-      pop: forecast["POP"] ? Number(forecast["POP"]) : null,
+      temperature,
+      feelsLike: temperature != null ? feelsLikeC(temperature, humidity, windSpeed) : null,
+      sky: num(forecast["SKY"], 1, 4),
+      pty,
+      humidity,
+      windSpeed,
+      pop: num(forecast["POP"], 0, 100),
+      // 현재 스칼라 출처 — 정합성 검증 스크립트·디버깅용 (ncst=실황 관측, fcst=예보 폴백)
+      currentSource: usingNcst ? "ncst" : "fcst",
+      currentBaseTime: usingNcst
+        ? `${obsBase.base_date} ${obsBase.base_time}`
+        : `${base_date} ${base_time}`,
       hourlyForecast,
     });
   } catch (err) {
