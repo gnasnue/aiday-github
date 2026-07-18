@@ -1120,7 +1120,9 @@ const Home = () => {
               className="flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-              <span>서울 강남구</span>
+              {/* 실제 데이터 기준지(날씨 좌표: 시청 부근 중구) — 위치 기능 도입 전까지
+                  라벨이 데이터와 다른 지역(강남구)을 주장하지 않게 한다 (SPEC 리스크 항목) */}
+              <span>서울 중구</span>
               <ChevronDown className="h-3 w-3 shrink-0" />
             </button>
           </div>
