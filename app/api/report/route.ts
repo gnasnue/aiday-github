@@ -146,8 +146,10 @@ export async function POST(req: NextRequest) {
   let prompt: string;
   try {
   // ── 환경 요약 ──────────────────────────────────────────────
+  // 수치(μg/m³)는 프롬프트에 넣지 않는다 — 등급이 판단 정보의 전부이고,
+  // 입력에 숫자가 있으면 hook/message로 샐 위험만 있다 (자외선과 동일 원칙).
   const airSummary = air
-    ? `PM10 ${air.pm10 ?? "?"}μg/m³(${gradeLabel(air.pm10Grade)}), PM2.5 ${air.pm25 ?? "?"}μg/m³(${gradeLabel(air.pm25Grade)}), 통합대기 ${gradeLabel(air.khaiGrade)}`
+    ? `미세먼지(PM10) ${gradeLabel(air.pm10Grade)}, 초미세먼지(PM2.5) ${gradeLabel(air.pm25Grade)}, 통합대기 ${gradeLabel(air.khaiGrade)}`
     : "대기질 데이터 없음";
 
   // 자외선지수(UVI) → 라벨 (홈 시간대 카드와 동일 임계값). 하루 최고값은 피크 시각과
@@ -163,10 +165,12 @@ export async function POST(req: NextRequest) {
   const uvPeakEntry = uvEntries.length
     ? uvEntries.reduce((a, b) => (b.value > a.value ? b : a))
     : null;
+  // 프롬프트에는 수치(UVI 숫자)를 넣지 않는다 — hook/message 수치 금지 규칙이 있어도
+  // 입력에 숫자가 있으면 출력으로 샐 위험이 있다. 등급 계산은 서버가 이미 했으므로 등급만 전달.
   const uvPeak = uvPeakEntry ? uvPeakEntry.value : uv?.uvi ?? null;
   const uvSummary =
     uvPeak != null
-      ? `자외선지수 오늘 최고 ${uvPeak} (${uvLabel(uvPeak)}${uvPeakEntry ? `, ${uvPeakEntry.hour}시경` : ""})`
+      ? `자외선 오늘 최고 ${uvLabel(uvPeak)}${uvPeakEntry ? ` (${uvPeakEntry.hour}시경)` : ""}`
       : "자외선 데이터 없음";
 
   // 일정 시각의 자외선 값 — 3시간 해상도라 가장 가까운 시각 값 사용 (홈 카드 nearestUv와 동일 방식)
@@ -186,7 +190,7 @@ export async function POST(req: NextRequest) {
     : [];
   const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
   const pollenSummary =
-    pollenMax != null ? `꽃가루 위험지수 ${pollenMax} (${pollenLabel(pollenMax)})` : "꽃가루 데이터 없음";
+    pollenMax != null ? `꽃가루 오늘 최고 ${pollenLabel(pollenMax)}` : "꽃가루 데이터 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
