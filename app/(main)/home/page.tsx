@@ -18,8 +18,8 @@ import {
   loadProfiles,
   realLocalProfiles,
 } from "@/lib/profile";
-import { buildRecommendation } from "@/lib/recommendation-engine";
-import { mockWeather } from "@/lib/weather-mock";
+import { buildRecommendation, type Recommendation } from "@/lib/recommendation-engine";
+import { nearestSeoulGu } from "@/lib/locations";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
@@ -222,6 +222,13 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 };
 
 
+// 위치 v1 — 위치 버튼으로 설정한 실위치(서울 구 단위). 날씨는 좌표 그대로,
+// 미세먼지는 해당 구 측정소로 조회. 라벨과 데이터 기준지가 항상 일치한다.
+type HomeLocation = { gu: string; lat: number; lon: number; station: string };
+const LOCATION_KEY = "aiday:location:v1";
+// 기본 기준지: 서울시청 좌표 + 중구 측정소 (라벨 "서울 중구"와 데이터 일치)
+const DEFAULT_LOCATION: HomeLocation = { gu: "중구", lat: 37.5665, lon: 126.978, station: "중구" };
+
 const Home = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -234,8 +241,24 @@ const Home = () => {
     }
   });
   const [checked, setChecked] = useState<number[]>([]);
+  const [location, setLocationState] = useState<HomeLocation>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LOCATION_KEY) ?? "null");
+      if (
+        saved &&
+        typeof saved.lat === "number" &&
+        typeof saved.lon === "number" &&
+        typeof saved.gu === "string" &&
+        typeof saved.station === "string"
+      )
+        return saved as HomeLocation;
+    } catch {}
+    return DEFAULT_LOCATION;
+  });
+  const [locating, setLocating] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [weatherData, setWeatherData] = useState<WeatherData>(mockWeather);
+  // 실측 도착 전엔 null — mock 초기값이 실측인 척 렌더되지 않게 한다 (2026-07 조사: 무표기 폴백).
+  const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
   // 현재 날씨 스칼라(지금 날씨 카드용) — weatherData는 축약본이라 원본 스칼라를 따로 보관
   const [curWeather, setCurWeather] = useState<{
     temperature: number | null; feelsLike: number | null; windSpeed: number | null;
@@ -387,8 +410,8 @@ const Home = () => {
         // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
         // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
         // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게 짧게(5s).
-        const weatherP = getJson("/api/weather?lat=37.5665&lon=126.9780", 9000, "weather");
-        const airP = getJson("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC", 9000, "air");
+        const weatherP = getJson(`/api/weather?lat=${location.lat}&lon=${location.lon}`, 9000, "weather");
+        const airP = getJson(`/api/air?station=${encodeURIComponent(location.station)}`, 9000, "air");
         const uvP = getJson("/api/uv?region=서울", 5000, "uv");
         const pollenP = getJson("/api/pollen?region=서울", 5000, "pollen");
 
@@ -404,15 +427,19 @@ const Home = () => {
           uv: null,
           pollen: null,
         });
-        if (w && !w.error) {
+        if (w && !w.error && w.temperature != null) {
           const windLabel = w.windSpeed >= 9 ? "강함" : w.windSpeed >= 4 ? "보통" : "약함";
+          // mock 블렌딩 없이 실측만으로 구성 — 습도 결측(드묾)은 경고 미판정 중립값 50,
+          // 꽃가루·자외선은 후속 게이트에서 실데이터로 갱신될 때까지 보수 기본값.
           setWeatherData({
-            ...mockWeather,
-            temp: w.temperature ?? mockWeather.temp,
-            humidity: w.humidity ?? mockWeather.humidity,
+            temp: w.temperature,
+            humidity: w.humidity ?? 50,
             // 타임라인 카드와 동일한 매핑 사용 — null(측정 실패)은 "보통"으로 통일
             dustLevel: dustLabel(a?.pm10Grade ?? null),
+            pollenLevel: "낮음",
+            uvIndex: 0,
             windSpeed: windLabel,
+            timeline: [],
           });
           setCurWeather({
             temperature: w.temperature ?? null,
@@ -445,7 +472,7 @@ const Home = () => {
             : [];
         const pollenLevel = pollenLabel(pollenVals.length ? Math.max(...pollenVals) : null);
         const uvIndex = u && !u.error && typeof u.uvi === "number" ? u.uvi : 0;
-        setWeatherData((prev) => ({ ...prev, pollenLevel, uvIndex }));
+        setWeatherData((prev) => (prev ? { ...prev, pollenLevel, uvIndex } : prev));
         if (w && !w.error) {
           setAiLoading(true); // 리포트 effect 착수(캐시 재검증) — primed면 스켈레톤은 안 뜸
           // 이미 캐시로 그려둔 경우엔 지우지 않는다(재검증 중 잔상·깜빡임 방지).
@@ -466,7 +493,8 @@ const Home = () => {
     };
     fetchEnv();
     return () => controller.abort();
-  }, []);
+    // 위치가 바뀌면 환경 데이터 전체를 새 기준지로 다시 가져온다 (이전 흐름은 abort로 취소)
+  }, [location.lat, location.lon, location.station]);
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
   // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
@@ -793,30 +821,57 @@ const Home = () => {
     [envRaw, cur?.schedule]
   );
 
-  // 렌더용 슬롯: 실데이터 없으면 mock을 동일 형태(sky/pty=null)로 변환해 폴백
-  const displaySlots = useMemo<HomeTimeSlot[]>(() => {
-    if (timeline) return timeline;
-    return mockWeather.timeline.map((t) => ({
-      time: t.time,
-      hour: t.hour,
-      sky: null,
-      pty: null,
-      pop: null,
-      temp: t.temp,
-      feels: t.feels,
-      dust: t.dust,
-      uv: t.uv,
-      pollen: t.pollen,
-      humidity: t.humidity,
-      wind: t.wind,
-    }));
-  }, [timeline]);
+  // 위치 버튼: Geolocation → 서울 최근접 구 매핑 → 기준지 변경(라벨·측정소 동시 갱신).
+  // 사용자 제스처 안에서만 권한을 요청하고, 서울 밖·거부·실패는 기본 기준지 유지 + 정직한 안내.
+  const handleLocationChange = () => {
+    if (locating) return;
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      toast("이 기기에서는 위치를 사용할 수 없어요");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLocating(false);
+        const { latitude, longitude } = pos.coords;
+        const gu = nearestSeoulGu(latitude, longitude);
+        if (!gu) {
+          toast("아직 서울 지역만 지원해요 — 기본 기준지(서울 중구)로 보여드려요");
+          return;
+        }
+        const loc: HomeLocation = { gu: gu.name, lat: latitude, lon: longitude, station: gu.name };
+        setLocationState(loc);
+        try {
+          localStorage.setItem(LOCATION_KEY, JSON.stringify(loc));
+        } catch {}
+        toast(`서울 ${gu.name} 기준으로 보여드릴게요`);
+      },
+      () => {
+        setLocating(false);
+        toast("위치 권한이 없어 기본 기준지(서울 중구)로 보여드려요");
+      },
+      { timeout: 8000, maximumAge: 600000 }
+    );
+  };
+
+  // 렌더용 슬롯: 실데이터가 없으면 빈 배열 — mock 값을 실측인 척 보여주지 않는다
+  // (2026-07 조사: 무표기 폴백이 "지표 부정확" 체감의 근본 원인 중 하나).
+  // 빈 상태는 시간대별 환경·케어 플랜 섹션이 "데이터 지연" 안내로 렌더한다.
+  const displaySlots = useMemo<HomeTimeSlot[]>(() => timeline ?? [], [timeline]);
 
   // 규칙 기반 추천(AI 리포트 폴백 + 상단 환경 칩).
   // 체크리스트·메시지는 실측 슬롯(displaySlots)을 근거로 삼아 상단 칩과 어긋나지 않게 하고,
   // 칩(badges)은 종전대로 weatherData의 실측 스칼라값에서 도출한다.
-  const recommendation = useMemo(
-    () => buildRecommendation(cur, weatherData, displaySlots),
+  // 실측 자체가 없으면 mock 기반 추천 대신 정직한 안내 문구만 낸다.
+  const recommendation = useMemo<Recommendation>(
+    () =>
+      weatherData
+        ? buildRecommendation(cur, weatherData, displaySlots)
+        : {
+            checklist: [],
+            message: "실시간 환경 데이터를 불러오지 못했어요. 네트워크 확인 후 잠시 뒤 다시 열어주세요.",
+            badges: [],
+          },
     [cur, weatherData, displaySlots]
   );
 
@@ -919,13 +974,13 @@ const Home = () => {
   // 라벨(옅게)+값(진하게) 쌍으로 렌더해 한 줄에서 각 지표가 바로 스캔되게 한다.
   const nowWeatherItems = (() => {
     const items: { label: string; value: string }[] = [];
-    const t = curWeather?.temperature ?? weatherData.temp;
+    // 실측(curWeather·weatherData)이 있는 값만 노출 — mock·추정값 폴백 없음
+    const t = curWeather?.temperature ?? weatherData?.temp ?? null;
     if (t != null) items.push({ label: "현재날씨", value: `${t}°` });
     if (curWeather?.feelsLike != null) items.push({ label: "체감", value: `${curWeather.feelsLike}°` });
     if (curWeather?.pop != null) items.push({ label: "강수", value: `${curWeather.pop}%` });
-    if (weatherData.dustLevel) items.push({ label: "미세먼지", value: weatherData.dustLevel });
-    const hum = curWeather?.humidity ?? weatherData.humidity;
-    if (hum != null) items.push({ label: "습도", value: `${hum}%` });
+    if (weatherData?.dustLevel) items.push({ label: "미세먼지", value: weatherData.dustLevel });
+    if (curWeather?.humidity != null) items.push({ label: "습도", value: `${curWeather.humidity}%` });
     return items;
   })();
 
@@ -1114,15 +1169,14 @@ const Home = () => {
               </button>
             </div>
 
-            {/* 위치 — 상단 라인 우측 고정 */}
+            {/* 위치 — 상단 라인 우측 고정. 탭하면 실위치 기반으로 기준지 변경(위치 v1).
+                라벨은 항상 실제 데이터 기준지(구 단위)와 일치한다. */}
             <button
-              onClick={() => toast("위치 변경은 준비 중이에요")}
+              onClick={handleLocationChange}
               className="flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-              {/* 실제 데이터 기준지(날씨 좌표: 시청 부근 중구) — 위치 기능 도입 전까지
-                  라벨이 데이터와 다른 지역(강남구)을 주장하지 않게 한다 (SPEC 리스크 항목) */}
-              <span>서울 중구</span>
+              <span>{locating ? "위치 확인 중…" : `서울 ${location.gu}`}</span>
               <ChevronDown className="h-3 w-3 shrink-0" />
             </button>
           </div>
@@ -1345,6 +1399,15 @@ const Home = () => {
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
           <section className="mt-8">
             <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
+            {/* 실측 없음: mock 카드 대신 정직한 안내 — 어떤 값도 실측인 척 보여주지 않는다 */}
+            {!loading && displaySlots.length === 0 && (
+              <div className="mt-3 rounded-2xl bg-card p-5 text-center shadow-soft">
+                <p className="text-[13.5px] font-semibold text-foreground">환경 데이터를 불러오지 못했어요</p>
+                <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                  기상청 응답이 지연되고 있어요. 네트워크 확인 후 잠시 뒤 다시 열어주세요.
+                </p>
+              </div>
+            )}
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -1406,6 +1469,14 @@ const Home = () => {
           {/* 하루 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
           <section className="mt-8">
             <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">하루 케어 플랜</h2>
+            {/* 실측 없음: 위 시간대별 카드와 동일한 정직한 빈 상태 */}
+            {!loading && displaySlots.length === 0 && (
+              <div className="mt-4 rounded-2xl bg-card p-5 text-center shadow-soft">
+                <p className="text-[12px] leading-relaxed text-muted-foreground">
+                  환경 데이터가 준비되면 케어 플랜을 보여드릴게요.
+                </p>
+              </div>
+            )}
             <div className="mt-4">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
