@@ -146,18 +146,41 @@ export async function POST(req: NextRequest) {
   let prompt: string;
   try {
   // ── 환경 요약 ──────────────────────────────────────────────
+  // 수치(μg/m³)는 프롬프트에 넣지 않는다 — 등급이 판단 정보의 전부이고,
+  // 입력에 숫자가 있으면 hook/message로 샐 위험만 있다 (자외선과 동일 원칙).
   const airSummary = air
-    ? `PM10 ${air.pm10 ?? "?"}μg/m³(${gradeLabel(air.pm10Grade)}), PM2.5 ${air.pm25 ?? "?"}μg/m³(${gradeLabel(air.pm25Grade)}), 통합대기 ${gradeLabel(air.khaiGrade)}`
+    ? `미세먼지(PM10) ${gradeLabel(air.pm10Grade)}, 초미세먼지(PM2.5) ${gradeLabel(air.pm25Grade)}, 통합대기 ${gradeLabel(air.khaiGrade)}`
     : "대기질 데이터 없음";
 
-  // 자외선지수(UVI) → 라벨 (홈 시간대 카드와 동일 임계값). 오늘 최댓값 기준으로 요약해
-  // "야외활동 시간에 강해지는지"를 리포트가 판단할 수 있게 한다.
+  // 자외선지수(UVI) → 라벨 (홈 시간대 카드와 동일 임계값). 하루 최고값은 피크 시각과
+  // 함께 요약하고, 일정별 줄에도 해당 시각 등급을 넣는다 — 최고값 숫자만 주면 모델이
+  // 임의 시간대(하원 등)에 붙이는 오귀속이 발생한다 (2026-07-19 "하원 자외선 매우강함" 버그).
   const uvLabel = (v: number | null) =>
     v == null ? null : v >= 8 ? "매우강함" : v >= 6 ? "강함" : v >= 3 ? "보통" : "낮음";
-  const uvHourly = uv?.hourly ? Object.values(uv.hourly).filter((v): v is number => v != null) : [];
-  const uvPeak = uvHourly.length ? Math.max(...uvHourly) : uv?.uvi ?? null;
+  const uvEntries = uv?.hourly
+    ? Object.entries(uv.hourly)
+        .map(([h, v]) => ({ hour: Number(h), value: v }))
+        .filter((e): e is { hour: number; value: number } => !Number.isNaN(e.hour) && e.value != null)
+    : [];
+  const uvPeakEntry = uvEntries.length
+    ? uvEntries.reduce((a, b) => (b.value > a.value ? b : a))
+    : null;
+  // 프롬프트에는 수치(UVI 숫자)를 넣지 않는다 — hook/message 수치 금지 규칙이 있어도
+  // 입력에 숫자가 있으면 출력으로 샐 위험이 있다. 등급 계산은 서버가 이미 했으므로 등급만 전달.
+  const uvPeak = uvPeakEntry ? uvPeakEntry.value : uv?.uvi ?? null;
   const uvSummary =
-    uvPeak != null ? `자외선지수 ${uvPeak} (${uvLabel(uvPeak)})` : "자외선 데이터 없음";
+    uvPeak != null
+      ? `자외선 오늘 최고 ${uvLabel(uvPeak)}${uvPeakEntry ? ` (${uvPeakEntry.hour}시경)` : ""}`
+      : "자외선 데이터 없음";
+
+  // 일정 시각의 자외선 값 — 3시간 해상도라 가장 가까운 시각 값 사용 (홈 카드 nearestUv와 동일 방식)
+  const uvAtHour = (target: number): number | null => {
+    if (Number.isNaN(target) || !uvEntries.length) return null;
+    const best = uvEntries.reduce((a, b) =>
+      Math.abs(b.hour - target) < Math.abs(a.hour - target) ? b : a
+    );
+    return best.value;
+  };
 
   // 꽃가루 위험지수(0~4) → 라벨. 참나무·소나무·잡초 중 최댓값 기준.
   const pollenLabel = (g: number | null) =>
@@ -167,7 +190,7 @@ export async function POST(req: NextRequest) {
     : [];
   const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
   const pollenSummary =
-    pollenMax != null ? `꽃가루 위험지수 ${pollenMax} (${pollenLabel(pollenMax)})` : "꽃가루 데이터 없음";
+    pollenMax != null ? `꽃가루 오늘 최고 ${pollenLabel(pollenMax)}` : "꽃가루 데이터 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
@@ -207,7 +230,9 @@ export async function POST(req: NextRequest) {
     const sky = skyLabel(s.sky);
     const rain = s.pty ? ` / ${ptyLabel(s.pty)}` : "";
     const pop = s.pop != null ? ` (강수확률 ${s.pop}%)` : "";
-    return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}${pop}, 습도 ${s.humidity ?? "?"}%`;
+    const uvV = uvAtHour(parseInt((time ?? "").split(":")[0], 10));
+    const uvStr = uvV != null ? `, 자외선 ${uvLabel(uvV)}` : "";
+    return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}${pop}, 습도 ${s.humidity ?? "?"}%${uvStr}`;
   };
 
   const scheduleLines = [

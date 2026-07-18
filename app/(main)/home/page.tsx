@@ -38,7 +38,7 @@ const localDateStr = () => {
 // AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
 // 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
 // (예전에 두 곳에 하드코딩해 버전이 어긋나며 프라임이 캐시를 못 찾던 회귀가 있었다).
-const reportCacheKey = (childId: string) => `aiday:report:v17:${childId}:${localDateStr()}`;
+const reportCacheKey = (childId: string) => `aiday:report:v18:${childId}:${localDateStr()}`;
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
