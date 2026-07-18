@@ -44,8 +44,8 @@ import {
 } from "@/lib/profile";
 import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
 
-const TOTAL = 7;
-const STORAGE_KEY = "aiweather:onboarding";
+const TOTAL = 5;
+const STORAGE_KEY = "aiweather:onboarding:v2"; // 기본정보 병합(7→5단계)으로 step 의미 변경 — 구형 진행상태 무효화
 
 type State = {
   name: string;
@@ -174,11 +174,13 @@ const Onboarding = () => {
   };
 
   const next = () => {
-    if (step === 1 && !s.name.trim()) return toast.error("아이 이름을 입력해주세요");
-    if (step === 2 && (!s.year || !s.month)) return toast.error("태어난 연도와 월을 선택해주세요");
-    if (step === 3 && !s.gender) return toast.error("성별을 선택해주세요");
-    if (step === 4 && s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
-    if (step === 5 && (!s.cold || !s.hot || !s.sweat)) return toast.error("세 항목 모두 선택해주세요");
+    if (step === 1) {
+      if (!s.name.trim()) return toast.error("아이 이름을 입력해주세요");
+      if (!s.year || !s.month) return toast.error("태어난 연도와 월을 선택해주세요");
+      if (!s.gender) return toast.error("성별을 선택해주세요");
+    }
+    if (step === 2 && s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
+    if (step === 3 && (!s.cold || !s.hot || !s.sweat)) return toast.error("세 항목 모두 선택해주세요");
     if (step < TOTAL) setStep(step + 1);
     else {
       finish();
@@ -225,68 +227,68 @@ const Onboarding = () => {
 
   const stepNode: Record<number, { q: string; hint?: string; node: React.ReactNode }> = {
     1: {
-      q: "안녕하세요! 먼저 아이의 이름을 알려주세요.",
-      hint: "별명도 괜찮아요 (예: 지우, 첫째, 우리 아기)",
+      q: "안녕하세요! 먼저 아이에 대해 알려주세요.",
+      hint: "월령과 성별에 따라 맞춤 건강 정보를 준비해요",
       node: (
-        <Input
-          autoFocus
-          value={s.name}
-          onChange={(e) => update({ name: e.target.value })}
-          placeholder="예) 지우"
-          className="h-12 text-center text-lg"
-        />
+        <div className="space-y-4">
+          <div>
+            <p className="mb-1.5 text-sm text-muted-foreground">이름</p>
+            <Input
+              autoFocus
+              value={s.name}
+              onChange={(e) => update({ name: e.target.value })}
+              placeholder="예) 지우 (별명도 괜찮아요)"
+              className="h-12 text-lg"
+            />
+          </div>
+          <div>
+            <p className="mb-1.5 text-sm text-muted-foreground">태어난 연·월</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Select value={s.year} onValueChange={(v) => update({ year: v })}>
+                <SelectTrigger className="h-12"><SelectValue placeholder="년" /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const y = 2026 - i;
+                    return <SelectItem key={y} value={String(y)}>{y}년</SelectItem>;
+                  })}
+                </SelectContent>
+              </Select>
+              <Select value={s.month} onValueChange={(v) => update({ month: v })}>
+                <SelectTrigger className="h-12"><SelectValue placeholder="월" /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 12 }).map((_, i) => (
+                    <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}월</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <p className="mb-1.5 text-sm text-muted-foreground">성별</p>
+            <div className="grid grid-cols-3 gap-2">
+              {["남아", "여아", "선택 안 함"].map((l) => {
+                const on = s.gender === l;
+                return (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => update({ gender: l })}
+                    className={`flex h-14 items-center justify-center rounded-xl border-2 text-sm font-medium transition-smooth ${
+                      on
+                        ? "border-primary bg-secondary text-foreground"
+                        : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       ),
     },
     2: {
-      q: `${nm}는 언제 태어났나요?`,
-      hint: "월령에 따라 적절한 건강 정보가 달라져요",
-      node: (
-        <div className="grid grid-cols-2 gap-2">
-          <Select value={s.year} onValueChange={(v) => update({ year: v })}>
-            <SelectTrigger className="h-12"><SelectValue placeholder="년" /></SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 10 }).map((_, i) => {
-                const y = 2026 - i;
-                return <SelectItem key={y} value={String(y)}>{y}년</SelectItem>;
-              })}
-            </SelectContent>
-          </Select>
-          <Select value={s.month} onValueChange={(v) => update({ month: v })}>
-            <SelectTrigger className="h-12"><SelectValue placeholder="월" /></SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <SelectItem key={i + 1} value={String(i + 1)}>{i + 1}월</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      ),
-    },
-    3: {
-      q: `${nm}의 성별을 알려주세요`,
-      node: (
-        <div className="grid grid-cols-3 gap-2">
-          {["남아", "여아", "선택 안 함"].map((l) => {
-            const on = s.gender === l;
-            return (
-              <button
-                key={l}
-                type="button"
-                onClick={() => update({ gender: l })}
-                className={`flex h-14 items-center justify-center rounded-xl border-2 text-sm font-medium transition-smooth ${
-                  on
-                    ? "border-primary bg-secondary text-foreground"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                }`}
-              >
-                {l}
-              </button>
-            );
-          })}
-        </div>
-      ),
-    },
-    4: {
       q: `${nm}에게 해당되는 것을 모두 선택해주세요`,
       hint: "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요",
       node: (
@@ -316,7 +318,7 @@ const Onboarding = () => {
         </div>
       ),
     },
-    5: {
+    3: {
       q: `${nm}는 또래와 비교했을 때 어떤가요?`,
       hint: "체온 민감도에 따라 옷차림 추천이 달라져요",
       node: (
@@ -341,9 +343,9 @@ const Onboarding = () => {
         </div>
       ),
     },
-    6: {
-      q: `${nm}의 하루 일과를 알려주시면 더 정확한 리포트를 드려요`,
-      hint: "선택 항목이에요. 나중에 설정에서도 입력할 수 있어요",
+    4: {
+      q: `${nm}의 하루 일과를 알려 주세요`,
+      hint: "생활 패턴에 따라 오늘 하루의 가이드를 제공해 드려요",
       node: (
         <div className="space-y-3">
           <div>
@@ -400,7 +402,7 @@ const Onboarding = () => {
           </div>
           <button
             type="button"
-            onClick={() => setStep(7)}
+            onClick={() => setStep(5)}
             className="block w-full pt-1 text-center text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
             건너뛰고 나중에 입력할게요
@@ -408,7 +410,7 @@ const Onboarding = () => {
         </div>
       ),
     },
-    7: {
+    5: {
       q: "언제 알려드릴까요?",
       hint: "나중에 설정에서 언제든 변경할 수 있어요",
       node: (
