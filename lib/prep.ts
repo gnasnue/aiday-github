@@ -84,10 +84,15 @@ export function buildPrepKeywords(
 
   // 건조 → 보습제. 상단 체크리스트와 정합:
   //  - 습도 < 45%: 날씨 기반 신호(상단 건조 임계값과 동일; 종전 ≤40에서 완화). 해당 슬롯마다 노출.
-  //  - 민감 피부(아토피 등): 체질 기반 상시 신호. 대표 슬롯에서만 노출해 반복을 막는다.
+  //  - 민감 피부(아토피 등): 체질 기반 상시 신호. 대표 슬롯에서만, 그리고 습하지 않을 때만.
+  //    습도 60% 이상 여름날 "보습제"는 부모에게 비논리로 읽히고(2026-07-20 실사용 지적),
+  //    상수 신호가 급성 날씨 신호(여벌 옷 58 등)를 밀어내지 않도록 우선순위도 그 아래(52)로 둔다.
   const dry = slot.humidity > 0 && slot.humidity < 45;
-  if (dry || (hasSkin && isPrimarySlot)) {
+  const humid = slot.humidity >= 60;
+  if (dry) {
     out.push({ keyword: "보습제", priority: hasSkin ? 85 : 50 });
+  } else if (hasSkin && isPrimarySlot && !humid) {
+    out.push({ keyword: "보습제", priority: 52 });
   }
 
   // 강풍
@@ -105,4 +110,41 @@ export function buildPrepKeywords(
     .sort((a, b) => b.priority - a.priority)
     .slice(0, 2)
     .map((c) => c.keyword);
+}
+
+/**
+ * 준비물 칩 강조(오렌지) 판정 — 아이템 종류가 아니라 "이 슬롯 환경에서 이 아이템이
+ * 건강 보호에 긴급한가"를 슬롯 데이터로 판정한다 (2026-07-20 확정).
+ * 종전의 고정 화이트리스트({우산·마스크·선크림})는 예비 신호(강수 40~50%)의 우산까지
+ * 강조하고, 폭염 물병·한파 방한용품 같은 긴급 신호는 강조하지 못했다.
+ * 키워드 기반이라 AI 변형(prepVariant=ai)이 생성한 칩에도 동일하게 적용된다.
+ */
+export function isCriticalPrep(
+  keyword: string,
+  slot: HomeTimeSlot,
+  conditions: string[] = []
+): boolean {
+  const windowPop = slot.popWindow ?? slot.pop;
+  const rainSure =
+    slot.rainWindow || (slot.pty != null && slot.pty > 0) || (windowPop != null && windowPop >= 60);
+  switch (keyword) {
+    case "우산":
+    case "우비":
+      return rainSure; // 예비 신호(창 40~50%)의 우산은 강조하지 않는다
+    case "마스크":
+      return (
+        slot.dust === "나쁨" ||
+        slot.dust === "매우나쁨" ||
+        ((slot.pollen === "높음" || slot.pollen === "매우높음") &&
+          (hasRespiratory(conditions) || hasAllergyCondition(conditions)))
+      );
+    case "물병":
+      return slot.temp >= 31; // 폭염
+    case "방한용품":
+      return slot.temp <= 0; // 한파
+    case "선크림":
+      return slot.uv === "매우강함" || (slot.uv === "강함" && hasSkinCondition(conditions));
+    default:
+      return false; // 쾌적·보조 준비물(보습제·여벌 옷·겉옷·모자·바람막이 등)은 중립 칩
+  }
 }
