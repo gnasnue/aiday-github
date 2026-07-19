@@ -1143,22 +1143,20 @@ const Home = () => {
           {/* 상단 라인 — 프로필 탭(좌, 가로 스크롤) + 위치(우, 고정) */}
           <div className="flex items-center gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
+              {/* 프로필 칩 — 이름만 표기. 아바타 이니셜·나이는 이 칩에선 중복 정보라 제거(상세는 마이 페이지에).
+                  활성 텍스트는 accent가 아닌 foreground — 이름이 붉은 계열로 읽히지 않게(2026-07-19 사용자 결정),
+                  선택 상태는 primary-tint 배경만으로 표현한다 */}
               {profiles.map((p) => (
                 <button
                   key={p.id}
                   onClick={() => setActive(p.id)}
-                  className={`flex min-h-11 shrink-0 items-center gap-2 rounded-full border py-[5px] pl-1.5 pr-[15px] text-sm transition-smooth ${
+                  className={`flex min-h-11 shrink-0 items-center rounded-full border border-transparent px-4 text-sm font-semibold transition-smooth ${
                     active === p.id
-                      ? "border-transparent bg-primary-tint text-accent"
-                      : "border-transparent bg-card text-muted-foreground shadow-soft"
+                      ? "bg-primary-tint text-foreground"
+                      : "bg-card text-muted-foreground shadow-soft"
                   }`}
                 >
-                  {/* 아바타: 이모지 → 파스텔 원 + 이니셜 (OS 이모지 전면 금지) */}
-                  <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-avatar text-[13px] font-bold text-avatar-foreground">
-                    {p.name.charAt(0)}
-                  </span>
-                  <span className="font-semibold">{p.name}</span>
-                  <span className={`num text-xs ${active === p.id ? "text-accent/70" : "text-muted-foreground"}`}>{p.age}</span>
+                  {p.name}
                 </button>
               ))}
               <button
