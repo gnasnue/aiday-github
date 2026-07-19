@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.18.0] - 2026-07-19
+
+### Added
+- **베타 행동 계측 인프라** (`supabase/migrations/004~006`, `lib/analytics.ts`, `components/AnalyticsTracker.tsx`) — `events`(행동 로그)·`feedback`(평가·의견) 테이블(RLS insert-only, 게스트 user_id null)과 `track()` 헬퍼로 이벤트 9종 수집(session_start·page_view·가입·온보딩 단계/완료·리포트 노출/새로고침/오류·체크리스트 체크). 지표 뷰 7종(`beta_*`)으로 일일 개요·아침 재방문(북극성)·온보딩 퍼널·리포트 유용성·체크리스트 인터랙션을 SQL 한 줄로 조회 — dev 트래픽 제외·KST 집계 내장. 하드닝: 컬럼 단위 INSERT grant(created_at 위조 차단), 이벤트명 화이트리스트, 퍼널 뷰 캐스트 가드(anon 중독 방어), FK 인덱스, 뷰 security_invoker. 운영 가이드 `docs/beta-metrics.md` 신설.
+- **리포트 유용성 평가 + 의견 보내기** (`components/ReportFeedback.tsx`, `components/FeedbackDialog.tsx`) — AI 리포트 하단 "이 리포트가 도움이 되었나요?"(아이·날짜당 1회, 선택 이유 입력, 실패 시 재시도 허용)와 마이페이지 "의견 보내기" 다이얼로그. 전송 8초 타임아웃으로 UI 잠김 방지.
+- **베타 필수 동의 수집** (`lib/consent.ts`, `components/ConsentFields.tsx`, `supabase/migrations/20260719132734_beta_consents.sql`) — 약관·베타 분석·아동 민감정보·국외 이전 4종 필수 동의를 가입 폼·온보딩 진입·로그인 랜딩에서 강제(기존 계정도 문서 버전 기준 재확인). 동의 이력은 `user_consents`(RLS owner-only)에 버전별 보관, 비로그인 동의는 로그인 시 동기화. **행동 계측은 beta_analytics 동의 후에만 동작.** 이용약관·개인정보처리방침 베타 v1 실문서 게시.
+
+### Changed
+- **신뢰 라인을 리포트 본문 최하단으로 이동** (`app/(main)/home/page.tsx`) — "○○를 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터"를 카드 하단에서 본문(message) 바로 아래로.
+- **PRODUCT-DECISIONS §1 측정 수단 현행화** — PostHog 선행 → Supabase 자체 계측(베타 규모 기준), 온보딩 5단계 반영, 리포트 유용성을 베타 보조 진단으로 추가.
+- **outfit AI코디 배지 토큰화** (`app/(main)/outfit/page.tsx`) — `text-red-500` 하드코딩(위험 오독)을 `bg-primary-tint text-accent`로 (Apple HIG 갭 분석 P1).
+
 ## [0.3.17.0] - 2026-07-19
 
 ### Changed
