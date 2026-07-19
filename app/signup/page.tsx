@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
 
 const Signup = () => {
   const router = useRouter();
@@ -47,6 +48,9 @@ const Signup = () => {
     // 세션이 바로 생기면(이메일 인증 꺼짐) 공통 판단 지점에서 분기 —
     // 게스트 시절 프로필이 있으면 DB 이전 후 홈, 없으면 온보딩.
     // 세션이 없으면(이메일 인증 대기) 게스트 모드로 온보딩 진행, 첫 로그인 때 DB 이전.
+    // 지표 1(온보딩 완료율)의 분모. Google OAuth 가입은 콜백에서 가입/로그인이 구분되지
+    // 않아 여기선 이메일 가입만 집계한다 — 베타 퍼널 분석 시 유의.
+    track("signup_completed", { method: "email" });
     if (data.session) {
       toast.success("가입이 완료되었어요!");
     } else {

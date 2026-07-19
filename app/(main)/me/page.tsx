@@ -14,6 +14,7 @@ import {
   MessageCircle,
   LogOut,
   Baby,
+  MessageSquareText,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
@@ -28,6 +29,7 @@ import {
 } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { normalizeSensitivity } from "@/lib/profile-options";
+import FeedbackDialog from "@/components/FeedbackDialog";
 
 
 const sensitivityLabel: Record<string, string> = {
@@ -133,6 +135,7 @@ const My = () => {
   const router = useRouter();
   const pathname = usePathname();
   const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [active, setActive] = useState<string>(() => {
     try {
       return (
@@ -265,6 +268,7 @@ const My = () => {
                 { l: "알림 설정", Icon: Bell },
                 { l: "위치 설정", Icon: MapPin },
                 { l: "약관 및 정책", Icon: FileText },
+                { l: "의견 보내기", Icon: MessageSquareText, action: () => setFeedbackOpen(true) },
                 { l: "고객 문의", Icon: MessageCircle },
                 { l: "로그아웃", Icon: LogOut, action: logout },
               ] as { l: string; Icon: LucideIcon; action?: () => void }[]).map((it) => (
@@ -283,6 +287,8 @@ const My = () => {
             </div>
           </section>
         </main>
+
+        <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       </div>
     </div>
   );

@@ -43,6 +43,7 @@ import {
   saveProfileToDb,
 } from "@/lib/profile";
 import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
+import { track } from "@/lib/analytics";
 
 const TOTAL = 5;
 const STORAGE_KEY = "aiweather:onboarding:v2"; // 기본정보 병합(7→5단계)으로 step 의미 변경 — 구형 진행상태 무효화
@@ -120,6 +121,12 @@ const Onboarding = () => {
     } catch {}
   }, [s, step]);
 
+  // 지표 1(온보딩 완료율)의 단계별 이탈 지점 — 도달한 step을 모두 기록하고,
+  // 분석 시 세션별 max(step)로 이탈 단계를 본다 (뒤로가기·이어하기 경로 포함).
+  useEffect(() => {
+    track("onboarding_step", { step });
+  }, [step]);
+
   const update = (patch: Partial<State>) => setS((prev) => ({ ...prev, ...patch }));
   const toggleCond = (c: string) =>
     update({ conds: s.conds.includes(c) ? s.conds.filter((x) => x !== c) : [...s.conds, c] });
@@ -184,6 +191,7 @@ const Onboarding = () => {
     if (step < TOTAL) setStep(step + 1);
     else {
       finish();
+      track("onboarding_completed");
       try { localStorage.removeItem(STORAGE_KEY); } catch {}
       setDone(true);
     }

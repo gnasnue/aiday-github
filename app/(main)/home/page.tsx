@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
 import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
+import ReportFeedback from "@/components/ReportFeedback";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
@@ -25,6 +26,7 @@ import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot }
 import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
+import { track, ageBand } from "@/lib/analytics";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
 
@@ -550,6 +552,7 @@ const Home = () => {
       const force = forceRefreshRef.current;
       forceRefreshRef.current = false;
       const childId = cur.id;
+      const t0 = Date.now(); // 베타 계측: report_viewed의 latency_ms 재료
 
       // single-flight — 같은 아이의 요청이 진행 중이고 강제 새로고침이 아니면 중복 시작 안 함
       // (Strict 이중 실행·연타로 인한 중복 Claude 호출 방지).
@@ -770,6 +773,17 @@ const Home = () => {
         // 이 요청이 아직 활성으로 등록돼 있으면 해제(새 요청이 이미 교체했으면 건드리지 않음).
         if (activeReportRef.current?.ctrl === ctrl) activeReportRef.current = null;
         perfReport(perf, `home 진입 → AI 리포트 (${isCurrent() ? outcome : outcome === "aborted" ? "aborted" : "superseded"})`);
+        // 베타 계측 — 성공은 report_viewed, 실서비스 관점의 실패는 report_error.
+        // 취소·낡은 요청(aborted/superseded)은 사용자 경험이 아니므로 집계하지 않는다.
+        if (outcome === "cache_hit" || outcome === "done") {
+          track("report_viewed", {
+            age_band: ageBand(cur.age),
+            cached: outcome === "cache_hit",
+            latency_ms: Date.now() - t0,
+          });
+        } else if (outcome !== "aborted" && outcome !== "superseded" && outcome !== "unknown") {
+          track("report_error", { stage: outcome });
+        }
       }
     };
 
@@ -829,6 +843,7 @@ const Home = () => {
       return;
     }
     lastManualRefreshRef.current = now;
+    track("report_refreshed");
     forceRefreshRef.current = true; // 당일 캐시 무시하고 재생성
     softRefreshRef.current = true; // env는 전체 스켈레톤 없이 조용히 재조회
     // 캐시로 그려둔 내용을 비우고 스켈레톤을 노출한다(재생성 중임을 명확히).
@@ -958,6 +973,13 @@ const Home = () => {
       </p>
     ));
 
+  // 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지. 리포트 본문(message) 최하단에 붙는다.
+  const trustLine = cur ? (
+    <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+      {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
+    </p>
+  ) : null;
+
   // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
   const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
     if (aiChecklist.length > 0) {
@@ -1049,9 +1071,10 @@ const Home = () => {
   // 온보딩 일과를 전부 생략한 유저 — 4슬롯 시각이 모두 기본값. 섹션 하단 넛지로 입력 유도.
   const allSlotsDefault = displaySlots.length > 0 && displaySlots.every((s) => s.isDefault);
 
-  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간, 기본값이면 "기본 시간"(거짓 정밀도 금지).
+  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간만. 기본값(추정 시각)은
+  // 카운트다운을 붙이면 거짓 정밀도라 부가 텍스트 없이 "곧"/"다음"만 노출한다.
   const carePointerHint = (slot: HomeTimeSlot): string => {
-    if (slot.isDefault) return "기본 시간";
+    if (slot.isDefault) return "";
     const start = slotStartMin(slot);
     if (start == null) return "";
     const d = start - careNowMin;
@@ -1215,8 +1238,15 @@ const Home = () => {
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
 
-  const toggle = (i: number) =>
+  const toggle = (i: number) => {
+    // 지표 3(체크리스트 인터랙션율) — 항목 텍스트는 AI 생성물이라 이름이 섞일 수 있어
+    // key(ai-N / 폴백 key)만 기록한다.
+    track("checklist_toggled", {
+      item: activeChecklist[i]?.key ?? String(i),
+      checked: !checked.includes(i),
+    });
     setChecked((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
+  };
 
   return (
     <div className="page-shell">
@@ -1417,10 +1447,16 @@ const Home = () => {
                     </div>
                   ) : aiHook ? (
                     reportExpanded && (
-                      <div className="mt-2 space-y-1.5 animate-fade-up">{messageParagraphs}</div>
+                      <div className="mt-2 space-y-1.5 animate-fade-up">
+                        {messageParagraphs}
+                        {trustLine}
+                      </div>
                     )
                   ) : (
-                    <div className="mt-3 space-y-2">{messageParagraphs}</div>
+                    <div className="mt-3 space-y-2">
+                      {messageParagraphs}
+                      {trustLine}
+                    </div>
                   )}
                 </>
               )}
@@ -1492,10 +1528,10 @@ const Home = () => {
               </div>
               )}
 
-              {/* 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지 */}
-              <p className="mt-3 px-0.5 text-[11px] leading-relaxed text-muted-foreground/70">
-                {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
-              </p>
+              {/* 리포트 유용성 평가 — 체크리스트와 같은 정착 조건에서만 노출(스켈레톤 중 숨김) */}
+              {!((aiLoading || aiStreaming || refreshing) && !reportPrimed) && (
+                <ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />
+              )}
             </section>
           )}
 
@@ -1598,10 +1634,6 @@ const Home = () => {
                     const prep = slotPrep[slot.time] ?? [];
                     const last = i === displaySlots.length - 1;
                     const pointerHint = kind === "soon" || kind === "next" ? carePointerHint(slot) : "";
-                    // 부분 입력 시에만 기본값 슬롯을 "기본"으로 표기(전부 기본이면 하단 넛지가 대신 알림).
-                    // 곧/다음 뱃지는 이미 "· 기본 시간"을 담으므로 그 슬롯엔 태그를 중복 노출하지 않는다.
-                    const showDefaultTag =
-                      slot.isDefault && !allSlotsDefault && kind !== "soon" && kind !== "next";
                     return (
                       <div key={slot.time} className="flex gap-3">
                         {/* 좌측 레일: 도트 + 연결선 — "지금"만 오렌지, "곧/다음"은 옅은 강조 */}
@@ -1611,17 +1643,23 @@ const Home = () => {
                               isNow
                                 ? "bg-primary ring-4 ring-primary/15"
                                 : kind
-                                  ? "bg-foreground/30"
+                                  ? "bg-primary/60"
                                   : "bg-border-control"
                             }`}
                             aria-hidden="true"
                           />
                           {!last && <span className="w-px flex-1 bg-border" />}
                         </div>
-                        {/* 카드 — 흰 카드 문법 통일, "지금" 슬롯만 1.5px 오렌지 보더 */}
+                        {/* 카드 — 흰 카드 문법 통일. "지금"은 텍스트 뱃지 없이 1.5px 오렌지 보더로만
+                            표시하고(중복·거짓정밀도 제거), 현재 슬롯임은 aria-current + sr-only로 전달. */}
                         <div
+                          aria-current={isNow ? "true" : undefined}
                           className={`mb-2.5 flex-1 rounded-2xl border bg-card p-4 shadow-soft ${
-                            isNow ? "border-[1.5px] border-primary" : "border-border/60"
+                            isNow
+                              ? "border-[1.5px] border-primary"
+                              : kind
+                                ? "border-primary/40"
+                                : "border-border/60"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -1629,18 +1667,9 @@ const Home = () => {
                               <span className="font-bold tracking-[-0.01em]">
                                 <span className="num">{slot.hour}</span> {careLabel(slot.time)}
                               </span>
-                              {showDefaultTag && (
-                                <span className="ml-1 align-[1px] text-[10px] font-medium text-muted-foreground/70">
-                                  기본
-                                </span>
-                              )}
-                              {kind === "now" && (
-                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
-                                  지금
-                                </span>
-                              )}
+                              {kind === "now" && <span className="sr-only">지금</span>}
                               {(kind === "soon" || kind === "next") && (
-                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
+                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
                                   {kind === "soon" ? "곧" : "다음"}
                                   {pointerHint && <span className="font-semibold"> · {pointerHint}</span>}
                                 </span>
