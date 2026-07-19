@@ -959,15 +959,16 @@ const Home = () => {
     return idx >= 0 ? idx : 0;
   })();
 
-  // 헤더 메타 — "7월 14일 (화) 07:30" (요일 포함·24시간제). 시각은 리포트 생성 시점.
+  // 헤더 메타 — "7월 14일 (화) 07:30 기준" (요일 포함·24시간제). 시각은 리포트 생성
+  // 시점이므로 "기준"을 붙여 현재 시각으로 오독되지 않게 한다.
   const reportMeta = (() => {
     const d = reportTs != null ? new Date(reportTs) : new Date();
     const wd = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
     const base = `${d.getMonth() + 1}월 ${d.getDate()}일 (${wd})`;
-    if (reportTs == null) return base;
+    if (reportTs == null) return `${base} 기준`;
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${base} ${hh}:${mm}`;
+    return `${base} ${hh}:${mm} 기준`;
   })();
 
   // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만).
@@ -1200,11 +1201,11 @@ const Home = () => {
           ) : (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
               {/* 카드 헤더 — 크림(secondary) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
-                  구분하고 "AI 리포트"임을 앵커링. 헤더 텍스트·아이콘은 블랙(foreground),
-                  라벨·날짜는 섹션 헤더("오늘 챙길 것")와 동일한 15px/bold. */}
+                  구분하고 "AI 리포트"임을 앵커링. 라벨(15px/bold 블랙)이 주인공이 되도록
+                  날짜·시간 메타는 caption(13px·muted-foreground)으로 톤다운. */}
               <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-secondary px-5 py-3">
                 <span className="shrink-0 text-[15px] font-bold text-foreground">AI 리포트</span>
-                <span className="num min-w-0 flex-1 truncate text-[15px] font-bold text-foreground">
+                <span className="num min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
                 </span>
