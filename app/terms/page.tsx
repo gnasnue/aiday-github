@@ -17,7 +17,7 @@ export default function TermsPage() {
           </div>
         </header>
         <main className="container-mobile py-8">
-          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v1</p>
+          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v2</p>
           <h1 className="mt-2 text-[1.375rem] font-bold tracking-tight">이용약관</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
             이 약관은 아이데이 운영자(이하 “운영자”)가 제공하는 아이데이 베타 서비스의 이용

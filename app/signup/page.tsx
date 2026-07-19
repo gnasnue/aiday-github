@@ -13,7 +13,7 @@ import { track } from "@/lib/analytics";
 import ConsentFields from "@/components/ConsentFields";
 import {
   emptyConsentSelection,
-  hasAllRequiredConsents,
+  hasSignupConsent,
   saveLocalConsentSelection,
   syncLocalConsentsToDb,
 } from "@/lib/consent";
@@ -24,8 +24,8 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
 
   const validateAndSaveConsents = () => {
-    if (!hasAllRequiredConsents(consents)) {
-      toast.error("필수 동의 항목을 모두 확인해주세요.");
+    if (!hasSignupConsent(consents)) {
+      toast.error("이용약관을 확인해주세요.");
       return false;
     }
     saveLocalConsentSelection(consents);
@@ -122,7 +122,7 @@ const Signup = () => {
               <Input id="pw2" type="password" required className="h-12" />
             </div>
 
-            <ConsentFields value={consents} onChange={setConsents} />
+            <ConsentFields value={consents} onChange={setConsents} context="signup" />
 
             <Button
               type="submit"

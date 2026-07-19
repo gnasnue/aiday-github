@@ -5,6 +5,13 @@ import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { sendFeedback } from "@/lib/analytics";
 import { localDateStr } from "@/lib/date";
+import Link from "next/link";
+import {
+  hasAnalyticsConsent,
+  readLocalConsentSelection,
+  saveLocalConsentSelection,
+  syncLocalConsentsToDb,
+} from "@/lib/consent";
 
 // AI 리포트 유용성 평가 — 베타 지표 "리포트 유용성"의 수집 지점.
 // 판단을 소비한 직후 그 자리에서 묻는다 (별도 설문 페이지보다 응답률이 높다).
@@ -23,9 +30,12 @@ const ReportFeedback = ({
   const [askReason, setAskReason] = useState(false);
   const [reason, setReason] = useState("");
   const [sent, setSent] = useState(false);
+  const [analyticsAllowed, setAnalyticsAllowed] = useState(false);
+  const [promptDismissed, setPromptDismissed] = useState(false);
 
   // 아이 전환·날짜 경과 시 해당 키의 평가 여부로 상태 리셋
   useEffect(() => {
+    setAnalyticsAllowed(hasAnalyticsConsent());
     try {
       const prev = localStorage.getItem(ratedKey(childId));
       setRating(prev === "up" || prev === "down" ? prev : null);
@@ -37,6 +47,14 @@ const ReportFeedback = ({
     setAskReason(false);
     setReason("");
   }, [childId]);
+
+  const joinBetaImprovement = async () => {
+    const selection = readLocalConsentSelection();
+    selection.beta_analytics = true;
+    saveLocalConsentSelection(selection);
+    await syncLocalConsentsToDb("auth_sync");
+    setAnalyticsAllowed(true);
+  };
 
   const rate = async (value: "up" | "down") => {
     if (rating) return; // 하루 1회
@@ -77,6 +95,38 @@ const ReportFeedback = ({
       toast("전송에 실패했어요. 잠시 후 다시 시도해주세요.");
     }
   };
+
+  if (!analyticsAllowed) {
+    if (promptDismissed) return null;
+    return (
+      <div className="mt-4 border-t border-border px-0.5 pt-4">
+        <p className="text-sm font-semibold text-foreground">아이데이를 함께 개선해주세요</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground break-keep">
+          페이지 이동·기능 사용·오류 기록을 베타 개선에 활용하고 종료 후 90일 이내 삭제해요.
+          이름과 건강정보는 분석 기록에 담지 않으며, 참여하지 않아도 모든 기능을 이용할 수 있어요. {" "}
+          <Link href="/privacy#beta" className="font-medium text-accent underline underline-offset-2">
+            자세히
+          </Link>
+        </p>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={joinBetaImprovement}
+            className="min-h-11 flex-1 rounded-md bg-muted px-3 text-sm font-semibold text-foreground transition-smooth hover:bg-border"
+          >
+            동의하고 참여하기
+          </button>
+          <button
+            type="button"
+            onClick={() => setPromptDismissed(true)}
+            className="min-h-11 rounded-md px-3 text-sm text-muted-foreground hover:text-foreground"
+          >
+            나중에
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 border-t border-border px-0.5 pt-3.5">
