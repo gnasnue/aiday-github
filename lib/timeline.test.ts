@@ -17,14 +17,14 @@ const hour = (h: string, pop: number, pty = 0) => ({
 describe("buildTimeline — 강수 노출 창", () => {
   it("창 안의 소나기 예보를 popWindow(max)·rainWindow로 집계한다", () => {
     const slots = buildTimeline(undefined, {
-      // 기본 슬롯: 등원 08:00 / 하원 15:00 / 저녁 21:00
+      // 기본 슬롯: 등원 08:00 / 야외활동 11:00 / 하원 15:00 / 저녁 21:00
       weather: {
         hourlyForecast: [
           hour("06:00", 10),
           hour("09:00", 10),
-          hour("12:00", 80, 4), // 정오 소나기 — 등원 정시값(10%)만 보면 놓친다
+          hour("12:00", 10),
           hour("15:00", 20),
-          hour("18:00", 20),
+          hour("18:00", 80, 4), // 초저녁 소나기 — 하원 정시값(20%)만 보면 놓친다
           hour("21:00", 0),
         ],
       },
@@ -33,12 +33,15 @@ describe("buildTimeline — 강수 노출 창", () => {
       pollen: null,
     });
     expect(slots).not.toBeNull();
-    const [go, leave, evening] = slots!;
-    expect(go.pop).toBe(10); // 정시값은 그대로
-    expect(go.popWindow).toBe(80); // 창(등원~하원) max가 소나기를 잡는다
-    expect(go.rainWindow).toBe(true);
-    expect(leave.popWindow).toBe(20); // 하원 창(15~21시)엔 소나기 없음
-    expect(leave.rainWindow).toBe(false);
+    // 일과 미입력 시에도 야외활동 포함 4슬롯이 기본 노출된다
+    expect(slots!.map((s) => s.time)).toEqual(["등원시간", "야외활동", "하원시간", "저녁"]);
+    const [go, outdoor, leave, evening] = slots!;
+    expect(go.popWindow).toBe(10); // 등원 창(08~11시)엔 소나기 없음
+    expect(go.rainWindow).toBe(false);
+    expect(outdoor.popWindow).toBe(20); // 야외 창(11~15시): 12시 10%·15시 20%
+    expect(leave.pop).toBe(20); // 정시값은 그대로
+    expect(leave.popWindow).toBe(80); // 창(하원~저녁) max가 18시 소나기를 잡는다
+    expect(leave.rainWindow).toBe(true);
     expect(evening.popWindow).toBe(0);
   });
 });

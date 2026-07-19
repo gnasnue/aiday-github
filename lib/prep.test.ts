@@ -7,6 +7,8 @@ import type { HomeTimeSlot } from "./timeline";
 const slot = (over: Partial<HomeTimeSlot>): HomeTimeSlot => ({
   time: "등원시간",
   hour: "08:30",
+  endHour: null,
+  isDefault: false,
   sky: 3,
   pty: 0,
   pop: null,
