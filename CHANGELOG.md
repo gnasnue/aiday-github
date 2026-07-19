@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.16.0] - 2026-07-19
+
+### Changed
+- **홈 프로필 칩 간소화 — 이니셜 아바타·나이 표기 제거, 이름 중립 잉크 표기** (`app/(main)/home/page.tsx`) — 그린 파스텔 이니셜 아바타('도')가 오렌지 primary-tint 칩 안에서 웜 뉴트럴 원칙(hue 24~36)과 충돌해 톤이 깨졌고, 이니셜은 바로 옆 이름과 중복 정보라 제거. 나이(만 N세)도 선택 칩의 역할(아이 전환)에 불필요해 제거 — 상세는 마이 페이지에서 확인. 활성 칩 이름은 accent(#C2540A)가 붉은 계열로 읽힌다는 피드백에 따라 foreground(본문 잉크)로 표기하고, 선택 상태는 primary-tint 배경만으로 표현(홈 프로필 칩 한정 예외, 코드 주석에 사유 기록).
+
 ## [0.3.15.0] - 2026-07-19
 
 ### Fixed
