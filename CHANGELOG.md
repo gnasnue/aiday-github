@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.17.0] - 2026-07-19
+
+### Changed
+- **홈 AI 리포트 헤더 — 라벨 강조·날짜 톤다운·'기준' 표기** (`app/(main)/home/page.tsx`) — 헤더 크림 밴드 안에서 'AI 리포트' 라벨과 날짜·시간이 둘 다 15px/bold 블랙이라 위계가 없던 것을, 날짜·시간 메타를 caption 톤(13px/medium muted-foreground)으로 낮춰 라벨이 주인공으로 읽히게 함. 날짜·시간 뒤에 '기준' 접미어를 추가해 리포트 생성 시점임을 명확히 하고 현재 시각으로 오독되지 않게 함(공유 텍스트·공유 이미지 카드 동일 반영).
+
 ## [0.3.16.0] - 2026-07-19
 
 ### Changed
