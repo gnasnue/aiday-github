@@ -23,7 +23,7 @@ import { buildRecommendation, type Recommendation } from "@/lib/recommendation-e
 import { useLocation } from "@/lib/useLocation";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
-import { buildPrepKeywords } from "@/lib/prep";
+import { buildPrepKeywords, isCriticalPrep } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
@@ -185,37 +185,39 @@ const splitHook = (hook: string): string[] => {
 
 /* ---- 하루 케어 플랜: 슬롯별 "특이사항" 요약 ---- */
 
-// 환경 보호용 준비물(강수·미세먼지·꽃가루·자외선 대응)은 컬러 강조, 나머지(보습·보온)는 아웃라인.
-const CRITICAL_PREP = new Set(["우산", "마스크", "선크림"]);
+// 준비물 칩 강조는 아이템 종류가 아니라 신호 긴급도로 판정한다 — lib/prep.ts isCriticalPrep.
 
 // 슬롯 라벨 정리: "등원시간" → "등원", "하원시간" → "하원"
 const careLabel = (label: string) => label.replace(/시간$/, "");
 
-// 온도 옆에 붙일 "특이사항" 지표 — 6개 지표 중 주의 수준만.
-// 아이 프로파일(호흡기·알레르기·피부)에 해당하면 '보통' 단계도 노출해 미리 챙기게 한다.
+// 온도 옆에 붙일 "특이사항" 지표 — 2단계로 나눠 낸다 (2026-07-20 확정 규칙):
+//  · 경고급(기준치 이상/이하): 비 소식·나쁨·높음·강함·건조 등. 있으면 이것만 노출.
+//  · 관찰급('보통'): 아이 프로파일(호흡기·알레르기·피부) 기반 미리 챙기기 신호.
+//    경고급이 하나라도 있으면 병기하지 않고, 없을 때만 1개까지만 노출한다.
 const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] => {
   const watchAir = hasRespiratory(conditions) || hasAllergy(conditions); // 미세먼지·꽃가루 민감
   const watchUv = hasSkin(conditions); // 자외선 민감
   const watchDry = hasSkin(conditions); // 건조 민감
-  const out: string[] = [];
+  const warn: string[] = [];
+  const watch: string[] = [];
 
-  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 60)) out.push("비 소식");
+  if ((slot.pty != null && slot.pty > 0) || (slot.pop != null && slot.pop >= 60)) warn.push("비 소식");
 
-  if (slot.dust === "나쁨" || slot.dust === "매우나쁨") out.push(`미세먼지 ${slot.dust}`);
-  else if (watchAir && slot.dust === "보통") out.push("미세먼지 보통");
+  if (slot.dust === "나쁨" || slot.dust === "매우나쁨") warn.push(`미세먼지 ${slot.dust}`);
+  else if (watchAir && slot.dust === "보통") watch.push("미세먼지 보통");
 
-  if (slot.pollen === "높음" || slot.pollen === "매우높음") out.push(`꽃가루 ${slot.pollen}`);
-  else if (watchAir && slot.pollen === "보통") out.push("꽃가루 보통");
+  if (slot.pollen === "높음" || slot.pollen === "매우높음") warn.push(`꽃가루 ${slot.pollen}`);
+  else if (watchAir && slot.pollen === "보통") watch.push("꽃가루 보통");
 
-  if (slot.uv === "강함" || slot.uv === "매우강함") out.push(`자외선 ${slot.uv}`);
-  else if (watchUv && slot.uv === "보통") out.push("자외선 보통");
+  if (slot.uv === "강함" || slot.uv === "매우강함") warn.push(`자외선 ${slot.uv}`);
+  else if (watchUv && slot.uv === "보통") watch.push("자외선 보통");
 
-  if (slot.wind === "강함") out.push("바람 강함");
+  if (slot.wind === "강함") warn.push("바람 강함");
 
-  if (slot.humidity > 0 && slot.humidity <= 40) out.push("건조");
-  else if (watchDry && slot.humidity > 0 && slot.humidity <= 50) out.push("건조 주의");
+  if (slot.humidity > 0 && slot.humidity <= 40) warn.push("건조");
+  else if (watchDry && slot.humidity > 0 && slot.humidity <= 50) watch.push("건조 주의");
 
-  return out;
+  return warn.length > 0 ? warn : watch.slice(0, 1);
 };
 
 
@@ -944,7 +946,7 @@ const Home = () => {
   // 등원(몇 시간 전)에 "지금"이 고정됐다. 이제 슬롯 시각과 얼마나 가까운지로 판정한다:
   //  · 점 슬롯(등원·하원): [start, start+W]="지금", [start−W, start)="곧"
   //  · 구간 슬롯(야외활동·저녁): [start,end] 전체="지금"(뒤 트레일 없음), [start−W, start)="곧"
-  //  · 어느 밴드에도 안 들면 빈칸 → "지금" 없이 다음 슬롯을 "다음"으로 앞안내
+  //  · 어느 밴드에도 안 들면 빈칸 → 강조 없음(전 슬롯 중립 카드)
   // 겹칠 땐 다가오는(더 이른 start의 곧) 슬롯 우선 — 지나간 것보다 준비할 것을 앞세운다.
   // W는 예보 3시간 해상도(±2h 데이터 유효)보다 안쪽으로 잡아, 붙은 환경값이 넉넉히 유효할 때만 "지금".
   const CARE_BAND_MIN = 90;
@@ -986,45 +988,17 @@ const Home = () => {
     return null;
   })();
 
-  // 빈칸(일과 사이)일 때 앞으로 안내할 "다음" 슬롯 — 아직 안 온 첫 슬롯
-  const careNextIdx = (() => {
-    if (careFocus) return -1;
-    let best = -1;
-    let bestStart = Infinity;
-    displaySlots.forEach((s, i) => {
-      const start = slotStartMin(s);
-      if (start != null && start > careNowMin && start < bestStart) {
-        best = i;
-        bestStart = start;
-      }
-    });
-    return best;
-  })();
-
-  // 렌더용: 강조할 슬롯 인덱스와 라벨 종류. 빈칸이면 "다음"으로 앞안내.
-  const careHighlightIdx = careFocus ? careFocus.idx : careNextIdx;
-  const careHighlightKind: "now" | "soon" | "next" | null = careFocus
-    ? careFocus.kind
-    : careNextIdx >= 0
-      ? "next"
-      : null;
+  // 렌더용: 강조할 슬롯 인덱스와 라벨 종류.
+  // ⚠ 사용자 확정 규칙 2건 (DESIGN.md Component Grammar 참조):
+  //  1) 시각 강조는 ±90분 밴드 안(지금/곧)에만 적용한다. 밴드 밖 빈칸은 어떤 슬롯도
+  //     강조하지 않는다(무강조 중립 카드) — "다음" 앞보기 강조 금지.
+  //  2) careHighlightKind는 시각 스타일(보더·도트)과 sr-only 전용이다. "지금"·"곧"·
+  //     "다음"·"N시간 후"·"기본 시간" 등 판정 상태를 보이는 텍스트로 렌더하지 않는다.
+  const careHighlightIdx = careFocus ? careFocus.idx : -1;
+  const careHighlightKind: "now" | "soon" | null = careFocus ? careFocus.kind : null;
 
   // 온보딩 일과를 전부 생략한 유저 — 4슬롯 시각이 모두 기본값. 섹션 하단 넛지로 입력 유도.
   const allSlotsDefault = displaySlots.length > 0 && displaySlots.every((s) => s.isDefault);
-
-  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간만. 기본값(추정 시각)은
-  // 카운트다운을 붙이면 거짓 정밀도라 부가 텍스트 없이 "곧"/"다음"만 노출한다.
-  const carePointerHint = (slot: HomeTimeSlot): string => {
-    if (slot.isDefault) return "";
-    const start = slotStartMin(slot);
-    if (start == null) return "";
-    const d = start - careNowMin;
-    if (d <= 0) return "";
-    const h = Math.floor(d / 60);
-    const m = d % 60;
-    if (h <= 0) return `${m}분 후`;
-    return m === 0 ? `${h}시간 후` : `${h}시간 ${m}분 후`;
-  };
 
   // 헤더 메타 — "7월 14일 (화) 07:30 기준" (요일 포함·24시간제). 시각은 리포트 생성
   // 시점이므로 "기준"을 붙여 현재 시각으로 오독되지 않게 한다.
@@ -1547,9 +1521,9 @@ const Home = () => {
             </div>
           </section>
 
-          {/* 하루 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
+          {/* 오늘의 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
           <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">하루 케어 플랜</h2>
+            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">오늘의 케어 플랜</h2>
             {/* 실측 없음: 위 시간대별 카드와 동일한 정직한 빈 상태 */}
             {!loading && displaySlots.length === 0 && (
               <div className="mt-4 rounded-2xl bg-card p-5 text-center shadow-soft">
@@ -1575,10 +1549,9 @@ const Home = () => {
                     const notables = slotNotables(slot, cur?.conditions);
                     const prep = slotPrep[slot.time] ?? [];
                     const last = i === displaySlots.length - 1;
-                    const pointerHint = kind === "soon" || kind === "next" ? carePointerHint(slot) : "";
                     return (
                       <div key={slot.time} className="flex gap-3">
-                        {/* 좌측 레일: 도트 + 연결선 — "지금"만 오렌지, "곧/다음"은 옅은 강조 */}
+                        {/* 좌측 레일: 도트 + 연결선 — "지금"만 오렌지, "곧"은 옅은 강조 */}
                         <div className="flex flex-col items-center">
                           <span
                             className={`mt-5 h-3 w-3 shrink-0 rounded-full ${
@@ -1610,12 +1583,7 @@ const Home = () => {
                                 <span className="num">{slot.hour}</span> {careLabel(slot.time)}
                               </span>
                               {kind === "now" && <span className="sr-only">지금</span>}
-                              {(kind === "soon" || kind === "next") && (
-                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
-                                  {kind === "soon" ? "곧" : "다음"}
-                                  {pointerHint && <span className="font-semibold"> · {pointerHint}</span>}
-                                </span>
-                              )}
+                              {kind === "soon" && <span className="sr-only">곧</span>}
                               <span className="ml-2 font-normal text-muted-foreground">
                                 <span className="num">{slot.temp}°</span>
                                 {notables.length > 0
@@ -1628,7 +1596,7 @@ const Home = () => {
                           {prep.length > 0 && (
                             <div className="mt-3 flex flex-wrap gap-1.5">
                               {prep.map((k) =>
-                                CRITICAL_PREP.has(k) ? (
+                                isCriticalPrep(k, slot, cur?.conditions) ? (
                                   <span
                                     key={k}
                                     className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-bold chip-warn"
