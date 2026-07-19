@@ -155,7 +155,7 @@ export default function IndexPage() {
             <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <Link href="/terms" className="hover:text-foreground">이용약관</Link>
               <Link href="/privacy" className="hover:text-foreground">개인정보처리방침</Link>
-              <a href="mailto:admin@aiday.app" className="hover:text-foreground">admin@aiday.app</a>
+              <a href="mailto:admin.aiday@gmail.com" className="hover:text-foreground">admin.aiday@gmail.com</a>
             </div>
             <p className="mt-4 text-[11px] text-muted-foreground/70">
               환경 데이터 출처: 기상청 단기예보 · 한국환경공단 에어코리아

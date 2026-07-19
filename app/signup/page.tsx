@@ -7,21 +7,34 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { track } from "@/lib/analytics";
+import ConsentFields from "@/components/ConsentFields";
+import {
+  emptyConsentSelection,
+  hasAllRequiredConsents,
+  saveLocalConsentSelection,
+  syncLocalConsentsToDb,
+} from "@/lib/consent";
 
 const Signup = () => {
   const router = useRouter();
-  const [agree, setAgree] = useState(false);
+  const [consents, setConsents] = useState(emptyConsentSelection);
   const [loading, setLoading] = useState(false);
+
+  const validateAndSaveConsents = () => {
+    if (!hasAllRequiredConsents(consents)) {
+      toast.error("필수 동의 항목을 모두 확인해주세요.");
+      return false;
+    }
+    saveLocalConsentSelection(consents);
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!agree) {
-      toast.error("이용약관에 동의해주세요.");
-      return;
-    }
+    if (!validateAndSaveConsents()) return;
     const form = e.currentTarget;
     const email = (form.elements.namedItem("email") as HTMLInputElement).value;
     const pw = (form.elements.namedItem("pw") as HTMLInputElement).value;
@@ -47,7 +60,11 @@ const Signup = () => {
     // 세션이 바로 생기면(이메일 인증 꺼짐) 공통 판단 지점에서 분기 —
     // 게스트 시절 프로필이 있으면 DB 이전 후 홈, 없으면 온보딩.
     // 세션이 없으면(이메일 인증 대기) 게스트 모드로 온보딩 진행, 첫 로그인 때 DB 이전.
+    // 지표 1(온보딩 완료율)의 분모. Google OAuth 가입은 콜백에서 가입/로그인이 구분되지
+    // 않아 여기선 이메일 가입만 집계한다 — 베타 퍼널 분석 시 유의.
+    track("signup_completed", { method: "email" });
     if (data.session) {
+      await syncLocalConsentsToDb("signup");
       toast.success("가입이 완료되었어요!");
     } else {
       toast.success("가입이 완료되었어요! 인증 메일을 보냈어요.", {
@@ -59,13 +76,18 @@ const Signup = () => {
   };
 
   const signInWithGoogle = async () => {
+    if (!validateAndSaveConsents()) return;
+    setLoading(true);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: `${location.origin}/auth/callback?next=/auth/landing`,
       },
     });
-    if (error) toast.error(error.message);
+    if (error) {
+      setLoading(false);
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -100,20 +122,7 @@ const Signup = () => {
               <Input id="pw2" type="password" required className="h-12" />
             </div>
 
-            <div className="space-y-2.5 rounded-xl bg-muted/50 p-4">
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <Checkbox checked={agree} onCheckedChange={(v) => setAgree(!!v)} className="mt-0.5" />
-                <span className="text-sm leading-relaxed">
-                  <span className="font-medium text-accent">[필수]</span> 이용약관 및 개인정보처리방침에 동의합니다
-                </span>
-              </label>
-              <label className="flex items-start gap-2.5 cursor-pointer">
-                <Checkbox className="mt-0.5" />
-                <span className="text-sm leading-relaxed text-muted-foreground">
-                  [선택] 마케팅 정보 수신에 동의합니다
-                </span>
-              </label>
-            </div>
+            <ConsentFields value={consents} onChange={setConsents} />
 
             <Button
               type="submit"
@@ -134,6 +143,7 @@ const Signup = () => {
           <button
             type="button"
             onClick={signInWithGoogle}
+            disabled={loading}
             className="flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#747775] bg-white text-sm font-medium text-[#1F1F1F] transition-smooth hover:bg-gray-50 active:bg-gray-100"
             style={{ fontFamily: "'Roboto', sans-serif" }}
           >

@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
 import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
+import ReportFeedback from "@/components/ReportFeedback";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
@@ -25,15 +26,11 @@ import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot }
 import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
+import { track, ageBand } from "@/lib/analytics";
+import { localDateStr } from "@/lib/date";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
-
-// 로컬(기기) 기준 YYYY-MM-DD — toISOString은 UTC 기준이라 KST 자정~09시 사이에
-// 어제 날짜가 되어 캐시가 오전 9시에 엉뚱하게 갈리는 문제를 피한다
-const localDateStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// localDateStr(lib/date.ts): 로컬 기준 YYYY-MM-DD — 리포트 피드백 1일 1회 키와 공유
 
 // AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
 // 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
@@ -550,6 +547,7 @@ const Home = () => {
       const force = forceRefreshRef.current;
       forceRefreshRef.current = false;
       const childId = cur.id;
+      const t0 = Date.now(); // 베타 계측: report_viewed의 latency_ms 재료
 
       // single-flight — 같은 아이의 요청이 진행 중이고 강제 새로고침이 아니면 중복 시작 안 함
       // (Strict 이중 실행·연타로 인한 중복 Claude 호출 방지).
@@ -770,6 +768,17 @@ const Home = () => {
         // 이 요청이 아직 활성으로 등록돼 있으면 해제(새 요청이 이미 교체했으면 건드리지 않음).
         if (activeReportRef.current?.ctrl === ctrl) activeReportRef.current = null;
         perfReport(perf, `home 진입 → AI 리포트 (${isCurrent() ? outcome : outcome === "aborted" ? "aborted" : "superseded"})`);
+        // 베타 계측 — 성공은 report_viewed, 실서비스 관점의 실패는 report_error.
+        // 취소·낡은 요청(aborted/superseded)은 사용자 경험이 아니므로 집계하지 않는다.
+        if (outcome === "cache_hit" || outcome === "done") {
+          track("report_viewed", {
+            age_band: ageBand(cur.age),
+            cached: outcome === "cache_hit",
+            latency_ms: Date.now() - t0,
+          });
+        } else if (outcome !== "aborted" && outcome !== "superseded" && outcome !== "unknown") {
+          track("report_error", { stage: outcome });
+        }
       }
     };
 
@@ -829,6 +838,7 @@ const Home = () => {
       return;
     }
     lastManualRefreshRef.current = now;
+    track("report_refreshed");
     forceRefreshRef.current = true; // 당일 캐시 무시하고 재생성
     softRefreshRef.current = true; // env는 전체 스켈레톤 없이 조용히 재조회
     // 캐시로 그려둔 내용을 비우고 스켈레톤을 노출한다(재생성 중임을 명확히).
@@ -957,6 +967,13 @@ const Home = () => {
         {renderRich(line)}
       </p>
     ));
+
+  // 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지. 리포트 본문(message) 최하단에 붙는다.
+  const trustLine = cur ? (
+    <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+      {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
+    </p>
+  ) : null;
 
   // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
   const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
@@ -1216,8 +1233,15 @@ const Home = () => {
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
 
-  const toggle = (i: number) =>
+  const toggle = (i: number) => {
+    // 지표 3(체크리스트 인터랙션율) — 항목 텍스트는 AI 생성물이라 이름이 섞일 수 있어
+    // key(ai-N / 폴백 key)만 기록한다.
+    track("checklist_toggled", {
+      item: activeChecklist[i]?.key ?? String(i),
+      checked: !checked.includes(i),
+    });
     setChecked((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
+  };
 
   return (
     <div className="page-shell">
@@ -1418,10 +1442,16 @@ const Home = () => {
                     </div>
                   ) : aiHook ? (
                     reportExpanded && (
-                      <div className="mt-2 space-y-1.5 animate-fade-up">{messageParagraphs}</div>
+                      <div className="mt-2 space-y-1.5 animate-fade-up">
+                        {messageParagraphs}
+                        {trustLine}
+                      </div>
                     )
                   ) : (
-                    <div className="mt-3 space-y-2">{messageParagraphs}</div>
+                    <div className="mt-3 space-y-2">
+                      {messageParagraphs}
+                      {trustLine}
+                    </div>
                   )}
                 </>
               )}
@@ -1493,10 +1523,10 @@ const Home = () => {
               </div>
               )}
 
-              {/* 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지 */}
-              <p className="mt-3 px-0.5 text-[11px] leading-relaxed text-muted-foreground/70">
-                {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
-              </p>
+              {/* 리포트 유용성 평가 — 체크리스트와 같은 정착 조건에서만 노출(스켈레톤 중 숨김) */}
+              {!((aiLoading || aiStreaming || refreshing) && !reportPrimed) && (
+                <ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />
+              )}
             </section>
           )}
 
