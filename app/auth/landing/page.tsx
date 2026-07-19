@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 import {
+  type ChildProfile,
   PROFILES_KEY,
   fetchProfilesFromDb,
   realLocalProfiles,
@@ -21,6 +22,10 @@ import {
   readLocalConsentSelection,
   syncLocalConsentsToDb,
 } from "@/lib/consent";
+
+const hasHealthDetails = (profile: ChildProfile) =>
+  (profile.conditions?.some((item) => item !== "해당없음") ?? false) ||
+  Boolean(profile.conditionEtc || profile.cold || profile.hot || profile.sweat);
 
 const AuthLanding = () => {
   const router = useRouter();
@@ -39,14 +44,6 @@ const AuthLanding = () => {
     } catch {}
 
     const route = async () => {
-      // 신규·기존 계정 모두 현재 문서 버전의 필수 동의를 확인한다.
-      // 기존 프로필 보유자는 동의만 받은 뒤 이 판단 지점으로 돌아온다.
-      if (!hasAllRequiredConsents(readLocalConsentSelection())) {
-        router.replace("/onboarding?consentOnly=1");
-        return;
-      }
-      // 비회원 상태에서 받은 베타 동의를 인증된 계정의 감사 이력으로 옮긴다.
-      await syncLocalConsentsToDb("auth_sync");
       let res = await fetchProfilesFromDb();
 
       if (res.status === "no-auth") {
@@ -59,6 +56,18 @@ const AuthLanding = () => {
         router.replace("/home");
         return;
       }
+
+      // 이미 건강 관련 정보가 있는 기존·로컬 프로필만 보호자 확인을 먼저 받는다.
+      // 신규 사용자는 기본정보부터 입력하고, 건강정보 입력 직전에 맥락 안에서 확인한다.
+      const localProfiles = realLocalProfiles();
+      const hasStoredHealthDetails = [...res.list, ...localProfiles].some(hasHealthDetails);
+      if (hasStoredHealthDetails && !hasAllRequiredConsents(readLocalConsentSelection())) {
+        router.replace("/onboarding?consentOnly=1");
+        return;
+      }
+
+      // 가입 시 확인한 약관 등 현재까지의 동의 이력을 계정에 동기화한다.
+      await syncLocalConsentsToDb("auth_sync");
 
       // DB가 비어 있고 게스트 시절 만든 로컬 프로필이 있으면 DB로 이전 후 재조회
       if (!res.list.length && realLocalProfiles().length) {

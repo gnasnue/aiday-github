@@ -17,7 +17,7 @@ export default function PrivacyPage() {
           </div>
         </header>
         <main className="container-mobile py-8">
-          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v1</p>
+          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v2</p>
           <h1 className="mt-2 text-[1.375rem] font-bold tracking-tight">개인정보처리방침</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
             아이데이는 날씨·대기질 등 환경 데이터를 아이의 특성에 맞게 해석하는 베타
@@ -27,6 +27,11 @@ export default function PrivacyPage() {
 
           <div className="mt-7 space-y-4">
             <PolicySection id="collection" title="1. 수집 항목, 목적 및 보유 기간">
+              <p>
+                계정, 기본 프로필, 위치 요청 등 서비스 제공에 꼭 필요한 정보는 이용자와의 계약
+                체결·이행을 위해 처리하며 별도 동의를 요구하지 않습니다. 건강 관련 정보와 선택적
+                베타 분석처럼 동의가 필요한 항목은 실제 이용 시점에 따로 확인합니다.
+              </p>
               <PolicyItem
                 title="계정 및 인증"
                 detail="이메일 주소, 인증 제공자 및 계정 식별값"
@@ -61,13 +66,7 @@ export default function PrivacyPage() {
                 title="동의 기록"
                 detail="동의 항목, 동의 여부·시각, 문서 버전"
                 purpose="동의 사실 확인 및 분쟁 대응"
-                period="회원 탈퇴 또는 동의 철회 후 3년"
-              />
-              <PolicyItem
-                title="서비스 소식·설문 안내(선택)"
-                detail="이메일 주소, 선택 동의 여부"
-                purpose="베타 진행 안내, 제품 소식 및 후속 설문 발송"
-                period="수신 동의 철회 또는 회원 탈퇴 시까지"
+                period="회원 탈퇴 시 삭제. 동의 철회 기록은 처리 확인을 위해 최대 1년"
               />
               <p className="text-xs leading-relaxed text-muted-foreground break-keep">
                 서비스 이용 과정에서 IP 주소, 브라우저·기기 정보, 접속기록이 호스팅 및 보안
@@ -79,8 +78,8 @@ export default function PrivacyPage() {
             <PolicySection id="sensitive" title="2. 아동 및 민감정보의 처리">
               <p>
                 알레르기, 비염, 천식, 아토피 등 건강 특이사항은 민감정보에 해당할 수 있어 일반
-                개인정보 동의와 분리하여 동의를 받습니다. 입력은 선택 항목이지만, “해당 없음”을
-                포함한 선택 없이는 맞춤 프로필을 완성할 수 없습니다.
+                개인정보 처리와 분리하여 동의를 받습니다. 입력하지 않아도 기본 리포트를 이용할 수
+                있지만 개인화 범위는 줄어들 수 있습니다.
               </p>
               <p>
                 아동의 정보를 입력하는 사람은 해당 아동의 법정대리인이어야 합니다. 법정대리인은
@@ -128,8 +127,10 @@ export default function PrivacyPage() {
 
             <PolicySection id="overseas" title="6. 개인정보의 국외 처리">
               <p>
-                아래 처리를 거부할 수 있으나, 거부하면 계정 기반 저장 및 맞춤 AI 리포트를 이용할
-                수 없습니다. 전송은 서비스 이용 시 암호화된 네트워크를 통해 이루어집니다.
+                아래 처리는 계정 저장과 맞춤 리포트 제공 계약을 이행하기 위해 필요한 처리위탁·보관에
+                해당하며, 개인정보 보호법 제28조의8에 따라 이 방침에 공개합니다. 전송은 서비스
+                이용 시 암호화된 네트워크를 통해 이루어집니다. 해당 처리를 원하지 않으면 서비스
+                이용을 중단하고 삭제를 요청할 수 있습니다.
               </p>
               <PolicyItem
                 title="Supabase, Inc."

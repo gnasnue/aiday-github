@@ -1,16 +1,17 @@
-export const CONSENT_POLICY_VERSION = "2026-07-20-v1";
-export const CONSENT_STORAGE_KEY = "aiday:consents:v1";
+export const CONSENT_POLICY_VERSION = "2026-07-20-v2";
+export const CONSENT_STORAGE_KEY = "aiday:consents:v2";
 export const CONSENT_UPDATED_EVENT = "aiday:consent-updated";
 
-export const REQUIRED_CONSENT_TYPES = [
-  "terms_privacy",
-  "beta_analytics",
-  "sensitive_child_data",
-  "overseas_transfer",
-] as const;
+export const SIGNUP_REQUIRED_CONSENT_TYPES = ["terms_privacy"] as const;
+export const PROFILE_REQUIRED_CONSENT_TYPES = ["sensitive_child_data"] as const;
+export const REQUIRED_CONSENT_TYPES = ["terms_privacy", "sensitive_child_data"] as const;
 
 export type RequiredConsentType = (typeof REQUIRED_CONSENT_TYPES)[number];
-export type ConsentType = RequiredConsentType | "marketing";
+export type ConsentType =
+  | RequiredConsentType
+  | "beta_analytics"
+  | "overseas_transfer"
+  | "marketing";
 export type ConsentSource = "signup" | "onboarding" | "auth_sync";
 export type ConsentSelection = Record<ConsentType, boolean>;
 
@@ -34,6 +35,12 @@ export const emptyConsentSelection = (): ConsentSelection => ({
 
 export const hasAllRequiredConsents = (selection: ConsentSelection): boolean =>
   REQUIRED_CONSENT_TYPES.every((type) => selection[type]);
+
+export const hasSignupConsent = (selection: ConsentSelection): boolean =>
+  SIGNUP_REQUIRED_CONSENT_TYPES.every((type) => selection[type]);
+
+export const hasProfileConsent = (selection: ConsentSelection): boolean =>
+  PROFILE_REQUIRED_CONSENT_TYPES.every((type) => selection[type]);
 
 export const readLocalConsentSelection = (): ConsentSelection => {
   const empty = emptyConsentSelection();
@@ -82,7 +89,6 @@ export const syncLocalConsentsToDb = async (
 ): Promise<boolean> => {
   if (typeof window === "undefined") return false;
   const selection = readLocalConsentSelection();
-  if (!hasAllRequiredConsents(selection)) return false;
 
   const { supabase } = await import("./supabase");
   const { data, error: sessionError } = await supabase.auth.getSession();

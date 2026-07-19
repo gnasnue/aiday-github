@@ -126,7 +126,7 @@ const Onboarding = () => {
   }, []);
 
   useEffect(() => {
-    if (!consentChecked || !consentAccepted) return;
+    if (!consentChecked) return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -135,21 +135,20 @@ const Onboarding = () => {
         if (parsed.step) setStep(parsed.step);
       }
     } catch {}
-  }, [consentAccepted, consentChecked]);
+  }, [consentChecked]);
 
   useEffect(() => {
-    if (!consentAccepted) return;
+    if (!consentChecked) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ s, step }));
     } catch {}
-  }, [consentAccepted, s, step]);
+  }, [consentChecked, s, step]);
 
   // 지표 1(온보딩 완료율)의 단계별 이탈 지점 — 도달한 step을 모두 기록하고,
   // 분석 시 세션별 max(step)로 이탈 단계를 본다 (뒤로가기·이어하기 경로 포함).
   useEffect(() => {
-    if (!consentAccepted) return;
     track("onboarding_step", { step });
-  }, [consentAccepted, step]);
+  }, [step]);
 
   const acceptConsents = async () => {
     if (!hasAllRequiredConsents(consents)) {
@@ -224,6 +223,7 @@ const Onboarding = () => {
       if (!s.year || !s.month) return toast.error("태어난 연도와 월을 선택해주세요");
       if (!s.gender) return toast.error("성별을 선택해주세요");
     }
+    if (step === 2 && !consentAccepted) return toast.error("보호자 확인 내용을 먼저 확인해주세요.");
     if (step === 2 && s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
     if (step === 3 && (!s.cold || !s.hot || !s.sweat)) return toast.error("세 항목 모두 선택해주세요");
     if (step < TOTAL) setStep(step + 1);
@@ -242,9 +242,14 @@ const Onboarding = () => {
     router.push("/home");
   };
 
+  const skipHealthInfo = () => {
+    update({ conds: [], condEtc: "", cold: "", hot: "", sweat: "" });
+    setStep(4);
+  };
+
   if (!consentChecked) return null;
 
-  if (!consentAccepted) {
+  if (consentOnly && !consentAccepted) {
     return (
       <div className="page-shell">
         <div className="page-frame flex min-h-dvh flex-col bg-background">
@@ -260,22 +265,13 @@ const Onboarding = () => {
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-tint text-accent">
               <ShieldCheck size={24} strokeWidth={1.75} />
             </div>
-            <h1 className="mt-5 text-[1.375rem] font-bold tracking-tight">시작 전에 동의가 필요해요</h1>
+            <h1 className="mt-5 text-[1.375rem] font-bold tracking-tight">아이 정보를 안전하게 활용할게요</h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep">
-              아이데이는 아동의 건강 특이사항과 사용 기록을 바탕으로 베타 서비스를 개선합니다.
-              아래 내용을 확인한 뒤 직접 선택해 주세요.
+              아이에게 맞는 리포트를 계속 제공하기 위해 보호자 확인이 필요해요.
             </p>
 
             <div className="mt-6">
-              <ConsentFields value={consents} onChange={setConsents} showMarketing={false} />
-            </div>
-
-            <div className="mt-5 rounded-xl bg-muted/60 p-4">
-              <p className="text-xs leading-relaxed text-muted-foreground break-keep">
-                아이데이는 의료 진단이나 처방을 제공하지 않습니다. 증상이 있거나 건강상 우려가
-                있다면 의료 전문가와 상담해 주세요. 동의를 원하지 않으면 정보를 입력하지 않고
-                홈 화면을 둘러볼 수 있습니다.
-              </p>
+              <ConsentFields value={consents} onChange={setConsents} context="profile" />
             </div>
           </main>
           <div className="container-mobile sticky bottom-0 border-t border-border/60 bg-background/95 py-4 backdrop-blur-md">
@@ -286,14 +282,14 @@ const Onboarding = () => {
               disabled={!hasAllRequiredConsents(consents)}
               className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
-              {consentOnly ? "동의하고 계속하기" : "동의하고 프로필 만들기"}
+              확인하고 계속하기
             </Button>
             <Link
-              href={consentOnly ? "/" : "/home"}
+              href="/"
               onClick={markBrowseHome}
               className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted-foreground hover:text-foreground"
             >
-              {consentOnly ? "동의하지 않고 나가기" : "동의하지 않고 둘러보기"}
+              나가기
             </Link>
           </div>
         </div>
@@ -394,9 +390,13 @@ const Onboarding = () => {
       ),
     },
     2: {
-      q: `${nm}에게 해당되는 것을 모두 선택해주세요`,
-      hint: "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요",
-      node: (
+      q: consentAccepted
+        ? `${nm}에게 해당되는 것을 모두 선택해주세요`
+        : "아이에게 꼭 맞는 안내를 위해 확인해주세요",
+      hint: consentAccepted
+        ? "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요"
+        : "건강 관련 정보를 입력하기 전에 한 번만 확인해요",
+      node: consentAccepted ? (
         <div className="space-y-2">
           {conditions.map((c) => {
             const on = s.conds.includes(c);
@@ -421,6 +421,8 @@ const Onboarding = () => {
             />
           )}
         </div>
+      ) : (
+        <ConsentFields value={consents} onChange={setConsents} context="profile" />
       ),
     },
     3: {
@@ -740,19 +742,34 @@ const Onboarding = () => {
 
           <div className="mt-auto pt-8">
             <Button
-              onClick={next}
+              onClick={step === 2 && !consentAccepted ? acceptConsents : next}
               size="lg"
+              disabled={step === 2 && !consentAccepted && !hasAllRequiredConsents(consents)}
               className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
-              {step === TOTAL ? "완료" : "다음"}
+              {step === 2 && !consentAccepted
+                ? "확인하고 계속하기"
+                : step === TOTAL
+                  ? "완료"
+                  : "다음"}
             </Button>
-            <Link
-              href="/home"
-              onClick={markBrowseHome}
-              className="mt-3 block text-center text-xs text-muted-foreground hover:text-foreground"
-            >
-              먼저 둘러볼게요
-            </Link>
+            {step === 2 && !consentAccepted ? (
+              <button
+                type="button"
+                onClick={skipHealthInfo}
+                className="mt-3 flex min-h-11 w-full items-center justify-center text-sm text-muted-foreground hover:text-foreground"
+              >
+                건강정보 없이 계속하기
+              </button>
+            ) : (
+              <Link
+                href="/home"
+                onClick={markBrowseHome}
+                className="mt-3 flex min-h-11 items-center justify-center text-xs text-muted-foreground hover:text-foreground"
+              >
+                먼저 둘러볼게요
+              </Link>
+            )}
           </div>
         </main>
       </div>
