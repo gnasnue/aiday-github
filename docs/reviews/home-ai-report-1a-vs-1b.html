@@ -1,0 +1,407 @@
+<title>AI 리포트 — 1a vs 1b</title>
+<style>
+  :root{
+    --ground:#f1ece4; --panel:#ffffff; --ink:#2a2018; --muted:#8b7d6e;
+    --hair:#e6ddd0; --accent:#c2571f; --accent-soft:#f7e7d8;
+    --chip:#efe7db; --shadow:0 1px 2px rgba(90,66,40,.05),0 10px 30px -12px rgba(90,66,40,.18);
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --ground:#191512; --panel:#231e18; --ink:#f0e8dc; --muted:#a2917f;
+      --hair:#352d24; --accent:#f0873f; --accent-soft:#3a2a1c; --chip:#2c251d;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 34px -14px rgba(0,0,0,.6); }
+  }
+  :root[data-theme="light"]{ --ground:#f1ece4; --panel:#ffffff; --ink:#2a2018; --muted:#8b7d6e;
+    --hair:#e6ddd0; --accent:#c2571f; --accent-soft:#f7e7d8; --chip:#efe7db;
+    --shadow:0 1px 2px rgba(90,66,40,.05),0 10px 30px -12px rgba(90,66,40,.18); }
+  :root[data-theme="dark"]{ --ground:#191512; --panel:#231e18; --ink:#f0e8dc; --muted:#a2917f;
+    --hair:#352d24; --accent:#f0873f; --accent-soft:#3a2a1c; --chip:#2c251d;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 12px 34px -14px rgba(0,0,0,.6); }
+
+  .wrap{ box-sizing:border-box; max-width:960px; margin:0 auto; padding:44px 24px 72px;
+    background:var(--ground); color:var(--ink); font-family:var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap *{ box-sizing:border-box; }
+  .eyebrow{ margin:0; font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+  .masthead h1{ margin:10px 0 0; font-size:30px; font-weight:800; letter-spacing:-.02em; text-wrap:balance; }
+  .lede{ margin:12px 0 0; max-width:60ch; font-size:15px; line-height:1.65; color:var(--muted); }
+  .lede b{ color:var(--ink); font-weight:700; }
+
+  .gallery{ display:flex; flex-wrap:wrap; gap:32px; margin-top:36px; align-items:flex-start; }
+  .pane{ flex:1 1 380px; min-width:0; display:flex; flex-direction:column; gap:10px; }
+  .tag{ display:flex; align-items:center; gap:9px; font-size:16px; font-weight:800; letter-spacing:-.01em; }
+  .oid{ font:800 12px/1 ui-monospace,Menlo,monospace; padding:5px 8px; border-radius:7px; background:var(--accent); color:#fff; }
+  .mode{ font-size:11px; font-weight:700; color:var(--muted); background:var(--chip); border-radius:999px; padding:4px 10px; }
+  .desc{ margin:0; font-size:13px; line-height:1.55; color:var(--muted); min-height:2.4em; }
+  .desc b{ color:var(--ink); }
+  .screenwrap{ overflow-x:auto; border-radius:26px; }
+  .phone{ width:390px; margin:0 auto; border-radius:26px; overflow:hidden;
+    box-shadow:var(--shadow); border:1px solid var(--hair); }
+
+  .diff{ margin-top:52px; }
+  .diff h2{ margin:0 0 4px; font-size:20px; font-weight:800; letter-spacing:-.01em; }
+  .diff p.sub{ margin:0 0 18px; font-size:13px; color:var(--muted); }
+  .tbl{ width:100%; border-collapse:collapse; font-size:13.5px; overflow:hidden;
+    border:1px solid var(--hair); border-radius:16px; }
+  .tbl th,.tbl td{ text-align:left; padding:13px 15px; vertical-align:top; line-height:1.5; border-bottom:1px solid var(--hair); }
+  .tbl thead th{ background:var(--chip); font-weight:700; font-size:12px; letter-spacing:.02em; }
+  .tbl tbody tr:last-child td{ border-bottom:none; }
+  .tbl td.k{ font-weight:700; color:var(--ink); width:23%; }
+  .tbl td.v{ color:var(--muted); width:38.5%; }
+  .tbl td.v b{ color:var(--ink); font-weight:600; }
+  .verdict{ display:flex; flex-wrap:wrap; gap:16px; margin-top:28px; }
+  .card{ flex:1 1 300px; background:var(--panel); border:1px solid var(--hair); border-radius:16px; padding:18px 20px; box-shadow:var(--shadow); }
+  .card h3{ margin:0 0 8px; font-size:15px; font-weight:800; }
+  .card h3 .oid{ margin-right:7px; }
+  .card p{ margin:0; font-size:13px; line-height:1.6; color:var(--muted); }
+  .card p b{ color:var(--ink); font-weight:600; }
+  .note{ margin-top:26px; font-size:12.5px; line-height:1.6; color:var(--muted); border-left:3px solid var(--accent); padding:4px 0 4px 14px; }
+  @media (max-width:520px){ .masthead h1{ font-size:24px; } .phone{ width:100%; min-width:340px; } }
+</style>
+
+<main class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">AiDay · 홈 화면 개선안</p>
+    <h1>AI 리포트 카드 — 1a vs 1b</h1>
+    <p class="lede">두 안 모두 공통 개선(AI hook을 화면 히어로로 승격 · 시간대 카드는 주의만 노출 · 보더 정리)을 담습니다. 다른 건 <b>AI 리포트의 표현 방식과 색</b>입니다. 실제 화면 전체를 나란히 두되, 비교 포인트는 상단 리포트 영역입니다.</p>
+  </header>
+  <section class="gallery">
+    <article class="pane">
+      <div class="tag"><span class="oid">1a</span> 정돈 <span class="mode">보수적 · 현행 시스템</span></div>
+      <p class="desc">기존 오렌지 시스템 그대로. hook을 카드 없이 배경 위 히어로로 올리고, 챙길 것은 흰 카드 안 체크리스트. <b>DESIGN.md 수정 불필요.</b></p>
+      <div class="screenwrap"><div class="phone">
+
+<div data-screen-label="1a 정돈" style="width:390px;background:#FCFAF8;color:#281D15;display:flex;flex-direction:column">
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <svg width="26" height="26" viewBox="17 11 90 90" fill="none"><g transform="translate(0 12.5)" fill="none" stroke-linecap="round"><g stroke="#EDB94A" stroke-width="3"><line x1="60" y1="33" x2="60" y2="25"></line><line x1="76.6" y1="38.7" x2="81.5" y2="32.4"></line><line x1="43.4" y1="38.7" x2="38.5" y2="32.4"></line><line x1="85.4" y1="50.8" x2="92.9" y2="48"></line><line x1="34.6" y1="50.8" x2="27.1" y2="48"></line></g><path d="M38 60 A22 22 0 0 1 82 60 Z" fill="#EFAA35"></path><path d="M20 70 Q60 56 100 70" stroke="#7FB4A6" stroke-width="5"></path><path d="M98 17 Q100.3 21.7 105 24 Q100.3 26.3 98 31 Q95.7 26.3 91 24 Q95.7 21.7 98 17 Z" fill="#6FB0A0"></path></g></svg>
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">아이데이</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;color:#766960">
+      <span style="position:relative;display:inline-flex"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span style="position:absolute;top:0;right:0;width:7px;height:7px;border-radius:99px;background:#CC5500"></span></span>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
+    </div>
+  </div>
+
+  <!-- profile + location: 한 줄로 압축 -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 20px 0">
+    <div style="display:flex;align-items:center;gap:8px">
+      <button style="display:flex;align-items:center;gap:7px;border:none;background:#281D15;color:#fff;border-radius:999px;padding:5px 14px 5px 6px;font-size:13px;font-weight:600;font-family:inherit;white-space:nowrap">
+        <span style="width:24px;height:24px;border-radius:99px;background:#D9EEDF;color:#3A6B4F;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">지</span>지우
+      </button>
+      <button style="display:flex;align-items:center;gap:7px;border:1px solid #EAE3DC;background:#fff;color:#766960;border-radius:999px;padding:5px 14px 5px 6px;font-size:13px;font-weight:500;font-family:inherit;white-space:nowrap">
+        <span style="width:24px;height:24px;border-radius:99px;background:#F5F3EF;color:#766960;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">도</span>도윤
+      </button>
+      <button style="width:34px;height:34px;border-radius:99px;border:1px dashed #E0D6C8;background:#fff;color:#766960;font-size:16px;font-family:inherit">+</button>
+    </div>
+    <span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#766960">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>강남구
+    </span>
+  </div>
+
+  <!-- hero: hook이 화면의 주인공 -->
+  <div style="padding:22px 20px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#D4622A;background:#FBE3D4;border-radius:999px;padding:5px 11px;white-space:nowrap"><span style="width:6px;height:6px;border-radius:99px;background:#D4622A"></span>오늘은 주의가 필요해요</span>
+      <span style="font-size:11px;color:#a99d92;font-variant-numeric:tabular-nums;white-space:nowrap">7월 14일 (화) 07:30 생성</span>
+    </div>
+    <h1 style="margin:12px 0 0;font-size:23px;line-height:1.38;font-weight:800;letter-spacing:-0.02em;word-break:keep-all">오후 꽃가루가 심해요,<br>마스크 꼭 챙겨주세요</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#766960;word-break:keep-all">지우는 <b style="color:#281D15">비염</b>이 있어 오늘 꽃가루 &lsquo;매우높음&rsquo;이 특히 위험해요. 하원길엔 미세먼지도 나빠져요.</p>
+    <!-- 환경 요약: 주의 지표만 강조, 나머지는 흐리게 -->
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px">
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#D4622A;background:#fff;border:1px solid rgba(212,98,42,.3);border-radius:999px;padding:4px 10px;white-space:nowrap"><span style="width:5px;height:5px;border-radius:99px;background:#D4622A"></span>꽃가루 높음</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#D4622A;background:#fff;border:1px solid rgba(212,98,42,.3);border-radius:999px;padding:4px 10px;white-space:nowrap"><span style="width:5px;height:5px;border-radius:99px;background:#D4622A"></span>바람 강함</span>
+      <span style="font-size:12px;color:#a99d92;background:#F5F3EF;border-radius:999px;padding:5px 10px;white-space:nowrap">미세먼지 보통</span>
+      <span style="font-size:12px;color:#a99d92;background:#F5F3EF;border-radius:999px;padding:5px 10px;white-space:nowrap">자외선 보통</span>
+      <span style="font-size:12px;color:#a99d92;background:#F5F3EF;border-radius:999px;padding:5px 10px;white-space:nowrap">습도 적정</span>
+    </div>
+  </div>
+
+  <!-- checklist -->
+  <div style="margin:20px 20px 0;background:#fff;border-radius:18px;box-shadow:0 1px 2px rgba(97,74,44,.05),0 4px 14px -4px rgba(107,80,49,.08);padding:18px 18px 8px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <p style="margin:0;font-size:15px;font-weight:700">오늘 챙길 것</p>
+      <p style="margin:0;font-size:12px;color:#766960;font-variant-numeric:tabular-nums"><b style="color:#CC5500">1</b> / 4</p>
+    </div>
+    <div style="display:flex;flex-direction:column;margin-top:6px">
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F5F3EF">
+        <span style="width:22px;height:22px;border-radius:7px;background:#F5A623;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1F0C00" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg></span>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D4622A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.2A2.2 2.2 0 0 1 6.7 8h10.6a2.2 2.2 0 0 1 2.2 2.2v2c0 3.3-3.9 5.9-7.5 5.9s-7.5-2.6-7.5-5.9Z"></path><path d="M4.5 10.8c-1.5.1-2.6 1.1-2.6 2.3 0 1.1 1 2 2.6 2.1M19.5 10.8c1.5.1 2.6 1.1 2.6 2.3 0 1.1-1 2-2.6 2.1M8.3 11.4h7.4M8.8 13.9h6.4"></path></svg>
+        <span style="flex:1;font-size:14px;color:#a99d92;text-decoration:line-through">마스크 필수 <span style="font-size:12px">(비염 + 꽃가루 높음)</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F5F3EF">
+        <span style="width:22px;height:22px;border-radius:7px;border:1.5px solid #E0D6C8;background:#fff"></span>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D4622A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path><path d="M12 9.5V21"></path></svg>
+        <span style="flex:1;font-size:14px">긴팔 + 얇은 가디건</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #F5F3EF">
+        <span style="width:22px;height:22px;border-radius:7px;border:1.5px solid #E0D6C8;background:#fff"></span>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D4622A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 7.6c2-1.7 11.6-1.7 13.6 0 .7.6.7 1.6 0 2.2-2 1.7-11.6 1.7-13.6 0-.7-.6-.7-1.6 0-2.2Z"></path><path d="M9.6 10.9 12 18.6l2.4-7.7"></path></svg>
+        <span style="flex:1;font-size:14px">목수건 <span style="font-size:12px;color:#766960">(오후 바람 강함)</span></span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:11px 0">
+        <span style="width:22px;height:22px;border-radius:7px;border:1.5px solid #E0D6C8;background:#fff"></span>
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#D4622A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path></svg>
+        <span style="flex:1;font-size:14px">보습제 <span style="font-size:12px;color:#766960">(건조 주의)</span></span>
+      </div>
+    </div>
+  </div>
+  <p style="margin:10px 22px 0;font-size:11px;color:#b3a89d">지우를 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터</p>
+
+  <!-- timeline: 예외만 보여주는 요약형 -->
+  <div style="padding:26px 0 0">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 20px">
+      <h2 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-0.01em">시간대별 환경</h2>
+      <span style="font-size:12px;color:#766960">일교차 <b style="color:#CC5500;font-variant-numeric:tabular-nums">9°</b></span>
+    </div>
+    <div style="display:flex;gap:6px;padding:12px 0 4px 20px;overflow:hidden">
+      <div style="flex:none;width:100px;box-sizing:border-box;background:#fff;border-radius:16px;box-shadow:0 1px 2px rgba(97,74,44,.05),0 4px 14px -4px rgba(107,80,49,.08);padding:14px 14px 12px">
+        <p style="margin:0;font-size:12px;font-weight:700">등원 <span style="font-weight:500;color:#a99d92">08:00</span></p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#766960" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M5.3 5.3l1.4 1.4M20 12h2M18.7 5.3l-1.4 1.4M15.95 12.65a4 4 0 0 0-5.93-4.13"></path><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"></path></svg>
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">12°</span>
+        </div>
+        <p style="margin:6px 0 0;font-size:11px;color:#766960">체감 10° · 쌀쌀해요</p>
+        <span style="display:inline-flex;margin-top:8px;font-size:10px;font-weight:700;color:#D4622A;background:#FBE3D4;border-radius:999px;padding:3px 8px;white-space:nowrap">겉옷</span>
+      </div>
+      <div style="flex:none;width:100px;box-sizing:border-box;background:#fff;border-radius:16px;box-shadow:0 1px 2px rgba(97,74,44,.05),0 4px 14px -4px rgba(107,80,49,.08);padding:14px 14px 12px">
+        <p style="margin:0;font-size:12px;font-weight:700">야외활동 <span style="font-weight:500;color:#a99d92">11:00</span></p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#766960" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"></path><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M6 18l-1.4 1.4M18 6l1.4-1.4"></path></svg>
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">18°</span>
+        </div>
+        <p style="margin:6px 0 0;font-size:11px;color:#766960">체감 17° · 무난해요</p>
+        <span style="display:inline-flex;margin-top:8px;font-size:10px;font-weight:700;color:#D4622A;background:#FBE3D4;border-radius:999px;padding:3px 8px;white-space:nowrap">마스크</span>
+      </div>
+      <div style="flex:none;width:100px;box-sizing:border-box;background:#fff;border-radius:16px;box-shadow:0 0 0 1.5px rgba(212,98,42,.35),0 4px 14px -4px rgba(107,80,49,.1);padding:14px 14px 12px">
+        <p style="margin:0;font-size:12px;font-weight:700;color:#D4622A">하원 <span style="font-weight:500;color:#a99d92">15:00</span></p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#766960" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M5.3 5.3l1.4 1.4M20 12h2M18.7 5.3l-1.4 1.4M15.95 12.65a4 4 0 0 0-5.93-4.13"></path><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"></path></svg>
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">21°</span>
+        </div>
+        <p style="margin:6px 0 0;font-size:11px;color:#D4622A;font-weight:600">먼지 나쁨 · 꽃가루↑</p>
+        <span style="display:inline-flex;margin-top:8px;font-size:10px;font-weight:700;color:#D4622A;background:#FBE3D4;border-radius:999px;padding:3px 8px;white-space:nowrap">마스크</span>
+      </div>
+      <div style="flex:none;width:100px;box-sizing:border-box;background:#fff;border-radius:16px;box-shadow:0 1px 2px rgba(97,74,44,.05),0 4px 14px -4px rgba(107,80,49,.08);padding:14px 14px 12px">
+        <p style="margin:0;font-size:12px;font-weight:700">저녁 <span style="font-weight:500;color:#a99d92">18:00</span></p>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#766960" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg>
+          <span style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">16°</span>
+        </div>
+        <p style="margin:6px 0 0;font-size:11px;color:#766960">체감 14° · 바람</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom nav -->
+  <div style="margin-top:22px;border-top:1px solid #EAE3DC;background:rgba(252,250,248,.95);display:grid;grid-template-columns:repeat(5,1fr);padding:6px 8px 18px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#281D15">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px;border-radius:999px;background:#FFF2E0"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#CC5500" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M9 22V12h6v10"></path></svg></span>
+      <span style="font-size:11px;font-weight:600">홈</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#766960">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path><path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path><path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">환경정보</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#766960">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">옷차림</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#766960">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">건강팁</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#766960">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">마이</span>
+    </div>
+  </div>
+</div>
+      </div></div>
+    </article>
+    <article class="pane">
+      <div class="tag"><span class="oid">1b</span> 포근 <span class="mode">새 팔레트 · 코랄+세이지</span></div>
+      <p class="desc">아이 중심 인사 + 말풍선형 하얀 브리핑 카드. 챙길 것은 알약형, 결론은 컬러로 강조. 감성은 따뜻하지만 <b>DESIGN.md 컬러 개정 필요.</b></p>
+      <div class="screenwrap"><div class="phone">
+
+<div data-screen-label="1b 포근" style="width:390px;background:#FFF8F3;color:#3A2A20;display:flex;flex-direction:column">
+  <!-- header -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px 6px">
+    <div style="display:flex;align-items:center;gap:6px">
+      <svg width="26" height="26" viewBox="17 11 90 90" fill="none"><g transform="translate(0 12.5)" fill="none" stroke-linecap="round"><g stroke="#F09A79" stroke-width="3"><line x1="60" y1="33" x2="60" y2="25"></line><line x1="76.6" y1="38.7" x2="81.5" y2="32.4"></line><line x1="43.4" y1="38.7" x2="38.5" y2="32.4"></line><line x1="85.4" y1="50.8" x2="92.9" y2="48"></line><line x1="34.6" y1="50.8" x2="27.1" y2="48"></line></g><path d="M38 60 A22 22 0 0 1 82 60 Z" fill="#EE7B54"></path><path d="M20 70 Q60 56 100 70" stroke="#8FBCA9" stroke-width="5"></path><path d="M98 17 Q100.3 21.7 105 24 Q100.3 26.3 98 31 Q95.7 26.3 91 24 Q95.7 21.7 98 17 Z" fill="#7DB39C"></path></g></svg>
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">아이데이</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;color:#9B8574">
+      <span style="position:relative;display:inline-flex"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path></svg><span style="position:absolute;top:0;right:0;width:7px;height:7px;border-radius:99px;background:#E8623C"></span></span>
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path></svg>
+    </div>
+  </div>
+
+  <!-- greeting: 아이 중심 인사 -->
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 20px 0">
+    <span style="width:48px;height:48px;border-radius:99px;background:#DCEEE2;color:#3A6B4F;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;box-shadow:0 0 0 3px #fff,0 0 0 4.5px #F0C9B4">지</span>
+    <div style="flex:1">
+      <p style="margin:0;font-size:17px;font-weight:800;letter-spacing:-0.01em">지우의 아침 브리핑</p>
+      <p style="margin:2px 0 0;font-size:12px;color:#9B8574">7월 14일 화요일 · 강남구 · 만 4세 · 비염</p>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C4AE9C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"></path></svg>
+  </div>
+
+  <!-- hero card: 말풍선 느낌의 브리핑 카드 -->
+  <div style="margin:16px 20px 0;background:#fff;border-radius:24px;box-shadow:0 2px 4px rgba(150,90,50,.05),0 10px 28px -10px rgba(150,90,50,.14);padding:22px 22px 20px">
+    <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#E8623C;background:#FDEAE2;border-radius:999px;padding:5px 12px;white-space:nowrap">오늘의 결론</span>
+    <h1 style="margin:12px 0 0;font-size:22px;line-height:1.4;font-weight:800;letter-spacing:-0.02em;word-break:keep-all">오후 꽃가루가 심한 날,<br><span style="color:#E8623C">마스크</span>부터 챙겨주세요</h1>
+    <p style="margin:10px 0 0;font-size:14px;line-height:1.7;color:#9B8574;word-break:keep-all">비염이 있는 지우에게 오늘 꽃가루 &lsquo;매우높음&rsquo;은 특히 위험해요. 아침엔 쌀쌀하니 얇은 가디건도 함께요.</p>
+    <div style="height:1px;background:#F6EBE1;margin:18px 0 14px"></div>
+    <!-- 챙길 것: 알약형 체크 -->
+    <p style="margin:0 0 10px;font-size:13px;font-weight:700;color:#3A2A20">오늘 챙길 것 <span style="color:#E8623C;font-variant-numeric:tabular-nums">1/4</span></p>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;color:#fff;background:#E8623C;border-radius:999px;padding:9px 14px;white-space:nowrap"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>마스크</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#3A2A20;background:#FFF3EA;border:1px solid #F2DECE;border-radius:999px;padding:9px 14px;white-space:nowrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B98A63" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path><path d="M12 9.5V21"></path></svg>얇은 가디건</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#3A2A20;background:#FFF3EA;border:1px solid #F2DECE;border-radius:999px;padding:9px 14px;white-space:nowrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B98A63" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5.2 7.6c2-1.7 11.6-1.7 13.6 0 .7.6.7 1.6 0 2.2-2 1.7-11.6 1.7-13.6 0-.7-.6-.7-1.6 0-2.2Z"></path><path d="M9.6 10.9 12 18.6l2.4-7.7"></path></svg>목수건</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#3A2A20;background:#FFF3EA;border:1px solid #F2DECE;border-radius:999px;padding:9px 14px;white-space:nowrap"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B98A63" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"></path></svg>보습제</span>
+    </div>
+    <p style="margin:14px 0 0;font-size:11px;color:#C4AE9C">지우 프로필 기준 · 기상청·에어코리아 실측 · 07:30 생성</p>
+  </div>
+
+  <!-- 환경 한 줄 요약 바 -->
+  <div style="margin:12px 20px 0;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+    <div style="background:#fff;border-radius:16px;padding:12px 6px;text-align:center;box-shadow:0 1px 3px rgba(150,90,50,.06)">
+      <p style="margin:0;font-size:11px;color:#9B8574">미세먼지</p><p style="margin:4px 0 0;font-size:13px;font-weight:700;color:#75685C">보통</p>
+    </div>
+    <div style="background:#FDEAE2;border-radius:16px;padding:12px 6px;text-align:center">
+      <p style="margin:0;font-size:11px;color:#C57756">꽃가루</p><p style="margin:4px 0 0;font-size:13px;font-weight:800;color:#D14E27">높음</p>
+    </div>
+    <div style="background:#fff;border-radius:16px;padding:12px 6px;text-align:center;box-shadow:0 1px 3px rgba(150,90,50,.06)">
+      <p style="margin:0;font-size:11px;color:#9B8574">자외선</p><p style="margin:4px 0 0;font-size:13px;font-weight:700;color:#75685C">보통</p>
+    </div>
+    <div style="background:#FDEAE2;border-radius:16px;padding:12px 6px;text-align:center">
+      <p style="margin:0;font-size:11px;color:#C57756">바람</p><p style="margin:4px 0 0;font-size:13px;font-weight:800;color:#D14E27">강함</p>
+    </div>
+  </div>
+
+  <!-- timeline: 하루 흐름 리본 -->
+  <div style="padding:26px 20px 0">
+    <h2 style="margin:0;font-size:18px;font-weight:800;letter-spacing:-0.01em">지우의 하루 흐름</h2>
+    <div style="margin-top:12px;background:#fff;border-radius:24px;box-shadow:0 2px 4px rgba(150,90,50,.05),0 10px 28px -10px rgba(150,90,50,.14);padding:18px 18px 16px">
+      <div style="display:grid;grid-template-columns:repeat(4,1fr)">
+        <div style="text-align:center">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#9B8574">등원<br><span style="font-weight:500;color:#C4AE9C">08:00</span></p>
+          <div style="display:flex;justify-content:center;margin:10px 0 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B8574" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M5.3 5.3l1.4 1.4M20 12h2M18.7 5.3l-1.4 1.4M15.95 12.65a4 4 0 0 0-5.93-4.13"></path><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"></path></svg></div>
+          <p style="margin:0;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">12°</p>
+          <span style="display:inline-block;margin-top:7px;width:8px;height:8px;border-radius:99px;background:#7DB39C"></span>
+        </div>
+        <div style="text-align:center">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#9B8574">야외<br><span style="font-weight:500;color:#C4AE9C">11:00</span></p>
+          <div style="display:flex;justify-content:center;margin:10px 0 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B8574" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"></path><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M6 18l-1.4 1.4M18 6l1.4-1.4"></path></svg></div>
+          <p style="margin:0;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">18°</p>
+          <span style="display:inline-block;margin-top:7px;width:8px;height:8px;border-radius:99px;background:#E9B44C"></span>
+        </div>
+        <div style="text-align:center;background:#FFF3EA;border-radius:14px;padding:0 0 8px;margin:-6px 2px">
+          <p style="margin:6px 0 0;font-size:11px;font-weight:800;color:#D14E27">하원<br><span style="font-weight:500;color:#C57756">15:00</span></p>
+          <div style="display:flex;justify-content:center;margin:10px 0 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D14E27" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v2M5.3 5.3l1.4 1.4M20 12h2M18.7 5.3l-1.4 1.4M15.95 12.65a4 4 0 0 0-5.93-4.13"></path><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"></path></svg></div>
+          <p style="margin:0;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em;color:#D14E27">21°</p>
+          <span style="display:inline-block;margin-top:7px;width:8px;height:8px;border-radius:99px;background:#D14E27"></span>
+        </div>
+        <div style="text-align:center">
+          <p style="margin:0;font-size:11px;font-weight:700;color:#9B8574">저녁<br><span style="font-weight:500;color:#C4AE9C">18:00</span></p>
+          <div style="display:flex;justify-content:center;margin:10px 0 8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9B8574" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path></svg></div>
+          <p style="margin:0;font-size:17px;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-0.03em">16°</p>
+          <span style="display:inline-block;margin-top:7px;width:8px;height:8px;border-radius:99px;background:#7DB39C"></span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:14px;background:#FFF8F3;border-radius:12px;padding:10px 12px">
+        <span style="width:8px;height:8px;border-radius:99px;background:#D14E27;flex:none"></span>
+        <p style="margin:0;font-size:12px;line-height:1.5;color:#75685C;word-break:keep-all"><b style="color:#D14E27">하원길 주의</b> — 미세먼지 나쁨 · 꽃가루 매우높음 · 마스크 필요</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- bottom nav -->
+  <div style="margin-top:24px;border-top:1px solid #F2E6DA;background:#FFFDFB;display:grid;grid-template-columns:repeat(5,1fr);padding:6px 8px 18px">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#3A2A20">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px;border-radius:999px;background:#FDEAE2"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#E8623C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><path d="M9 22V12h6v10"></path></svg></span>
+      <span style="font-size:11px;font-weight:700">홈</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#9B8574">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"></path><path d="M9.6 4.6A2 2 0 1 1 11 8H2"></path><path d="M12.6 19.4A2 2 0 1 0 14 16H2"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">환경정보</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#9B8574">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">옷차림</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#9B8574">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">건강팁</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:3px;padding-top:6px;color:#9B8574">
+      <span style="display:flex;align-items:center;justify-content:center;width:52px;height:30px"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg></span>
+      <span style="font-size:11px;font-weight:500">마이</span>
+    </div>
+  </div>
+</div>
+      </div></div>
+    </article>
+  </section>
+
+  <section class="diff">
+    <h2>AI 리포트, 무엇이 다른가</h2>
+    <p class="sub">위 두 화면의 상단 리포트 영역만 항목별로 비교합니다.</p>
+    <div style="overflow-x:auto">
+    <table class="tbl">
+      <thead><tr><th>항목</th><th>1a 정돈</th><th>1b 포근</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="k">컬러</td>
+          <td class="v">현행 오렌지(<b>#F5A623</b>) + 웜 뉴트럴. 상태색은 컬러 텍스트+도트.</td>
+          <td class="v">새 <b>코랄(#E8623C)+세이지(#7DB39C)</b>. 결론·완료를 solid 코랄로 채움.</td>
+        </tr>
+        <tr>
+          <td class="k">리포트 담는 그릇</td>
+          <td class="v">카드 없이 <b>배경 위 히어로</b>. hook이 가장 큰 요소(23px/800).</td>
+          <td class="v">둥근 24px <b>말풍선형 흰 카드</b> + 아이 아바타 인사로 시작.</td>
+        </tr>
+        <tr>
+          <td class="k">결론(hook)</td>
+          <td class="v">"오늘은 주의가 필요해요" 상태 필 + 생성시각. 한 문장 히어로.</td>
+          <td class="v">"오늘의 결론" 필 + hook 안 <b>핵심어(마스크)를 컬러</b>로.</td>
+        </tr>
+        <tr>
+          <td class="k">오늘 챙길 것</td>
+          <td class="v"><b>체크리스트</b>(체크박스+라인 아이콘+사유), 완료는 취소선.</td>
+          <td class="v"><b>알약형 태그</b>, 완료(마스크)는 solid 코랄로 채움.</td>
+        </tr>
+        <tr>
+          <td class="k">환경 요약</td>
+          <td class="v">hook 아래 <b>인라인 칩</b> — 주의만 강조, 나머지는 흐리게.</td>
+          <td class="v">리포트 밖 <b>4칸 그리드</b>(먼지·꽃가루·자외선·바람), 주의는 틴트.</td>
+        </tr>
+        <tr>
+          <td class="k">톤</td>
+          <td class="v">차분하고 정확 — "정보를 명확하게". 현행 Warm Minimal.</td>
+          <td class="v">다정하고 부드러움 — 키즈노트·당근 감성. 더 감정적.</td>
+        </tr>
+        <tr>
+          <td class="k">구현 비용</td>
+          <td class="v"><b>낮음</b> — 컴포넌트 재배치·정리. 시스템 변경 없음.</td>
+          <td class="v"><b>높음</b> — 색 토큰 개정 + 앱 전체 재테마 + DESIGN.md 갱신.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="verdict">
+      <div class="card">
+        <h3><span class="oid">1a</span> 이럴 때</h3>
+        <p>현재 <b>Warm Minimal</b> 정체성을 지키면서 홈의 정보 위계만 끌어올리고 싶을 때. 빠르게 안전하게 개선하고, 색 실험은 나중에.</p>
+      </div>
+      <div class="card">
+        <h3><span class="oid">1b</span> 이럴 때</h3>
+        <p>이번 기회에 앱의 <b>감성 아이덴티티</b>를 다정한 코랄+세이지로 리브랜딩하고 싶을 때. 홈만이 아니라 전 화면 재테마를 감수.</p>
+      </div>
+    </div>
+
+    <p class="note">두 안의 데이터·문구·아이콘은 실제 코드(recommendation-engine · weather-mock · LineIcon)에서 가져온 것이라, 어느 쪽이든 그대로 구현으로 옮길 수 있습니다. Turn 2(이미지 저장·공유 CTA)는 이번 비교에서 제외했습니다.</p>
+  </section>
+</main>
