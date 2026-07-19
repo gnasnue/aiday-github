@@ -11,7 +11,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { sendFeedback } from "@/lib/analytics";
+import { sendFeedback, FEEDBACK_MESSAGE_MAX } from "@/lib/analytics";
 
 // 베타 상시 의견 수거함 — 마이페이지 "의견 보내기"에서 열린다.
 // 자유 텍스트만 받고 feedback 테이블(kind: general)에 적재한다.
@@ -53,10 +53,10 @@ const FeedbackDialog = ({
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          maxLength={2000}
+          maxLength={FEEDBACK_MESSAGE_MAX}
           rows={5}
           placeholder="예) 아침 알림이 있었으면 좋겠어요"
-          className="resize-none rounded-md bg-muted text-[14px] placeholder:text-faint"
+          className="resize-none rounded-md border-0 bg-muted text-base placeholder:text-faint"
         />
         <Button
           onClick={submit}

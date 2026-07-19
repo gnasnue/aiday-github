@@ -4,15 +4,11 @@ import { useEffect, useState } from "react";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
 import { sendFeedback } from "@/lib/analytics";
+import { localDateStr } from "@/lib/date";
 
 // AI 리포트 유용성 평가 — 베타 지표 "리포트 유용성"의 수집 지점.
 // 판단을 소비한 직후 그 자리에서 묻는다 (별도 설문 페이지보다 응답률이 높다).
 // 아이·날짜당 1회만 — 평가하면 localStorage에 기록해 재방문 시 다시 묻지 않는다.
-
-const localDateStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
 
 const ratedKey = (childId: string) => `aiday:report-fb:${childId}:${localDateStr()}`;
 
@@ -42,15 +38,24 @@ const ReportFeedback = ({
     setReason("");
   }, [childId]);
 
-  const rate = (value: "up" | "down") => {
+  const rate = async (value: "up" | "down") => {
     if (rating) return; // 하루 1회
     setRating(value);
     setAskReason(true);
     try {
       localStorage.setItem(ratedKey(childId), value);
     } catch {}
-    // 평가는 즉시 전송 — 이유 입력을 기다리다 이탈하면 평가까지 잃는다
-    sendFeedback({ kind: "report", rating: value, props: { age_band: ageBand } });
+    // 평가는 즉시 전송 — 이유 입력을 기다리다 이탈하면 평가까지 잃는다.
+    // 전송 실패 시엔 1회 기록을 되돌려 재평가를 허용한다 (실패했는데 그날 잠기는 것 방지).
+    const ok = await sendFeedback({ kind: "report", rating: value, props: { age_band: ageBand } });
+    if (!ok) {
+      try {
+        localStorage.removeItem(ratedKey(childId));
+      } catch {}
+      setRating(null);
+      setAskReason(false);
+      toast("전송에 실패했어요. 잠시 후 다시 눌러주세요.");
+    }
   };
 
   const submitReason = async () => {
@@ -80,8 +85,9 @@ const ReportFeedback = ({
           {rating ? "의견 감사해요" : "이 리포트가 도움이 되었나요?"}
         </p>
         {/* 아이콘은 라벨 텍스트(13px)와 같은 크기 — 시각은 28px 박스로 조용히,
-            터치 타겟은 after 확장으로 44px(28+8*2)을 확보한다 */}
-        <div className="flex gap-2.5">
+            터치 타겟은 after 확장으로 44px(28+8*2)을 확보한다.
+            gap-4(16px)는 확장 히트영역(양쪽 +8px)이 서로 겹치지 않는 최소 간격 */}
+        <div className="flex gap-4">
           {(["up", "down"] as const).map((v) => {
             const Icon = v === "up" ? ThumbsUp : ThumbsDown;
             const on = rating === v;
@@ -118,7 +124,7 @@ const ReportFeedback = ({
             onKeyDown={(e) => e.key === "Enter" && submitReason()}
             maxLength={200}
             placeholder={rating === "down" ? "어떤 점이 아쉬웠나요? (선택)" : "어떤 점이 좋았나요? (선택)"}
-            className="h-11 min-w-0 flex-1 rounded-md bg-muted px-3 text-[14px] text-foreground placeholder:text-faint focus:outline-none focus:ring-1 focus:ring-primary"
+            className="h-11 min-w-0 flex-1 rounded-md bg-muted px-3 text-base text-foreground placeholder:text-faint focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
             type="button"

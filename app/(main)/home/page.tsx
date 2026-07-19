@@ -27,15 +27,10 @@ import { buildPrepKeywords } from "@/lib/prep";
 import { isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
+import { localDateStr } from "@/lib/date";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
-
-// 로컬(기기) 기준 YYYY-MM-DD — toISOString은 UTC 기준이라 KST 자정~09시 사이에
-// 어제 날짜가 되어 캐시가 오전 9시에 엉뚱하게 갈리는 문제를 피한다
-const localDateStr = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// localDateStr(lib/date.ts): 로컬 기준 YYYY-MM-DD — 리포트 피드백 1일 1회 키와 공유
 
 // AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
 // 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
