@@ -453,7 +453,7 @@ const Outfit = () => {
           <section className="mt-7">
             <div className="flex items-center justify-between gap-2">
               <h2 className="text-[17px] font-bold tracking-tight">오늘의 룩 : 추천 코디 미리 보기</h2>
-              <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-medium text-red-500">
+              <span className="shrink-0 rounded-full bg-primary-tint px-2 py-0.5 text-[10px] font-medium text-accent">
                 AI코디 추천
               </span>
             </div>
