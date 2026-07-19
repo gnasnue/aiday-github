@@ -16,6 +16,11 @@ import {
   realLocalProfiles,
   uploadLocalProfilesToDb,
 } from "@/lib/profile";
+import {
+  hasAllRequiredConsents,
+  readLocalConsentSelection,
+  syncLocalConsentsToDb,
+} from "@/lib/consent";
 
 const AuthLanding = () => {
   const router = useRouter();
@@ -34,6 +39,14 @@ const AuthLanding = () => {
     } catch {}
 
     const route = async () => {
+      // 신규·기존 계정 모두 현재 문서 버전의 필수 동의를 확인한다.
+      // 기존 프로필 보유자는 동의만 받은 뒤 이 판단 지점으로 돌아온다.
+      if (!hasAllRequiredConsents(readLocalConsentSelection())) {
+        router.replace("/onboarding?consentOnly=1");
+        return;
+      }
+      // 비회원 상태에서 받은 베타 동의를 인증된 계정의 감사 이력으로 옮긴다.
+      await syncLocalConsentsToDb("auth_sync");
       let res = await fetchProfilesFromDb();
 
       if (res.status === "no-auth") {

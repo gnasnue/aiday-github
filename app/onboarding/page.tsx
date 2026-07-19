@@ -11,6 +11,7 @@ import {
   Moon,
   PartyPopper,
   Sparkles,
+  ShieldCheck,
   Sun,
   Sunrise,
   Thermometer,
@@ -44,6 +45,14 @@ import {
 } from "@/lib/profile";
 import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
 import { track } from "@/lib/analytics";
+import ConsentFields from "@/components/ConsentFields";
+import {
+  emptyConsentSelection,
+  hasAllRequiredConsents,
+  readLocalConsentSelection,
+  saveLocalConsentSelection,
+  syncLocalConsentsToDb,
+} from "@/lib/consent";
 
 const TOTAL = 5;
 const STORAGE_KEY = "aiweather:onboarding:v2"; // 기본정보 병합(7→5단계)으로 step 의미 변경 — 구형 진행상태 무효화
@@ -100,11 +109,24 @@ const defaultState: State = {
 
 const Onboarding = () => {
   const router = useRouter();
+  const [consentOnly, setConsentOnly] = useState(false);
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [s, setS] = useState<State>(defaultState);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [consents, setConsents] = useState(emptyConsentSelection);
 
   useEffect(() => {
+    setConsentOnly(new URLSearchParams(location.search).get("consentOnly") === "1");
+    const savedConsents = readLocalConsentSelection();
+    setConsents(savedConsents);
+    setConsentAccepted(hasAllRequiredConsents(savedConsents));
+    setConsentChecked(true);
+  }, []);
+
+  useEffect(() => {
+    if (!consentChecked || !consentAccepted) return;
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
@@ -113,19 +135,35 @@ const Onboarding = () => {
         if (parsed.step) setStep(parsed.step);
       }
     } catch {}
-  }, []);
+  }, [consentAccepted, consentChecked]);
 
   useEffect(() => {
+    if (!consentAccepted) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ s, step }));
     } catch {}
-  }, [s, step]);
+  }, [consentAccepted, s, step]);
 
   // 지표 1(온보딩 완료율)의 단계별 이탈 지점 — 도달한 step을 모두 기록하고,
   // 분석 시 세션별 max(step)로 이탈 단계를 본다 (뒤로가기·이어하기 경로 포함).
   useEffect(() => {
+    if (!consentAccepted) return;
     track("onboarding_step", { step });
-  }, [step]);
+  }, [consentAccepted, step]);
+
+  const acceptConsents = async () => {
+    if (!hasAllRequiredConsents(consents)) {
+      toast.error("필수 동의 항목을 모두 확인해주세요.");
+      return;
+    }
+    saveLocalConsentSelection(consents);
+    await syncLocalConsentsToDb("onboarding");
+    if (consentOnly) {
+      router.replace("/auth/landing");
+      return;
+    }
+    setConsentAccepted(true);
+  };
 
   const update = (patch: Partial<State>) => setS((prev) => ({ ...prev, ...patch }));
   const toggleCond = (c: string) =>
@@ -203,6 +241,65 @@ const Onboarding = () => {
     toast.success("진행 상태가 저장됐어요. 나중에 이어서 할 수 있어요.");
     router.push("/home");
   };
+
+  if (!consentChecked) return null;
+
+  if (!consentAccepted) {
+    return (
+      <div className="page-shell">
+        <div className="page-frame flex min-h-dvh flex-col bg-background">
+          <header className="border-b border-border/60">
+            <div className="container-mobile flex h-14 items-center">
+              <Link href="/" className="flex h-11 items-center text-sm text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="mr-2 h-5 w-5" />
+                돌아가기
+              </Link>
+            </div>
+          </header>
+          <main className="container-mobile flex-1 py-8">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-tint text-accent">
+              <ShieldCheck size={24} strokeWidth={1.75} />
+            </div>
+            <h1 className="mt-5 text-[1.375rem] font-bold tracking-tight">시작 전에 동의가 필요해요</h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep">
+              아이데이는 아동의 건강 특이사항과 사용 기록을 바탕으로 베타 서비스를 개선합니다.
+              아래 내용을 확인한 뒤 직접 선택해 주세요.
+            </p>
+
+            <div className="mt-6">
+              <ConsentFields value={consents} onChange={setConsents} showMarketing={false} />
+            </div>
+
+            <div className="mt-5 rounded-xl bg-muted/60 p-4">
+              <p className="text-xs leading-relaxed text-muted-foreground break-keep">
+                아이데이는 의료 진단이나 처방을 제공하지 않습니다. 증상이 있거나 건강상 우려가
+                있다면 의료 전문가와 상담해 주세요. 동의를 원하지 않으면 정보를 입력하지 않고
+                홈 화면을 둘러볼 수 있습니다.
+              </p>
+            </div>
+          </main>
+          <div className="container-mobile sticky bottom-0 border-t border-border/60 bg-background/95 py-4 backdrop-blur-md">
+            <Button
+              type="button"
+              size="lg"
+              onClick={acceptConsents}
+              disabled={!hasAllRequiredConsents(consents)}
+              className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
+            >
+              {consentOnly ? "동의하고 계속하기" : "동의하고 프로필 만들기"}
+            </Button>
+            <Link
+              href={consentOnly ? "/" : "/home"}
+              onClick={markBrowseHome}
+              className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted-foreground hover:text-foreground"
+            >
+              {consentOnly ? "동의하지 않고 나가기" : "동의하지 않고 둘러보기"}
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (done) {
     return (
