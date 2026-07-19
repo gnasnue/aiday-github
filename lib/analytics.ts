@@ -8,8 +8,6 @@
 //   3) 이벤트 이름은 아래 유니온으로 고정 — 자유 문자열 적재로 분석이 오염되는 것을 막는다.
 //      새 이벤트가 필요하면 여기에 추가하고 docs의 지표 정의와 함께 관리한다.
 
-import { supabase } from "@/lib/supabase";
-
 export type AnalyticsEvent =
   | "session_start" // 탭 세션 시작 (아침 재방문율의 재료)
   | "page_view" // 라우트 이동 (탭별 사용량)
@@ -57,6 +55,9 @@ const insert = async (
   table: "events" | "feedback",
   row: Record<string, unknown>
 ): Promise<boolean> => {
+  // supabase 클라이언트는 모듈 로드 시점에 env(NEXT_PUBLIC_*)를 요구하므로 지연 로드 —
+  // 브라우저 밖(vitest 등)에서 ageBand 같은 순수 로직만 임포트해도 안전하게 한다.
+  const { supabase } = await import("./supabase");
   const { data } = await supabase.auth.getSession();
   const { error } = await supabase.from(table).insert({
     user_id: data.session?.user?.id ?? null,
