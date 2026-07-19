@@ -30,6 +30,7 @@ import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
+import { useLocation } from "@/lib/useLocation";
 import { withSubjectSuffix } from "@/lib/korean";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
 import {
@@ -109,6 +110,7 @@ const Environment = () => {
     }
   })();
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
+  const { location, locating, requestLocation } = useLocation();
   const [loading, setLoading] = useState(true);
 
   // 실제 API 데이터
@@ -147,11 +149,11 @@ const Environment = () => {
 
   const fetchAll = useCallback(async () => {
     const [wRes, aRes, pRes, uRes, weekRes] = await Promise.allSettled([
-      fetch("/api/weather?lat=37.5665&lon=126.9780").then((r) => r.json()),
-      fetch("/api/air?station=%EC%A2%85%EB%A1%9C%EA%B5%AC").then((r) => r.json()),
-      fetch("/api/pollen?region=서울").then((r) => r.json()),
-      fetch("/api/uv?region=서울").then((r) => r.json()),
-      fetch("/api/weather/weekly?region=서울&lat=37.5665&lon=126.9780").then((r) => r.json()),
+      fetch(`/api/weather?lat=${location.lat}&lon=${location.lon}`).then((r) => r.json()),
+      fetch(`/api/air?station=${encodeURIComponent(location.station)}`).then((r) => r.json()),
+      fetch(`/api/pollen?region=${WEEKEND_REGION}`).then((r) => r.json()),
+      fetch(`/api/uv?region=${WEEKEND_REGION}`).then((r) => r.json()),
+      fetch(`/api/weather/weekly?region=${WEEKEND_REGION}&lat=${location.lat}&lon=${location.lon}`).then((r) => r.json()),
     ]);
     if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
     if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
@@ -160,7 +162,7 @@ const Environment = () => {
     if (weekRes.status === "fulfilled" && !weekRes.value.error && Array.isArray(weekRes.value.week))
       setWeekly(weekRes.value.week);
     setLoading(false);
-  }, []);
+  }, [location.lat, location.lon, location.station]);
 
   useEffect(() => {
     fetchAll();
@@ -365,13 +367,13 @@ const Environment = () => {
               <h1 className="text-[20px] font-bold tracking-tight">
                 {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 환경 정보` : "맞춤 환경 정보"}
               </h1>
-              {/* Location */}
+              {/* Location — 홈과 동일한 전역 위치(useLocation). 탭하면 실위치 기반으로 기준지 변경. */}
               <button
-                onClick={() => toast("위치 변경은 준비 중이에요")}
+                onClick={requestLocation}
                 className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <MapPin className="h-3.5 w-3.5" />
-                <span>{air?.stationName ?? "서울"}</span>
+                <span>{locating ? "위치 확인 중…" : `서울 ${location.gu}`}</span>
                 <ChevronDown className="h-3 w-3" />
               </button>
             </div>

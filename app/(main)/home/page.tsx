@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, ChevronRight, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
+import { Bell, MapPin, ChevronDown, ChevronRight, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -20,7 +20,7 @@ import {
   realLocalProfiles,
 } from "@/lib/profile";
 import { buildRecommendation, type Recommendation } from "@/lib/recommendation-engine";
-import { nearestSeoulGu } from "@/lib/locations";
+import { useLocation } from "@/lib/useLocation";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords } from "@/lib/prep";
@@ -219,13 +219,6 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 };
 
 
-// 위치 v1 — 위치 버튼으로 설정한 실위치(서울 구 단위). 날씨는 좌표 그대로,
-// 미세먼지는 해당 구 측정소로 조회. 라벨과 데이터 기준지가 항상 일치한다.
-type HomeLocation = { gu: string; lat: number; lon: number; station: string };
-const LOCATION_KEY = "aiday:location:v1";
-// 기본 기준지: 서울시청 좌표 + 중구 측정소 (라벨 "서울 중구"와 데이터 일치)
-const DEFAULT_LOCATION: HomeLocation = { gu: "중구", lat: 37.5665, lon: 126.978, station: "중구" };
-
 const Home = () => {
   const router = useRouter();
   const pathname = usePathname();
@@ -238,21 +231,7 @@ const Home = () => {
     }
   });
   const [checked, setChecked] = useState<number[]>([]);
-  const [location, setLocationState] = useState<HomeLocation>(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(LOCATION_KEY) ?? "null");
-      if (
-        saved &&
-        typeof saved.lat === "number" &&
-        typeof saved.lon === "number" &&
-        typeof saved.gu === "string" &&
-        typeof saved.station === "string"
-      )
-        return saved as HomeLocation;
-    } catch {}
-    return DEFAULT_LOCATION;
-  });
-  const [locating, setLocating] = useState(false);
+  const { location, locating, requestLocation } = useLocation();
   const [loading, setLoading] = useState(true);
   // 실측 도착 전엔 null — mock 초기값이 실측인 척 렌더되지 않게 한다 (2026-07 조사: 무표기 폴백).
   const [weatherData, setWeatherData] = useState<WeatherData | null>(null);
@@ -857,39 +836,6 @@ const Home = () => {
     [envRaw, cur?.schedule]
   );
 
-  // 위치 버튼: Geolocation → 서울 최근접 구 매핑 → 기준지 변경(라벨·측정소 동시 갱신).
-  // 사용자 제스처 안에서만 권한을 요청하고, 서울 밖·거부·실패는 기본 기준지 유지 + 정직한 안내.
-  const handleLocationChange = () => {
-    if (locating) return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      toast("이 기기에서는 위치를 사용할 수 없어요");
-      return;
-    }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocating(false);
-        const { latitude, longitude } = pos.coords;
-        const gu = nearestSeoulGu(latitude, longitude);
-        if (!gu) {
-          toast("아직 서울 지역만 지원해요 — 기본 기준지(서울 중구)로 보여드려요");
-          return;
-        }
-        const loc: HomeLocation = { gu: gu.name, lat: latitude, lon: longitude, station: gu.name };
-        setLocationState(loc);
-        try {
-          localStorage.setItem(LOCATION_KEY, JSON.stringify(loc));
-        } catch {}
-        toast(`서울 ${gu.name} 기준으로 보여드릴게요`);
-      },
-      () => {
-        setLocating(false);
-        toast("위치 권한이 없어 기본 기준지(서울 중구)로 보여드려요");
-      },
-      { timeout: 8000, maximumAge: 600000 }
-    );
-  };
-
   // 렌더용 슬롯: 실데이터가 없으면 빈 배열 — mock 값을 실측인 척 보여주지 않는다
   // (2026-07 조사: 무표기 폴백이 "지표 부정확" 체감의 근본 원인 중 하나).
   // 빈 상태는 시간대별 환경·케어 플랜 섹션이 "데이터 지연" 안내로 렌더한다.
@@ -1249,22 +1195,18 @@ const Home = () => {
         {/* Top nav */}
         <PageHeader
           right={
-            <>
-              <button
-                onClick={() => toast("새 알림이 없어요")}
-                className={headerBtn}
-                aria-label="알림"
-              >
-                <Bell className="h-5 w-5" strokeWidth={1.75} />
-              </button>
-              <button
-                onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className={headerBtn}
-                aria-label="설정"
-              >
-                <Settings className="h-5 w-5" strokeWidth={1.75} />
-              </button>
-            </>
+            // 알림 — 정식 출시 예정. 우상단 점으로 "예정"을 암시하고, 탭하면 예고 안내.
+            <button
+              onClick={() => toast("기준치 이상 환경 변화 알림은 정식 출시에 추가될 예정이에요")}
+              className={`${headerBtn} relative`}
+              aria-label="알림 (정식 출시 예정)"
+            >
+              <Bell className="h-5 w-5" strokeWidth={1.75} />
+              <span
+                className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary"
+                aria-hidden="true"
+              />
+            </button>
           }
         />
 
@@ -1304,7 +1246,7 @@ const Home = () => {
             {/* 위치 — 상단 라인 우측 고정. 탭하면 실위치 기반으로 기준지 변경(위치 v1).
                 라벨은 항상 실제 데이터 기준지(구 단위)와 일치한다. */}
             <button
-              onClick={handleLocationChange}
+              onClick={requestLocation}
               className="flex min-h-11 shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-muted-foreground hover:text-foreground"
             >
               <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />

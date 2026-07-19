@@ -15,6 +15,7 @@ const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, loadProfiles } from "@/lib/profile";
+import { useLocation } from "@/lib/useLocation";
 import { withTopicParticle } from "@/lib/korean";
 import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
 import { buildItemRecommendations } from "@/lib/item-recommend";
@@ -328,18 +329,19 @@ const Outfit = () => {
   })();
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
 
+  const { location } = useLocation();
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/weather?lat=37.5665&lon=126.9780")
+    fetch(`/api/weather?lat=${location.lat}&lon=${location.lon}`)
       .then((r) => r.json())
       .then((data) => {
         if (!data.error) setWeather(data);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [location.lat, location.lon]);
 
   const plan = useMemo(() => buildOutfit(cur, weather), [cur, weather]);
 
