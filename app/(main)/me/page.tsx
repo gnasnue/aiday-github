@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import {
   Bell,
-  Settings,
   Plus,
   Pencil,
   Trash2,
@@ -27,6 +26,7 @@ import {
   removeProfileFromDb,
   syncProfilesFromDb,
 } from "@/lib/profile";
+import { useLocation } from "@/lib/useLocation";
 import { supabase } from "@/lib/supabase";
 import { normalizeSensitivity } from "@/lib/profile-options";
 import FeedbackDialog from "@/components/FeedbackDialog";
@@ -136,6 +136,7 @@ const My = () => {
   const pathname = usePathname();
   const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const { location, requestLocation } = useLocation();
   const [active, setActive] = useState<string>(() => {
     try {
       return (
@@ -193,22 +194,18 @@ const My = () => {
       <div className="page-frame pb-24 animate-fade-in">
         <PageHeader
           right={
-            <>
-              <button
-                onClick={() => toast("새 알림이 없어요")}
-                className={headerBtn}
-                aria-label="알림"
-              >
-                <Bell className="h-5 w-5" strokeWidth={1.75} />
-              </button>
-              <button
-                onClick={() => toast("설정 페이지는 준비 중이에요")}
-                className={headerBtn}
-                aria-label="설정"
-              >
-                <Settings className="h-5 w-5" strokeWidth={1.75} />
-              </button>
-            </>
+            // 알림 — 정식 출시 예정. 우상단 점으로 "예정"을 암시하고, 탭하면 예고 안내.
+            <button
+              onClick={() => toast("기준치 이상 환경 변화 알림은 정식 출시에 추가될 예정이에요")}
+              className={`${headerBtn} relative`}
+              aria-label="알림 (정식 출시 예정)"
+            >
+              <Bell className="h-5 w-5" strokeWidth={1.75} />
+              <span
+                className="absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full bg-primary"
+                aria-hidden="true"
+              />
+            </button>
           }
         />
 
@@ -266,12 +263,12 @@ const My = () => {
             <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-card">
               {([
                 { l: "알림 설정", Icon: Bell },
-                { l: "위치 설정", Icon: MapPin },
+                { l: "위치 설정", Icon: MapPin, action: requestLocation, value: `서울 ${location.gu}` },
                 { l: "약관 및 정책", Icon: FileText },
                 { l: "의견 보내기", Icon: MessageSquareText, action: () => setFeedbackOpen(true) },
                 { l: "고객 문의", Icon: MessageCircle },
                 { l: "로그아웃", Icon: LogOut, action: logout },
-              ] as { l: string; Icon: LucideIcon; action?: () => void }[]).map((it) => (
+              ] as { l: string; Icon: LucideIcon; action?: () => void; value?: string }[]).map((it) => (
                 <button
                   key={it.l}
                   onClick={it.action ?? (() => toast(`${it.l}은(는) 준비 중이에요`))}
@@ -281,6 +278,7 @@ const My = () => {
                     <it.Icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </span>
                   <span className="flex-1 text-base font-medium">{it.l}</span>
+                  {it.value && <span className="text-sm text-muted-foreground">{it.value}</span>}
                   {!it.action && <ChevronRight className="h-4 w-4 text-faint" />}
                 </button>
               ))}
