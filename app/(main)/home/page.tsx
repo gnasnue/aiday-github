@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, Settings, MapPin, ChevronDown, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
+import { Bell, Settings, MapPin, ChevronDown, ChevronRight, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
@@ -38,7 +38,7 @@ const localDateStr = () => {
 // AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
 // 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
 // (예전에 두 곳에 하드코딩해 버전이 어긋나며 프라임이 캐시를 못 찾던 회귀가 있었다).
-const reportCacheKey = (childId: string) => `aiday:report:v18:${childId}:${localDateStr()}`;
+const reportCacheKey = (childId: string) => `aiday:report:v19:${childId}:${localDateStr()}`;
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
@@ -291,6 +291,12 @@ const Home = () => {
   // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
   const [aiStreaming, setAiStreaming] = useState(false);
   const [aiError, setAiError] = useState(false);
+  // 수동 새로고침의 "환경 재fetch" 구간 — 이 동안엔 aiLoading이 아직 false라, 별도 플래그로
+  // 리포트 스켈레톤·버튼 비활성·아이콘 회전을 유지한다. env 재조회가 끝나 리포트 생성으로
+  // 넘어가는 순간(aiLoading=true) 해제되고, 이후는 aiLoading이 이어받는다.
+  const [refreshing, setRefreshing] = useState(false);
+  // 수동 새로고침 트리거 — 증가시키면 env effect가 재실행돼 날씨·대기질을 새로 가져온다.
+  const [refreshNonce, setRefreshNonce] = useState(0);
   // 현재 표시 중인 리포트의 생성 시각 — 헤더에 "7월 13일 (월) 07:30" 형태로 노출
   const [reportTs, setReportTs] = useState<number | null>(null);
   // 리포트 본문(message) 펼침 여부 — 랜딩 시엔 hook만 노출하고 본문은 접어둔다.
@@ -303,6 +309,10 @@ const Home = () => {
   const [sharing, setSharing] = useState(false); // 공유 이미지 생성 중
   const shareCardRef = useRef<HTMLDivElement>(null); // 공유 캡처 대상(off-screen)
   const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
+  // 수동 새로고침 시 env effect가 "전체 스켈레톤(loading) 없이" 조용히 재조회하도록 하는 표식.
+  // 초기 로드·위치 변경(false)은 종전대로 스켈레톤을 띄우고, 새로고침(true)은 기존 화면을
+  // 유지한 채 데이터만 갈아끼운다. fetchEnv 진입 시 1회 소비된다.
+  const softRefreshRef = useRef(false);
   // reportPrimed의 동기 미러 — 마운트 시 생성된 env effect 클로저가 항상 최신 값을 읽게 한다
   // (state는 클로저에 갇혀 stale해지므로, env 흐름 분기는 ref로 판정).
   const primedRef = useRef(false);
@@ -361,7 +371,11 @@ const Home = () => {
     // 언마운트 후 상태 갱신·중복 요청을 막는다.
     const controller = new AbortController();
     const fetchEnv = async () => {
-      setLoading(true);
+      // 수동 새로고침(soft)이면 전체 스켈레톤을 띄우지 않고 기존 화면을 유지한 채 데이터만 갈아끼운다.
+      // 초기 로드·위치 변경은 종전대로 loading 스켈레톤을 노출한다.
+      const soft = softRefreshRef.current;
+      softRefreshRef.current = false;
+      if (!soft) setLoading(true);
       // 계측 시작 — home 마운트 직후 환경 API 착수 시점. 세션을 로컬로 캡처해
       // 이후 비동기 응답이 항상 이 세션에 마킹하게 한다(공유 ref 덮어쓰기 오염 방지).
       const perf = perfStart();
@@ -473,6 +487,8 @@ const Home = () => {
         const pollenLevel = pollenLabel(pollenVals.length ? Math.max(...pollenVals) : null);
         const uvIndex = u && !u.error && typeof u.uvi === "number" ? u.uvi : 0;
         setWeatherData((prev) => (prev ? { ...prev, pollenLevel, uvIndex } : prev));
+        // 새로고침 env 재조회 종료 — 이제 리포트 생성(aiLoading)이 이어받는다.
+        setRefreshing(false);
         if (w && !w.error) {
           setAiLoading(true); // 리포트 effect 착수(캐시 재검증) — primed면 스켈레톤은 안 뜸
           // 이미 캐시로 그려둔 경우엔 지우지 않는다(재검증 중 잔상·깜빡임 방지).
@@ -488,13 +504,17 @@ const Home = () => {
           setAiError(true);
         }
       } catch {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     };
     fetchEnv();
     return () => controller.abort();
-    // 위치가 바뀌면 환경 데이터 전체를 새 기준지로 다시 가져온다 (이전 흐름은 abort로 취소)
-  }, [location.lat, location.lon, location.station]);
+    // 위치가 바뀌면 환경 데이터 전체를 새 기준지로 다시 가져온다 (이전 흐름은 abort로 취소).
+    // refreshNonce가 바뀌면(수동 새로고침) 같은 기준지로 날씨·대기질을 다시 가져와 리포트까지 갱신한다.
+  }, [location.lat, location.lon, location.station, refreshNonce]);
 
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
   // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
@@ -718,6 +738,7 @@ const Home = () => {
             localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
           } catch {}
           if (regenerating) toast("날씨가 바뀌어 브리핑을 새로 썼어요");
+          else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
           outcome = "done";
         } else {
@@ -797,22 +818,27 @@ const Home = () => {
   // aiLoading 변화로는 트리거되지 않아 스트리밍 도중 자기 요청을 끊지 않는다.
   useEffect(() => () => activeReportRef.current?.ctrl.abort(), []);
 
-  // 수동 새로고침 — 당일 캐시를 건너뛰고 즉시 재생성
+  // 수동 새로고침 — 날씨·대기질을 지금 시점으로 다시 가져온 뒤, 그 최신 데이터로 리포트를 재생성한다.
+  // (종전엔 로드 시점 환경 스냅샷을 재사용해 리포트 문구만 다시 썼다. "새로고침인데 날씨가 그대로"인
+  //  기대 불일치를 없애기 위해, 환경 재fetch → 리포트 재생성으로 연결한다.)
   const refreshReport = () => {
-    if (aiLoading || loading) return;
+    if (aiLoading || loading || refreshing) return;
     const now = Date.now();
     if (now - lastManualRefreshRef.current < REFRESH_COOLDOWN) {
       toast("방금 갱신했어요");
       return;
     }
     lastManualRefreshRef.current = now;
-    forceRefreshRef.current = true;
-    // 강제 재생성 — 캐시로 그려둔 내용을 비우고 스켈레톤을 노출한다(재생성 중임을 명확히).
+    forceRefreshRef.current = true; // 당일 캐시 무시하고 재생성
+    softRefreshRef.current = true; // env는 전체 스켈레톤 없이 조용히 재조회
+    // 캐시로 그려둔 내용을 비우고 스켈레톤을 노출한다(재생성 중임을 명확히).
     primedRef.current = false;
     setReportPrimed(false);
     setAiHook("");
+    setAiMessage("");
     setAiError(false);
-    setAiLoading(true);
+    setRefreshing(true); // env 재조회 구간 동안 버튼 비활성·스켈레톤·아이콘 회전 유지
+    setRefreshNonce((n) => n + 1); // env effect 재실행 → 날씨·대기질 재fetch → 끝나면 리포트 재생성
   };
 
   // 시간대별 환경: 활성 프로필의 일과 + 실측 데이터로 구성. 실데이터가 없으면 mock.
@@ -950,14 +976,91 @@ const Home = () => {
 
   const allDone = checked.length === activeChecklist.length;
 
-  // 하루 케어 플랜 "지금" 슬롯 — 지나간 마지막 슬롯(진행 중), 아직 없으면 첫 슬롯
-  const careNowIdx = (() => {
-    let idx = -1;
-    displaySlots.forEach((s, i) => {
-      if (slotPassed(s.hour)) idx = i;
-    });
-    return idx >= 0 ? idx : 0;
+  // ── 하루 케어 플랜 "지금" 판정 — 슬롯 시각 ±W 밴드 ──────────────────────
+  // 종전엔 "지나간 마지막 슬롯"을 무조건 "지금"으로 삼아, 등원~하원 6시간 빈칸 내내
+  // 등원(몇 시간 전)에 "지금"이 고정됐다. 이제 슬롯 시각과 얼마나 가까운지로 판정한다:
+  //  · 점 슬롯(등원·하원): [start, start+W]="지금", [start−W, start)="곧"
+  //  · 구간 슬롯(야외활동·저녁): [start,end] 전체="지금"(뒤 트레일 없음), [start−W, start)="곧"
+  //  · 어느 밴드에도 안 들면 빈칸 → "지금" 없이 다음 슬롯을 "다음"으로 앞안내
+  // 겹칠 땐 다가오는(더 이른 start의 곧) 슬롯 우선 — 지나간 것보다 준비할 것을 앞세운다.
+  // W는 예보 3시간 해상도(±2h 데이터 유효)보다 안쪽으로 잡아, 붙은 환경값이 넉넉히 유효할 때만 "지금".
+  const CARE_BAND_MIN = 90;
+  const careNowMin = (() => {
+    const n = new Date();
+    return n.getHours() * 60 + n.getMinutes();
   })();
+  const slotStartMin = (s: HomeTimeSlot): number | null => {
+    const [h, m] = s.hour.split(":").map(Number);
+    return Number.isNaN(h) ? null : h * 60 + (m || 0);
+  };
+  const slotEndMin = (s: HomeTimeSlot): number | null => {
+    if (!s.endHour) return null;
+    const [h, m] = s.endHour.split(":").map(Number);
+    return Number.isNaN(h) ? null : h * 60 + (m || 0);
+  };
+
+  // 활성/임박 후보 수집 후 다가오는 슬롯 우선으로 하나만 고른다.
+  const careFocus = (() => {
+    type Cand = { idx: number; kind: "now" | "soon"; start: number };
+    const cands: Cand[] = [];
+    displaySlots.forEach((s, i) => {
+      const start = slotStartMin(s);
+      if (start == null) return;
+      const end = slotEndMin(s);
+      if (end != null) {
+        if (careNowMin >= start && careNowMin <= end) cands.push({ idx: i, kind: "now", start });
+        else if (careNowMin >= start - CARE_BAND_MIN && careNowMin < start) cands.push({ idx: i, kind: "soon", start });
+      } else {
+        if (careNowMin >= start && careNowMin <= start + CARE_BAND_MIN) cands.push({ idx: i, kind: "now", start });
+        else if (careNowMin >= start - CARE_BAND_MIN && careNowMin < start) cands.push({ idx: i, kind: "soon", start });
+      }
+    });
+    // 곧(임박) 후보가 있으면 가장 가까운(가장 이른 start) 것, 없으면 활성 중 가장 최근(늦은 start).
+    const soon = cands.filter((c) => c.kind === "soon").sort((a, b) => a.start - b.start);
+    if (soon.length) return { idx: soon[0].idx, kind: "soon" as const };
+    const active = cands.filter((c) => c.kind === "now").sort((a, b) => b.start - a.start);
+    if (active.length) return { idx: active[0].idx, kind: "now" as const };
+    return null;
+  })();
+
+  // 빈칸(일과 사이)일 때 앞으로 안내할 "다음" 슬롯 — 아직 안 온 첫 슬롯
+  const careNextIdx = (() => {
+    if (careFocus) return -1;
+    let best = -1;
+    let bestStart = Infinity;
+    displaySlots.forEach((s, i) => {
+      const start = slotStartMin(s);
+      if (start != null && start > careNowMin && start < bestStart) {
+        best = i;
+        bestStart = start;
+      }
+    });
+    return best;
+  })();
+
+  // 렌더용: 강조할 슬롯 인덱스와 라벨 종류. 빈칸이면 "다음"으로 앞안내.
+  const careHighlightIdx = careFocus ? careFocus.idx : careNextIdx;
+  const careHighlightKind: "now" | "soon" | "next" | null = careFocus
+    ? careFocus.kind
+    : careNextIdx >= 0
+      ? "next"
+      : null;
+
+  // 온보딩 일과를 전부 생략한 유저 — 4슬롯 시각이 모두 기본값. 섹션 하단 넛지로 입력 유도.
+  const allSlotsDefault = displaySlots.length > 0 && displaySlots.every((s) => s.isDefault);
+
+  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간, 기본값이면 "기본 시간"(거짓 정밀도 금지).
+  const carePointerHint = (slot: HomeTimeSlot): string => {
+    if (slot.isDefault) return "기본 시간";
+    const start = slotStartMin(slot);
+    if (start == null) return "";
+    const d = start - careNowMin;
+    if (d <= 0) return "";
+    const h = Math.floor(d / 60);
+    const m = d % 60;
+    if (h <= 0) return `${m}분 후`;
+    return m === 0 ? `${h}시간 후` : `${h}시간 ${m}분 후`;
+  };
 
   // 헤더 메타 — "7월 14일 (화) 07:30 기준" (요일 포함·24시간제). 시각은 리포트 생성
   // 시점이므로 "기준"을 붙여 현재 시각으로 오독되지 않게 한다.
@@ -1212,11 +1315,11 @@ const Home = () => {
                 <div className="-mr-1.5 flex shrink-0 items-center text-foreground">
                   <button
                     onClick={refreshReport}
-                    disabled={aiLoading}
+                    disabled={aiLoading || refreshing}
                     aria-label="리포트 새로고침"
                     className="rounded-full p-2 transition-smooth hover:bg-foreground/5 disabled:opacity-40"
                   >
-                    <RefreshCw className="h-4 w-4" strokeWidth={1.75} />
+                    <RefreshCw className={`h-4 w-4 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
                   </button>
                   <button
                     onClick={handleShare}
@@ -1251,8 +1354,9 @@ const Home = () => {
                 </p>
               )}
 
-              {/* hook + message — 로딩 중엔 skeleton (단, 캐시로 이미 그린 경우엔 유지) */}
-              {aiLoading && !reportPrimed ? (
+              {/* hook + message — 로딩 중엔 skeleton (단, 캐시로 이미 그린 경우엔 유지).
+                  refreshing(수동 새로고침의 env 재조회 구간)도 포함 — 이때 aiLoading은 아직 false다. */}
+              {(aiLoading || refreshing) && !reportPrimed ? (
                 <div className="mt-3 space-y-2">
                   <Skeleton className="h-6 w-3/4 rounded-full" />
                   <div className="mt-3 space-y-1.5">
@@ -1327,7 +1431,7 @@ const Home = () => {
                   스트리밍 구간(aiStreaming)까지 함께 봐야 규칙 폴백(추천 이유 2줄·0/3)이
                   잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출.
                   캐시로 이미 그린 경우(reportPrimed)엔 재검증 중에도 캐시 체크리스트를 유지. */}
-              {(aiLoading || aiStreaming) && !reportPrimed ? (
+              {(aiLoading || aiStreaming || refreshing) && !reportPrimed ? (
                 <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
               ) : (
               <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
@@ -1488,17 +1592,27 @@ const Home = () => {
                     </div>
                   ))
                 : displaySlots.map((slot, i) => {
-                    const isNow = i === careNowIdx;
+                    const kind = i === careHighlightIdx ? careHighlightKind : null;
+                    const isNow = kind === "now"; // 오렌지 강조는 진짜 "지금"에만
                     const notables = slotNotables(slot, cur?.conditions);
                     const prep = slotPrep[slot.time] ?? [];
                     const last = i === displaySlots.length - 1;
+                    const pointerHint = kind === "soon" || kind === "next" ? carePointerHint(slot) : "";
+                    // 부분 입력 시에만 기본값 슬롯을 "기본"으로 표기(전부 기본이면 하단 넛지가 대신 알림).
+                    // 곧/다음 뱃지는 이미 "· 기본 시간"을 담으므로 그 슬롯엔 태그를 중복 노출하지 않는다.
+                    const showDefaultTag =
+                      slot.isDefault && !allSlotsDefault && kind !== "soon" && kind !== "next";
                     return (
                       <div key={slot.time} className="flex gap-3">
-                        {/* 좌측 레일: 도트 + 연결선 */}
+                        {/* 좌측 레일: 도트 + 연결선 — "지금"만 오렌지, "곧/다음"은 옅은 강조 */}
                         <div className="flex flex-col items-center">
                           <span
                             className={`mt-5 h-3 w-3 shrink-0 rounded-full ${
-                              isNow ? "bg-primary ring-4 ring-primary/15" : "bg-border-control"
+                              isNow
+                                ? "bg-primary ring-4 ring-primary/15"
+                                : kind
+                                  ? "bg-foreground/30"
+                                  : "bg-border-control"
                             }`}
                             aria-hidden="true"
                           />
@@ -1515,9 +1629,20 @@ const Home = () => {
                               <span className="font-bold tracking-[-0.01em]">
                                 <span className="num">{slot.hour}</span> {careLabel(slot.time)}
                               </span>
-                              {isNow && (
+                              {showDefaultTag && (
+                                <span className="ml-1 align-[1px] text-[10px] font-medium text-muted-foreground/70">
+                                  기본
+                                </span>
+                              )}
+                              {kind === "now" && (
                                 <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
                                   지금
+                                </span>
+                              )}
+                              {(kind === "soon" || kind === "next") && (
+                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
+                                  {kind === "soon" ? "곧" : "다음"}
+                                  {pointerHint && <span className="font-semibold"> · {pointerHint}</span>}
                                 </span>
                               )}
                               <span className="ml-2 font-normal text-muted-foreground">
@@ -1556,6 +1681,20 @@ const Home = () => {
                     );
                   })}
             </div>
+            {/* 일과 전부 기본값(온보딩 생략) — 실제 등원·하원 시각을 받아 "지금"을 정밀하게 맞추도록 유도.
+                입력을 회수하면 기본값 표기가 사라지고 분 단위 안내로 승격된다. */}
+            {!loading && allSlotsDefault && (
+              <button
+                onClick={() => router.push(`/me/edit/${encodeURIComponent(cur.id)}`)}
+                className="mt-1 flex w-full items-center gap-2 rounded-2xl border border-dashed border-border-control bg-card px-4 py-3 text-left shadow-soft transition-smooth hover:border-foreground"
+              >
+                <span className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-muted-foreground break-keep">
+                  지금은 <span className="font-semibold text-foreground">기본 시간</span>으로 보여드리고 있어요.
+                  우리 아이 <span className="font-semibold text-foreground">일과 시간</span>을 입력하면 등·하원에 딱 맞춰 챙겨드려요.
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" strokeWidth={2} />
+              </button>
+            )}
           </section>
 
           {/* 공유용 이미지 카드 — 화면 밖에 렌더해두고 공유 시 html-to-image로 PNG 캡처.

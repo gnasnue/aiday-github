@@ -14,7 +14,13 @@ import { feelsLikeC } from "./feels-like";
 
 export type HomeTimeSlot = {
   time: string; // 슬롯 라벨: "등원시간"
-  hour: string; // 실제 시각: "09:00"
+  hour: string; // 슬롯 시작 시각: "09:00"
+  // 구간 슬롯(야외활동·저녁 외출)의 끝 시각 "12:00". 사용자가 시작·끝을 모두 입력했을 때만 채워지고,
+  // 점 슬롯(등원·하원, 끝 미입력)은 null. "지금" 판정에서 구간은 [hour,endHour] 전체가 활성.
+  endHour: string | null;
+  // 이 슬롯 시각이 사용자 입력이 아니라 기본값(온보딩 일과 생략)인지. true면 홈에서 분 단위
+  // 카운트다운을 숨기고 "기본 시간"으로 표기해, 지어낸 시각에 거짓 정밀도를 얹지 않는다.
+  isDefault: boolean;
   sky: number | null; // SKY 1=맑음 3=구름많음 4=흐림
   pty: number | null; // PTY 0=없음 1=비 2=비/눈 3=눈 4=소나기
   pop: number | null; // 강수확률 %
@@ -148,16 +154,27 @@ export function buildTimeline(
   );
   const pollenG = pollenVals.length ? Math.max(...pollenVals) : null;
 
-  // 등원·하원·저녁은 일과 미입력 시에도 기본 시각으로 항상 노출.
+  // 4슬롯(등원·야외활동·하원·저녁) 모두 일과 미입력 시에도 기본 시각으로 항상 노출.
   // 저녁: 온보딩에서 '저녁 외출 시간'을 설정했으면 그 시각, 아니면 21:00
   // (기상청 예보가 06·09·12·15·18·21시로 제공돼 21:00은 정확히 커버됨).
-  // 야외활동만 사용자가 입력한 경우에 노출(허구의 슬롯 방지).
-  const defs: { label: string; time?: string; fallback: string }[] = [
+  // 야외활동 기본 11:00 — 종전엔 허구의 슬롯 방지를 위해 미입력 시 숨겼으나,
+  // 기본 4슬롯이 하루 리듬(등원~저녁)을 온전히 보여주는 가치가 더 크다고 판단해 승격.
+  const defs: { label: string; time?: string; end?: string; fallback: string }[] = [
     { label: "등원시간", time: schedule?.goSchool, fallback: "08:00" },
-    { label: "야외활동", time: schedule?.outdoorStart, fallback: "" },
+    { label: "야외활동", time: schedule?.outdoorStart, end: schedule?.outdoorEnd, fallback: "11:00" },
     { label: "하원시간", time: schedule?.leaveSchool, fallback: "15:00" },
-    { label: "저녁", time: schedule?.eveningStart, fallback: "21:00" },
+    { label: "저녁", time: schedule?.eveningStart, end: schedule?.eveningEnd, fallback: "21:00" },
   ];
+
+  // "HH:MM" → 자정 기준 분. 구간 유효성(끝>시작) 판정용.
+  const toMin = (t?: string | null): number | null => {
+    if (!t) return null;
+    const [h, m] = t.split(":");
+    const hh = parseInt(h, 10);
+    if (Number.isNaN(hh)) return null;
+    const mm = parseInt(m ?? "0", 10);
+    return hh * 60 + (Number.isNaN(mm) ? 0 : mm);
+  };
 
   const slots: HomeTimeSlot[] = [];
   const slotHours: number[] = []; // slots와 같은 인덱스의 슬롯 시(hour) — 창 경계 계산용
@@ -169,10 +186,17 @@ export function buildTimeline(
     const w = nearestWeather(hours, th);
     if (!w) continue;
     const wind = w.windSpeed ?? null;
+    // 구간 슬롯: 시작·끝을 모두 입력했고 끝이 시작보다 뒤일 때만 endHour를 채운다.
+    // 시작만 있거나 끝이 잘못된 경우(끝≤시작)는 점 슬롯으로 취급(null).
+    const startMin = toMin(time);
+    const endMin = d.end ? toMin(d.end) : null;
+    const endHour = endMin != null && startMin != null && endMin > startMin ? (d.end as string) : null;
     slotHours.push(th);
     slots.push({
       time: d.label,
       hour: time,
+      endHour,
+      isDefault: !d.time,
       sky: w.sky,
       pty: w.pty,
       pop: w.pop,
