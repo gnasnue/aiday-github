@@ -1049,9 +1049,10 @@ const Home = () => {
   // 온보딩 일과를 전부 생략한 유저 — 4슬롯 시각이 모두 기본값. 섹션 하단 넛지로 입력 유도.
   const allSlotsDefault = displaySlots.length > 0 && displaySlots.every((s) => s.isDefault);
 
-  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간, 기본값이면 "기본 시간"(거짓 정밀도 금지).
+  // 임박("곧")·"다음" 뱃지의 부가 텍스트: 실입력이면 남은 시간만. 기본값(추정 시각)은
+  // 카운트다운을 붙이면 거짓 정밀도라 부가 텍스트 없이 "곧"/"다음"만 노출한다.
   const carePointerHint = (slot: HomeTimeSlot): string => {
-    if (slot.isDefault) return "기본 시간";
+    if (slot.isDefault) return "";
     const start = slotStartMin(slot);
     if (start == null) return "";
     const d = start - careNowMin;
@@ -1598,10 +1599,6 @@ const Home = () => {
                     const prep = slotPrep[slot.time] ?? [];
                     const last = i === displaySlots.length - 1;
                     const pointerHint = kind === "soon" || kind === "next" ? carePointerHint(slot) : "";
-                    // 부분 입력 시에만 기본값 슬롯을 "기본"으로 표기(전부 기본이면 하단 넛지가 대신 알림).
-                    // 곧/다음 뱃지는 이미 "· 기본 시간"을 담으므로 그 슬롯엔 태그를 중복 노출하지 않는다.
-                    const showDefaultTag =
-                      slot.isDefault && !allSlotsDefault && kind !== "soon" && kind !== "next";
                     return (
                       <div key={slot.time} className="flex gap-3">
                         {/* 좌측 레일: 도트 + 연결선 — "지금"만 오렌지, "곧/다음"은 옅은 강조 */}
@@ -1611,17 +1608,23 @@ const Home = () => {
                               isNow
                                 ? "bg-primary ring-4 ring-primary/15"
                                 : kind
-                                  ? "bg-foreground/30"
+                                  ? "bg-primary/60"
                                   : "bg-border-control"
                             }`}
                             aria-hidden="true"
                           />
                           {!last && <span className="w-px flex-1 bg-border" />}
                         </div>
-                        {/* 카드 — 흰 카드 문법 통일, "지금" 슬롯만 1.5px 오렌지 보더 */}
+                        {/* 카드 — 흰 카드 문법 통일. "지금"은 텍스트 뱃지 없이 1.5px 오렌지 보더로만
+                            표시하고(중복·거짓정밀도 제거), 현재 슬롯임은 aria-current + sr-only로 전달. */}
                         <div
+                          aria-current={isNow ? "true" : undefined}
                           className={`mb-2.5 flex-1 rounded-2xl border bg-card p-4 shadow-soft ${
-                            isNow ? "border-[1.5px] border-primary" : "border-border/60"
+                            isNow
+                              ? "border-[1.5px] border-primary"
+                              : kind
+                                ? "border-primary/40"
+                                : "border-border/60"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
@@ -1629,18 +1632,9 @@ const Home = () => {
                               <span className="font-bold tracking-[-0.01em]">
                                 <span className="num">{slot.hour}</span> {careLabel(slot.time)}
                               </span>
-                              {showDefaultTag && (
-                                <span className="ml-1 align-[1px] text-[10px] font-medium text-muted-foreground/70">
-                                  기본
-                                </span>
-                              )}
-                              {kind === "now" && (
-                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
-                                  지금
-                                </span>
-                              )}
+                              {kind === "now" && <span className="sr-only">지금</span>}
                               {(kind === "soon" || kind === "next") && (
-                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-muted-foreground">
+                                <span className="ml-1.5 align-[2px] text-[10px] font-bold tracking-[0.08em] text-accent">
                                   {kind === "soon" ? "곧" : "다음"}
                                   {pointerHint && <span className="font-semibold"> · {pointerHint}</span>}
                                 </span>
