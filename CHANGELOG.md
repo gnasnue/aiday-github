@@ -6,6 +6,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [0.3.19.0] - 2026-07-19
+
+### Changed
+- **홈 프로필 전환을 칩 → 세그먼트 컨트롤로 교체** (`app/(main)/home/page.tsx`, `DESIGN.md`) — 배경색(primary-tint)만 남은 활성 칩이 "누를 수 있는 버튼"으로 읽히지 않는다는 피드백 반영. `bg-muted` 트랙 위에서 활성 아이만 흰 카드(bg-card + shadow-soft)로 떠오르는 토스식 세그먼트 컨트롤로 교체 — 색 신호가 아니라 형태로 어포던스를 전달(이름은 계속 중립 잉크, 붉은 계열 없음). 프레스 시 `active:scale-[0.97]` 마이크로 피드백. DESIGN.md Component Grammar에 세그먼트 문법 신설.
+
 ## [0.3.18.0] - 2026-07-19
 
 ### Added

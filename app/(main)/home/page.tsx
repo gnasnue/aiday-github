@@ -1272,22 +1272,27 @@ const Home = () => {
           {/* 상단 라인 — 프로필 탭(좌, 가로 스크롤) + 위치(우, 고정) */}
           <div className="flex items-center gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto scrollbar-hide">
-              {/* 프로필 칩 — 이름만 표기. 아바타 이니셜·나이는 이 칩에선 중복 정보라 제거(상세는 마이 페이지에).
-                  활성 텍스트는 accent가 아닌 foreground — 이름이 붉은 계열로 읽히지 않게(2026-07-19 사용자 결정),
-                  선택 상태는 primary-tint 배경만으로 표현한다 */}
-              {profiles.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => setActive(p.id)}
-                  className={`flex min-h-11 shrink-0 items-center rounded-full border border-transparent px-4 text-sm font-semibold transition-smooth ${
-                    active === p.id
-                      ? "bg-primary-tint text-foreground"
-                      : "bg-card text-muted-foreground shadow-soft"
-                  }`}
-                >
-                  {p.name}
-                </button>
-              ))}
+              {/* 프로필 세그먼트 컨트롤 — 아이 전환 스위치(DESIGN.md 세그먼트 문법).
+                  bg-muted 트랙 위에서 활성 아이만 흰 카드로 떠올라(bg-card + shadow-soft)
+                  "누를 수 있는 컨트롤"임이 색이 아니라 형태로 전달된다 — 이름이 붉게 읽히지
+                  않게 하려 accent를 뺐더니 버튼감이 사라진 문제 해소(2026-07-19 결정).
+                  아바타 이니셜·나이는 중복 정보라 제외 — 상세는 마이 페이지에. */}
+              <div className="flex shrink-0 items-center gap-1 rounded-full bg-muted p-1">
+                {profiles.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setActive(p.id)}
+                    aria-pressed={active === p.id}
+                    className={`flex min-h-9 shrink-0 items-center rounded-full px-4 text-sm transition-smooth active:scale-[0.97] ${
+                      active === p.id
+                        ? "bg-card font-bold text-foreground shadow-soft"
+                        : "font-medium text-muted-foreground"
+                    }`}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={() => router.push("/onboarding")}
                 className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border-control bg-card px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
