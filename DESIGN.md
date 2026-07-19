@@ -78,6 +78,7 @@
 - **리스트 행 (당근 패턴):** 높이 ≥56px, `아이콘 컨테이너(36px, rounded-xl, bg-muted 뉴트럴 / bg-primary-tint 강조) + 16px/500 레이블 + ChevronRight(text-faint)`. 행 사이 divider. 마이·설정·출처·카테고리 목록에 카드 나열 대신 사용.
 - **CTA 버튼 (토스 패턴):** h-12~52px, rounded-[14px], `bg-primary text-primary-foreground` 17px/700. secondary는 `bg-muted text-foreground`.
 - **칩:** 활성 = `bg-primary-tint text-accent`(solid 채움 금지), 비활성 = `bg-card text-muted-foreground shadow-soft`. 상태 칩은 흰 배경 + 상태색 텍스트 + 도트(기존 유지).
+- **세그먼트(전환 컨트롤, 토스 패턴):** 상호배타 선택지 2개 이상을 한 덩어리로 전환할 때. `bg-muted rounded-full p-1` 트랙 + 활성 옵션 `bg-card rounded-full shadow-soft text-foreground`(700), 비활성 옵션 `text-muted-foreground`(500). 옵션 내부 높이 36px·트랙 포함 44px, 프레스 `active:scale-[0.97]`. 색 신호가 아니라 "떠오른 흰 알약" 형태로 선택을 전달한다(홈 프로필 전환 등 — 칩보다 컨트롤 어포던스가 필요할 때).
 - **게이지:** 단색 트랙(`bg-muted`) + 상태색 단색 fill. 그라데이션 금지.
 - **아바타:** 이니셜 원(`bg-avatar text-avatar-foreground`, name.charAt(0)) — 이모지 아바타 금지.
 
@@ -124,3 +125,4 @@
 | 2026-07-16 | **v3 "White Report" 전면 개정** — 토스·당근 벤치마크. 배경 웜 그레이 #F6F4F2, primary #F5A623→#F97316 심화, 오렌지 역할 3분리(solid/text/tint), 카드 보더 폐지·3단 elevation, 타이포 7단 스케일(display 26 / title 17), 이모지 UI 전면 금지(71건 제거), 리스트 행 문법 도입 | 베타 평가 "전문성 부족" 대응. /design-consultation — `docs/reviews/2026-07-16-DESIGN-v3-proposal.md`, before/after: `docs/reviews/2026-07-16-design-v3-toss-karrot-before-after.html` |
 | 2026-07-19 | outfit "AI코디 추천" 배지 `text-red-500` → `bg-primary-tint text-accent` 토큰화 (빨강=status-bad 오독 방지, 브랜드 강조로 정정) | Apple HIG 갭 분석 P1 — `docs/reviews/2026-07-19-apple-hig-gap-analysis.md` |
 | 2026-07-19 | **예외 인정**: signup·login의 Google 로그인 버튼은 Google 공식 브랜드 가이드라인 색상(`#747775`·`#1F1F1F`)·Roboto 폰트를 의도적으로 하드코딩 — 디자인 토큰 체계의 유일한 승인 예외 | 서드파티 브랜드 버튼 규격 준수 요구 |
+| 2026-07-19 | **세그먼트(전환 컨트롤) 문법 신설** — 홈 프로필 전환을 칩→세그먼트 컨트롤로. 배경색만 남은 활성 칩이 "누를 수 있는 버튼"으로 안 읽힌다는 피드백 → 색이 아니라 "떠오른 흰 알약" 형태로 어포던스 표현 | /design-consultation |
