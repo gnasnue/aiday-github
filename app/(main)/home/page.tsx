@@ -1211,7 +1211,7 @@ const Home = () => {
               </div>
               <button
                 onClick={() => router.push("/onboarding")}
-                className="flex min-h-11 shrink-0 items-center rounded-full border border-dashed border-border-control bg-card px-3.5 py-1.5 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
+                className="flex min-h-9 shrink-0 items-center rounded-full border border-dashed border-border-control bg-transparent px-4 text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
               >
                 + 추가
               </button>
