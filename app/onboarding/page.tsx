@@ -52,6 +52,7 @@ import {
   readLocalConsentSelection,
   saveLocalConsentSelection,
   syncLocalConsentsToDb,
+  withBundledBetaAnalytics,
 } from "@/lib/consent";
 
 const TOTAL = 5;
@@ -116,12 +117,16 @@ const Onboarding = () => {
   const [consentChecked, setConsentChecked] = useState(false);
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [consents, setConsents] = useState(emptyConsentSelection);
+  // 가입 화면에서 약관에 이미 동의했는지 — 안 했으면(Google 로그인 직행 등) 2단계
+  // 인라인 동의에 약관 체크를 함께 노출한다. 체크 순간 사라지지 않도록 마운트 시 고정.
+  const [termsAlreadyAgreed, setTermsAlreadyAgreed] = useState(false);
 
   useEffect(() => {
     setConsentOnly(new URLSearchParams(location.search).get("consentOnly") === "1");
     const savedConsents = readLocalConsentSelection();
     setConsents(savedConsents);
     setConsentAccepted(hasAllRequiredConsents(savedConsents));
+    setTermsAlreadyAgreed(savedConsents.terms_privacy);
     setConsentChecked(true);
   }, []);
 
@@ -155,7 +160,9 @@ const Onboarding = () => {
       toast.error("필수 동의 항목을 모두 확인해주세요.");
       return;
     }
-    saveLocalConsentSelection(consents);
+    // Google 로그인 등 가입 화면을 거치지 않은 경로도 약관 동의가 여기서 처음
+    // 확정될 수 있으므로, 가입과 동일하게 베타 이용기록 활용을 함께 기록한다.
+    saveLocalConsentSelection(withBundledBetaAnalytics(consents));
     await syncLocalConsentsToDb("onboarding");
     if (consentOnly) {
       router.replace("/auth/landing");
@@ -223,8 +230,19 @@ const Onboarding = () => {
       if (!s.year || !s.month) return toast.error("태어난 연도와 월을 선택해주세요");
       if (!s.gender) return toast.error("성별을 선택해주세요");
     }
-    if (step === 2 && !consentAccepted) return toast.error("보호자 확인 내용을 먼저 확인해주세요.");
-    if (step === 2 && s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
+    if (step === 2) {
+      if (s.conds.length === 0) return toast.error("하나 이상 선택해주세요 (없으면 '해당없음')");
+      if (!termsAlreadyAgreed && !consents.terms_privacy)
+        return toast.error("이용약관 동의를 확인해주세요.");
+      // 실제 건강 특이사항을 선택한 경우에만 민감정보 동의가 필요하다 —
+      // '해당없음'만 고르면 동의 없이 진행 가능(선택 동의의 자발성 유지).
+      if (s.conds.some((c) => c !== "해당없음") && !consents.sensitive_child_data)
+        return toast.error("건강 정보 활용 동의를 확인해주세요.");
+      // Google 로그인 등 가입 화면을 거치지 않은 경로도 약관 동의가 여기서 처음
+      // 확정될 수 있으므로, 가입과 동일하게 베타 이용기록 활용을 함께 기록한다.
+      saveLocalConsentSelection(withBundledBetaAnalytics(consents));
+      void syncLocalConsentsToDb("onboarding");
+    }
     if (step === 3 && (!s.cold || !s.hot || !s.sweat)) return toast.error("세 항목 모두 선택해주세요");
     if (step < TOTAL) setStep(step + 1);
     else {
@@ -240,11 +258,6 @@ const Onboarding = () => {
     markBrowseHome(); // 홈 진입 가드가 온보딩으로 되돌려보내지 않도록
     toast.success("진행 상태가 저장됐어요. 나중에 이어서 할 수 있어요.");
     router.push("/home");
-  };
-
-  const skipHealthInfo = () => {
-    update({ conds: [], condEtc: "", cold: "", hot: "", sweat: "" });
-    setStep(4);
   };
 
   if (!consentChecked) return null;
@@ -390,13 +403,9 @@ const Onboarding = () => {
       ),
     },
     2: {
-      q: consentAccepted
-        ? `${nm}에게 해당되는 것을 모두 선택해주세요`
-        : "아이에게 꼭 맞는 안내를 위해 확인해주세요",
-      hint: consentAccepted
-        ? "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요"
-        : "건강 관련 정보를 입력하기 전에 한 번만 확인해요",
-      node: consentAccepted ? (
+      q: `${nm}에게 해당되는 것을 모두 선택해주세요`,
+      hint: "해당 항목이 있으면 관련 환경 지표를 더 꼼꼼히 알려드려요",
+      node: (
         <div className="space-y-2">
           {conditions.map((c) => {
             const on = s.conds.includes(c);
@@ -420,9 +429,46 @@ const Onboarding = () => {
               className="h-12"
             />
           )}
+
+          {/* 건강정보 활용 동의 — 별도 게이트 화면 대신 입력 화면 안에서 확인한다
+              (2026-07-20 결정: 1단계→2단계 직행). 거부감을 줄이기 위해 색 강조 없이
+              캡션 톤으로만 — 단, 문구는 목적·보유기간 고지를 유지한다(법정 고지사항). */}
+          <div className="space-y-2.5 border-t border-border pt-4 !mt-5">
+            {!termsAlreadyAgreed && (
+              <label className="flex cursor-pointer items-start gap-2.5">
+                <Checkbox
+                  checked={consents.terms_privacy}
+                  onCheckedChange={(v) =>
+                    setConsents((prev) => ({ ...prev, terms_privacy: v === true }))
+                  }
+                  className="mt-0.5 h-4 w-4"
+                />
+                <span className="text-[13px] leading-relaxed text-muted-foreground break-keep">
+                  <Link href="/terms" className="underline underline-offset-2">
+                    이용약관
+                  </Link>
+                  에 동의합니다.
+                </span>
+              </label>
+            )}
+            <label className="flex cursor-pointer items-start gap-2.5">
+              <Checkbox
+                checked={consents.sensitive_child_data}
+                onCheckedChange={(v) =>
+                  setConsents((prev) => ({ ...prev, sensitive_child_data: v === true }))
+                }
+                className="mt-0.5 h-4 w-4"
+              />
+              {/* 최소 문구만 — 법정대리인 요건·보유기간 등 상세 고지는 방침 §2(자세히 링크)가 담는다 */}
+              <span className="text-[13px] leading-relaxed text-muted-foreground break-keep">
+                아이 건강 정보를 맞춤 리포트에 활용하는 데 동의합니다.{" "}
+                <Link href="/privacy#sensitive" className="underline underline-offset-2">
+                  자세히
+                </Link>
+              </span>
+            </label>
+          </div>
         </div>
-      ) : (
-        <ConsentFields value={consents} onChange={setConsents} context="profile" />
       ),
     },
     3: {
@@ -742,34 +788,19 @@ const Onboarding = () => {
 
           <div className="mt-auto pt-8">
             <Button
-              onClick={step === 2 && !consentAccepted ? acceptConsents : next}
+              onClick={next}
               size="lg"
-              disabled={step === 2 && !consentAccepted && !hasAllRequiredConsents(consents)}
               className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
             >
-              {step === 2 && !consentAccepted
-                ? "확인하고 계속하기"
-                : step === TOTAL
-                  ? "완료"
-                  : "다음"}
+              {step === TOTAL ? "완료" : "다음"}
             </Button>
-            {step === 2 && !consentAccepted ? (
-              <button
-                type="button"
-                onClick={skipHealthInfo}
-                className="mt-3 flex min-h-11 w-full items-center justify-center text-sm text-muted-foreground hover:text-foreground"
-              >
-                건강정보 없이 계속하기
-              </button>
-            ) : (
-              <Link
-                href="/home"
-                onClick={markBrowseHome}
-                className="mt-3 flex min-h-11 items-center justify-center text-xs text-muted-foreground hover:text-foreground"
-              >
-                먼저 둘러볼게요
-              </Link>
-            )}
+            <Link
+              href="/home"
+              onClick={markBrowseHome}
+              className="mt-3 flex min-h-11 items-center justify-center text-xs text-muted-foreground hover:text-foreground"
+            >
+              먼저 둘러볼게요
+            </Link>
           </div>
         </main>
       </div>

@@ -16,6 +16,7 @@ import {
   hasSignupConsent,
   saveLocalConsentSelection,
   syncLocalConsentsToDb,
+  withBundledBetaAnalytics,
 } from "@/lib/consent";
 
 const Signup = () => {
@@ -28,7 +29,7 @@ const Signup = () => {
       toast.error("이용약관을 확인해주세요.");
       return false;
     }
-    saveLocalConsentSelection(consents);
+    saveLocalConsentSelection(withBundledBetaAnalytics(consents));
     return true;
   };
 

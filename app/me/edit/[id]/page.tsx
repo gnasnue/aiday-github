@@ -33,6 +33,23 @@ import {
   normalizeSensitivity,
   normalizeSweat,
 } from "@/lib/profile-options";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import ConsentFields from "@/components/ConsentFields";
+import {
+  hasAllRequiredConsents,
+  hasProfileConsent,
+  readLocalConsentSelection,
+  saveLocalConsentSelection,
+  syncLocalConsentsToDb,
+  withBundledBetaAnalytics,
+  emptyConsentSelection,
+} from "@/lib/consent";
 
 type FormState = {
   name: string;
@@ -73,6 +90,10 @@ const EditProfile = () => {
   const [original, setOriginal] = useState<ChildProfile | null>(null);
   const [f, setF] = useState<FormState | null>(null);
   const [saving, setSaving] = useState(false);
+  // 온보딩에서 건강정보를 건너뛴(=민감정보 동의가 없는) 사용자가 편집으로 건강 정보를
+  // 저장하는 경로 — 동의 없는 민감정보 수집이 되지 않도록 저장 직전에 1회 확인한다.
+  const [consentGateOpen, setConsentGateOpen] = useState(false);
+  const [consents, setConsents] = useState(emptyConsentSelection);
 
   useEffect(() => {
     const id = decodeURIComponent(params.id ?? "");
@@ -118,6 +139,24 @@ const EditProfile = () => {
     if (f.conds.length === 0) return toast.error("건강 정보를 하나 이상 선택해주세요 (없으면 '해당없음')");
     if (!f.cold || !f.hot || !f.sweat) return toast.error("추위·더위·땀 세 항목을 모두 선택해주세요");
 
+    // 민감정보(건강) 동의 기록이 없으면 저장 전에 확인 — 동의 후 이어서 저장한다
+    if (!hasProfileConsent(readLocalConsentSelection())) {
+      setConsents(readLocalConsentSelection());
+      setConsentGateOpen(true);
+      return;
+    }
+    await doSave();
+  };
+
+  const confirmConsentAndSave = async () => {
+    if (!hasAllRequiredConsents(consents)) return;
+    saveLocalConsentSelection(withBundledBetaAnalytics(consents));
+    await syncLocalConsentsToDb("auth_sync");
+    setConsentGateOpen(false);
+    await doSave();
+  };
+
+  const doSave = async () => {
     const updated: ChildProfile = {
       ...original,
       name: f.name.trim(),
@@ -355,6 +394,37 @@ const EditProfile = () => {
             </Button>
           </div>
         </main>
+
+        <Dialog open={consentGateOpen} onOpenChange={setConsentGateOpen}>
+          <DialogContent className="max-w-[350px] rounded-2xl">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-[17px] font-bold">
+                아이 정보를 안전하게 활용할게요
+              </DialogTitle>
+              <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground break-keep">
+                건강 관련 정보를 저장하기 전에 한 번만 확인해요.
+              </DialogDescription>
+            </DialogHeader>
+            <ConsentFields value={consents} onChange={setConsents} context="profile" />
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={confirmConsentAndSave}
+                disabled={!hasAllRequiredConsents(consents)}
+                className="h-12 w-full rounded-[14px] bg-primary text-[17px] font-bold text-primary-foreground transition-smooth hover:bg-primary-hover disabled:opacity-40"
+              >
+                동의하고 저장하기
+              </button>
+              <button
+                type="button"
+                onClick={() => setConsentGateOpen(false)}
+                className="h-12 w-full rounded-[14px] bg-muted text-[15px] font-semibold text-foreground transition-smooth hover:bg-border"
+              >
+                취소
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

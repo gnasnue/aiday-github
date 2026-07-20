@@ -38,8 +38,7 @@ export default function ConsentFields({ value, onChange, context }: Props) {
       required: false,
       label: (
         <>
-          아이의 부모·법정대리인으로서, 알레르기·비염 등 건강 관련 정보를 맞춤 리포트에
-          이용하는 데 동의합니다. 정보는 삭제 요청 또는 동의 철회 시까지 보관됩니다. {" "}
+          아이 건강 정보를 맞춤 리포트에 활용하는 데 동의합니다.{" "}
           <Link href="/privacy#sensitive" className="font-medium text-accent underline underline-offset-2">
             자세히
           </Link>
@@ -74,7 +73,8 @@ export default function ConsentFields({ value, onChange, context }: Props) {
       })}
       {context === "signup" && (
         <p className="pl-8 text-xs leading-relaxed text-muted-foreground break-keep">
-          가입에 필요한 개인정보 처리 내용은{" "}
+          베타 기간에는 이용기록·피드백이 서비스 개선에 활용되고 종료 후 90일 이내
+          삭제돼요. 자세한 처리 내용은{" "}
           <Link href="/privacy" className="font-medium text-accent underline underline-offset-2">
             개인정보처리방침
           </Link>
