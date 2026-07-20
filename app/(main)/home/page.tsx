@@ -1536,12 +1536,6 @@ const Home = () => {
                 </p>
               </div>
             )}
-            {/* 내일 모드: 미세먼지(실측)·꽃가루(당일 발행)는 내일 값이 없다 — 숨기고 정직하게 안내 */}
-            {!loading && envDay === "tomorrow" && timelineSlots.length > 0 && (
-              <p className="mt-2 text-[12px] leading-[1.5] text-muted-foreground break-keep">
-                내일 예보 기준이에요 — 미세먼지·꽃가루는 당일 아침에 확정되면 보여드려요
-              </p>
-            )}
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
@@ -1569,15 +1563,12 @@ const Home = () => {
                         {([
                           // 경고(오렌지)만 색을 쓰고 좋음·보통은 무색(neutral) — 24개 값 그리드에서
                           // 경고가 묻히지 않도록 "특이사항 없음 = 색 없음" 원칙 적용 (good/초록 미사용)
-                          // 내일 모드: 미세먼지·꽃가루는 내일 값이 존재하지 않아(실측/당일 발행)
-                          // 행 자체를 뺀다 — 중립 폴백("보통"/"낮음")을 예보인 척 보여주지 않기.
-                          ...(envDay === "today"
-                            ? [["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"] as [string, string, StatusTone]]
-                            : []),
+                          // 내일 모드: 미세먼지·꽃가루는 내일 값이 존재하지 않는다(실측/당일 발행).
+                          // 카드 템플릿은 오늘과 동일하게 유지하고 값만 "-"로 — 중립 폴백
+                          // ("보통"/"낮음")을 예보인 척 보여주지 않기 (2026-07-21 결정).
+                          ["미세먼지", envDay === "today" ? t.dust : "-", envDay === "today" && ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"],
                           ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : "neutral"],
-                          ...(envDay === "today"
-                            ? [["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"] as [string, string, StatusTone]]
-                            : []),
+                          ["꽃가루", envDay === "today" ? t.pollen : "-", envDay === "today" && ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"],
                           // 습도: 양극단 경고 — ≤40% 건조(피부·호흡기) / ≥80% 후텁지근(AI 리포트 로직과 일치)
                           ["습도", `${t.humidity}%`, t.humidity <= 40 || t.humidity >= 80 ? "warn" : "neutral"],
                           ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],
@@ -1604,6 +1595,13 @@ const Home = () => {
                     </article>
                   ))}
             </div>
+            {/* 내일 모드: 미세먼지(실측)·꽃가루(당일 발행)는 내일 값이 없다 — 카드는 "-"로 두고
+                하단에 이유를 안내한다 (2026-07-21 결정: 문구를 카드 위→아래로 이동) */}
+            {!loading && envDay === "tomorrow" && timelineSlots.length > 0 && (
+              <p className="mt-2 text-[12px] leading-[1.5] text-muted-foreground break-keep">
+                내일 예보 기준이에요 — 미세먼지·꽃가루는 당일 아침에 확정되면 보여드려요
+              </p>
+            )}
           </section>
 
           {/* 오늘의 케어 플랜 — 세로 타임라인: 온도 + 특이사항 지표(+프로필 민감)만, 준비물 칩 */}
