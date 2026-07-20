@@ -1,0 +1,64 @@
+{
+  "label": "s12-recheck",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-20T08:12:45.452Z",
+  "results": [
+    {
+      "id": "S12",
+      "title": "일과 미입력 × 오후 소나기 70%",
+      "focus": "일정 규칙: 등원 시각을 지어내지 않고 아침/낮/저녁으로",
+      "expects": [
+        "등원·하원 단어 없음",
+        "'오후' 등 시간대 표현으로 비 안내"
+      ],
+      "latencyMs": 5187,
+      "output": {
+        "hook": "오후 소나기 70% — 낮 외출 조심해요",
+        "message": "오늘은 특별한 이슈 없이 무난하지만, **오후 3시**쯤 **소나기** 확률이 **70%**까지 올라요.\n**낮** 시간대 외출 계획이 있다면 **우산** 챙기시고, 되도록 **아침** 시간에 활동하는 게 좋아요.\n기온은 25~28도로 평이해 옷차림은 평소대로면 충분해요.",
+        "checklist": [
+          "☂️ 우산",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {}
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "152자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "152자"
+        },
+        {
+          "name": "hook ≤ 25자",
+          "result": "PASS",
+          "detail": "22자: 오후 소나기 70% — 낮 외출 조심해요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "일과없음: 등원·하원 미언급",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}

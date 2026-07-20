@@ -17,6 +17,37 @@ export const hasAllergy = (conditions: string[] = []): boolean =>
 export const hasSkin = (conditions: string[] = []): boolean =>
   conditions.some((c) => SKIN.test(c));
 
+// 나이(개월) 판정 — birth(연·월)가 있으면 정확히, 없으면 age 문자열("만 4세"·"16개월")
+// 파싱으로 폴백. 생월 미상은 연말 출생으로 간주해 나이를 낮게 잡는다(케어 가이드는
+// 낮게 잡는 쪽이 안전 — calcAge와 동일 원칙). 판정 불가 시 null.
+// now 주입은 테스트용.
+export const ageInMonths = (
+  age?: string,
+  birth?: { year?: string; month?: string },
+  now: Date = new Date()
+): number | null => {
+  if (birth?.year) {
+    const y = parseInt(birth.year, 10);
+    if (!Number.isNaN(y)) {
+      const m = birth.month ? parseInt(birth.month, 10) : NaN;
+      const bm = Number.isNaN(m) ? 12 : m;
+      return Math.max(0, (now.getFullYear() - y) * 12 + (now.getMonth() + 1 - bm));
+    }
+  }
+  const mm = age?.match(/(\d+)\s*개월/);
+  if (mm) return parseInt(mm[1], 10);
+  const ym = age?.match(/(\d+)\s*(?:세|살)/);
+  if (ym) return parseInt(ym[1], 10) * 12;
+  return null;
+};
+
+// 마스크 권장 가능 연령 — 만 2세(24개월) 미만 영아에게는 질식 위험으로 마스크를
+// 권하지 않는다(대신 외출 자제·실내 대체). AI 프롬프트(lib/prompts/report.ts)의
+// 동일 규칙과 삼중 정렬: AI·규칙 체크리스트(recommendation-engine)·케어 플랜 칩(prep)이
+// 모두 이 함수를 기준으로 한다. 나이 판정 불가(null)면 기존 동작 유지(권장 허용).
+export const canRecommendMask = (months: number | null): boolean =>
+  months == null || months >= 24;
+
 // 땀·더위 체질 판정 — "땀 대비 여벌 옷" 같은 준비물의 임계값 완화에 쓴다.
 // 온보딩 코드(much/very-much)와 구형 한국어 라벨("많이 타요"·"많아요")을 모두 인식.
 export const isSweatProne = (hot?: string, sweat?: string): boolean => {

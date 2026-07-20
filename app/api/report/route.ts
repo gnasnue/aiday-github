@@ -1,7 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
-import { buildReportPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
+import { buildReportPrompt, buildSystemPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
 import { sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
+import { kstNow } from "@/lib/kma-time";
 
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
@@ -167,10 +168,14 @@ export async function POST(req: NextRequest) {
     : null;
   // 프롬프트에는 수치(UVI 숫자)를 넣지 않는다 — hook/message 수치 금지 규칙이 있어도
   // 입력에 숫자가 있으면 출력으로 샐 위험이 있다. 등급 계산은 서버가 이미 했으므로 등급만 전달.
+  // 같은 원리로 강함 미만이면 등급 자체를 넣지 않는다 — 입력에 "보통"이 있으면 "자외선은
+  // 보통이라 괜찮아요" 류 안심문장으로 샌다 (2026-07-20 eval S03·S12에서 반복 확인).
   const uvPeak = uvPeakEntry ? uvPeakEntry.value : uv?.uvi ?? null;
   const uvSummary =
     uvPeak != null
-      ? `자외선 오늘 최고 ${uvLabel(uvPeak)}${uvPeakEntry ? ` (${uvPeakEntry.hour}시경)` : ""}`
+      ? uvPeak >= 6
+        ? `자외선 오늘 최고 ${uvLabel(uvPeak)}${uvPeakEntry ? ` (${uvPeakEntry.hour}시경)` : ""}`
+        : "자외선 특이사항 없음"
       : "자외선 데이터 없음";
 
   // 일정 시각의 자외선 값 — 3시간 해상도라 가장 가까운 시각 값 사용 (홈 카드 nearestUv와 동일 방식)
@@ -205,6 +210,28 @@ export async function POST(req: NextRequest) {
     child.sweat ? `땀: ${sweatPhrase(child.sweat)}` : null,
   ].filter(Boolean).join(", ") || "특이사항 없음";
 
+  // ── 오늘 날짜·요일 (KST) ────────────────────────────────────
+  // 프롬프트에 날짜·요일이 없으면 환경이 비슷한 이틀 연속 리포트가 사실상 복붙이 되고,
+  // 일요일에 등원 안내를 하는 요일 무지가 생긴다. 서버는 UTC일 수 있으므로 KST 보정
+  // (kstNow + getUTC* 게터 — 프로젝트 관례, lib/kma-time.ts 참조).
+  // dev 전용 평가 훅: scripts/eval-report.mjs가 요일 의존 로직(주말 등원 제외)을
+  // 임의 날짜로 검증하기 위한 override. 프로덕션 빌드에선 무시된다.
+  const evalDateRaw = (body as { evalDate?: unknown }).evalDate;
+  const kst =
+    process.env.NODE_ENV !== "production" &&
+    typeof evalDateRaw === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(evalDateRaw)
+      ? new Date(`${evalDateRaw}T12:00:00Z`)
+      : kstNow();
+  const weekdayIdx = kst.getUTCDay();
+  const dateLabel = `${kst.getUTCMonth() + 1}월 ${kst.getUTCDate()}일 ${
+    ["일", "월", "화", "수", "목", "금", "토"][weekdayIdx]
+  }요일`;
+  // 주말엔 등원·하원 줄을 프롬프트에서 제외한다 — "언급하지 마" 지시보다 입력에서 빼는
+  // 것이 확실하다. 홈 시간대별 환경 카드는 그대로 둔다(그 시각 날씨 자체는 주말에도
+  // 유효한 정보 + 매일 같은 레이아웃 유지, 2026-07-20 사용자 결정).
+  const isWeekend = weekdayIdx === 0 || weekdayIdx === 6;
+
   // ── 시간대별 날씨 → 일정 매핑 ──────────────────────────────
   const hourly = weather.hourlyForecast ?? [];
 
@@ -230,26 +257,30 @@ export async function POST(req: NextRequest) {
     const sky = skyLabel(s.sky);
     const rain = s.pty ? ` / ${ptyLabel(s.pty)}` : "";
     const pop = s.pop != null ? ` (강수확률 ${s.pop}%)` : "";
+    // 강함(6) 이상일 때만 일정 줄에 표기 — 보통·낮음이 입력에 있으면 출력으로 샌다 (uvSummary와 동일 원칙)
     const uvV = uvAtHour(parseInt((time ?? "").split(":")[0], 10));
-    const uvStr = uvV != null ? `, 자외선 ${uvLabel(uvV)}` : "";
+    const uvStr = uvV != null && uvV >= 6 ? `, 자외선 ${uvLabel(uvV)}` : "";
     return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}${pop}, 습도 ${s.humidity ?? "?"}%${uvStr}`;
   };
 
   const scheduleLines = [
-    slotLine("등원", child.schedule?.goSchool),
+    isWeekend ? null : slotLine("등원", child.schedule?.goSchool),
     child.schedule?.outdoorStart
       ? slotLine("야외활동", child.schedule.outdoorStart, child.schedule.outdoorEnd)
       : null,
-    slotLine("하원", child.schedule?.leaveSchool),
+    isWeekend ? null : slotLine("하원", child.schedule?.leaveSchool),
     child.schedule?.eveningStart
       ? slotLine("저녁 외출", child.schedule.eveningStart, child.schedule.eveningEnd)
       : null,
   ].filter(Boolean);
 
+  // 일과 미입력이면 데이터 첫 줄에 명시한다 — "등원·하원을 지어내지 마라"는 규칙·예시만으로는
+  // 모델이 하원 등을 계속 발화했다(2026-07-20 eval S12). 주말 처리와 같은 원칙: 지시보다 입력.
   const scheduleSummary = scheduleLines.length
     ? scheduleLines.join("\n")
     : hourly.length
-      ? hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${s.pty ? ` / ${ptyLabel(s.pty)}` : ""}${s.pop != null ? ` (강수 ${s.pop}%)` : ""}`).join("\n")
+      ? "(일과 미입력 — 등원·하원 시각을 알 수 없음. 아침/낮/저녁 시간대로만 안내)\n" +
+        hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${s.pty ? ` / ${ptyLabel(s.pty)}` : ""}${s.pop != null ? ` (강수 ${s.pop}%)` : ""}`).join("\n")
       : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%, 강수확률 ${weather.pop ?? "?"}%`;
 
   prompt = buildReportPrompt({
@@ -258,6 +289,7 @@ export async function POST(req: NextRequest) {
     genderLabel,
     conditions,
     tempSensitivity,
+    dateLabel,
     scheduleSummary,
     airSummary,
     uvSummary,
@@ -311,6 +343,22 @@ export async function POST(req: NextRequest) {
   const endpoint = baseURL ?? "https://api.anthropic.com";
   const encoder = new TextEncoder();
 
+  // dev 전용 평가 훅: scripts/eval-personas.mjs가 시스템 프롬프트의 페르소나 문단만 교체해
+  // 톤 베이크오프를 돌린다. 가치 문장·금지 목록은 buildSystemPrompt가 공통 고정. 프로덕션 무시.
+  const personaRaw = (body as { personaOverride?: unknown }).personaOverride;
+  const systemPrompt =
+    process.env.NODE_ENV !== "production" && typeof personaRaw === "string" && personaRaw.trim()
+      ? buildSystemPrompt(personaRaw.trim())
+      : REPORT_SYSTEM_PROMPT;
+
+  // dev 전용 평가 훅: 생성 모델 A/B (scripts/eval-model-ab.mjs) — 규칙 준수율·hook 지연을
+  // 모델별로 대조한다. 프로덕션은 항상 기본 모델.
+  const modelRaw = (body as { modelOverride?: unknown }).modelOverride;
+  const model =
+    process.env.NODE_ENV !== "production" && typeof modelRaw === "string" && /^claude-[a-z0-9.-]+$/.test(modelRaw)
+      ? modelRaw
+      : "claude-sonnet-5";
+
   // SSE 스트림 — hook·message가 완성되는 즉시 내려보내 히어로를 ~2초에 노출하고,
   // 완료 시 done 이벤트로 전체 페이로드(checklist·prep)를 전달한다. 클라이언트는
   // done의 페이로드를 당일 캐시에 저장한다.
@@ -333,13 +381,13 @@ export async function POST(req: NextRequest) {
       try {
         const modelStream = client.messages.stream(
           {
-            model: "claude-sonnet-5",
+            model,
             max_tokens: 1000,
             // Sonnet 5는 기본 thinking 활성 — 리포트는 저지연이 우선이므로 비활성화.
-            // thinking 비활성 시 temperature 지정 불가(기본값 사용).
+            // thinking 비활성 시 temperature 지정 불가(기본값 사용). Opus 4.8도 disabled 허용.
             thinking: { type: "disabled" },
             messages: [{ role: "user", content: prompt }],
-            system: REPORT_SYSTEM_PROMPT,
+            system: systemPrompt,
           },
           // 클라이언트가 연결을 끊으면(프로필 전환·언마운트로 fetch abort) req.signal이 발화해
           // 진행 중인 Anthropic 스트림을 취소한다 → superseded 요청의 토큰 생성·비용 차단.

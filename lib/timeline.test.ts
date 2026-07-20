@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTimeline } from "./timeline";
+import { buildTimeline, buildTomorrowTimeline } from "./timeline";
 import { feelsLikeC } from "./feels-like";
 
 // 강수 노출 창(popWindow·rainWindow) 집계 검증 — 슬롯 정시값만 보면 놓치는
@@ -76,5 +76,44 @@ describe("buildTimeline — 체감온도(공용 공식 위임)", () => {
     // 종전 감산식이면 22°C(기온 미만)가 되어 계절과 무관하게 실패한다.
     const [go] = buildTimeline(undefined, env)!;
     expect(go.feels).toBeGreaterThanOrEqual(go.temp);
+  });
+});
+
+// 내일 미리보기 빌더 — 내일분 예보·자외선만으로 슬롯을 구성하고,
+// 존재하지 않는 내일 미세먼지·꽃가루는 중립 폴백으로 남는지(렌더에서 숨김 전제) 고정한다.
+describe("buildTomorrowTimeline — 내일 미리보기", () => {
+  const t = (h: string) => ({
+    hour: h,
+    temp: 30,
+    sky: 1,
+    pty: 0,
+    humidity: 55,
+    windSpeed: 2,
+    pop: 20,
+  });
+  const env = {
+    weather: {
+      hourlyForecast: [], // 오늘분이 비어도 내일분만으로 동작해야 한다
+      hourlyForecastTomorrow: [t("06:00"), t("09:00"), t("12:00"), t("15:00"), t("18:00"), t("21:00")],
+    },
+    air: { pm10Grade: 3, hourly: { "9": 3 } }, // 오늘 실측 — 내일 슬롯에 새면 안 됨
+    uv: { uvi: 2, hourly: { "12": 3 }, hourlyTomorrow: { "9": 7, "12": 9 } },
+    pollen: { oak: 4, pine: null, weed: null }, // 오늘 지수 — 내일 슬롯에 새면 안 됨
+  };
+
+  it("내일분 예보·자외선으로 4슬롯을 만들고, 오늘 실측(미세먼지·꽃가루)은 쓰지 않는다", () => {
+    const slots = buildTomorrowTimeline(undefined, env);
+    expect(slots).not.toBeNull();
+    expect(slots!.map((s) => s.time)).toEqual(["등원시간", "야외활동", "하원시간", "저녁"]);
+    const [go] = slots!;
+    expect(go.temp).toBe(30);
+    expect(go.uv).toBe("강함"); // 내일 9시 UVI 7 → 강함 (hourlyTomorrow 사용 확인)
+    // 오늘의 미세먼지 나쁨(3)·꽃가루 매우높음(4)이 내일 카드로 새지 않는다 — 중립 폴백
+    expect(go.dust).toBe("보통");
+    expect(go.pollen).toBe("낮음");
+  });
+
+  it("내일분 예보가 없으면 null (호출부가 빈 상태 안내로 렌더)", () => {
+    expect(buildTomorrowTimeline(undefined, { ...env, weather: { hourlyForecast: [t("09:00")] } })).toBeNull();
   });
 });

@@ -1,11 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
+  ageInMonths,
+  canRecommendMask,
   hasRespiratory,
   hasAllergy,
   hasSkin,
   sensitivityPhrase,
   sweatPhrase,
 } from "./child-conditions";
+import { canonicalPrep, canonicalPrepList } from "../prep-vocab";
 
 // 실제 어휘 표본:
 // - 온보딩(app/onboarding/page.tsx)이 저장하는 라벨 전체 문자열
@@ -90,5 +93,62 @@ describe("sweatPhrase", () => {
   });
   it("빈 값은 undefined", () => {
     expect(sweatPhrase(undefined)).toBeUndefined();
+  });
+});
+
+// 마스크 연령 규칙(R1)의 기반 — birth(연·월) 우선, age 문자열 폴백, 보수적(나이 낮게) 판정.
+describe("ageInMonths", () => {
+  const now = new Date(2026, 6, 20); // 2026-07-20 (month는 0-base)
+
+  it("birth 연·월이 있으면 정확한 개월 수를 낸다", () => {
+    expect(ageInMonths(undefined, { year: "2025", month: "3" }, now)).toBe(16);
+    expect(ageInMonths(undefined, { year: "2022", month: "3" }, now)).toBe(52);
+  });
+
+  it("생월 미상이면 연말 출생으로 간주해 나이를 낮게 잡는다 (보수적 — calcAge와 동일 원칙)", () => {
+    expect(ageInMonths(undefined, { year: "2024" }, now)).toBe(19); // 12월생 가정
+  });
+
+  it("birth가 없으면 age 문자열을 파싱한다 — '만 N세'·'N개월'·'N살'", () => {
+    expect(ageInMonths("만 4세", undefined, now)).toBe(48);
+    expect(ageInMonths("16개월", undefined, now)).toBe(16);
+    expect(ageInMonths("3살", undefined, now)).toBe(36);
+  });
+
+  it("판정 불가면 null", () => {
+    expect(ageInMonths("", undefined, now)).toBeNull();
+    expect(ageInMonths(undefined, undefined, now)).toBeNull();
+  });
+});
+
+describe("canRecommendMask", () => {
+  it("24개월 미만은 마스크 비권장, 이상은 권장", () => {
+    expect(canRecommendMask(16)).toBe(false);
+    expect(canRecommendMask(23)).toBe(false);
+    expect(canRecommendMask(24)).toBe(true);
+    expect(canRecommendMask(48)).toBe(true);
+  });
+
+  it("나이 미상(null)은 기존 동작 유지 — 권장 허용", () => {
+    expect(canRecommendMask(null)).toBe(true);
+  });
+});
+
+// 준비물 어휘 사전(R2) — 별칭이 표준명으로 수렴하는지.
+describe("canonicalPrep", () => {
+  it("별칭을 표준명으로 통일한다", () => {
+    expect(canonicalPrep("물병")).toBe("물통");
+    expect(canonicalPrep("자외선차단제")).toBe("선크림");
+    expect(canonicalPrep("실내 놀이거리")).toBe("실내놀이");
+    expect(canonicalPrep("여벌옷")).toBe("여벌 옷");
+  });
+
+  it("미등록 이름은 trim만 하고 그대로 통과한다", () => {
+    expect(canonicalPrep(" 우산 ")).toBe("우산");
+    expect(canonicalPrep("바람막이")).toBe("바람막이");
+  });
+
+  it("목록 정규화는 별칭 중복을 제거한다", () => {
+    expect(canonicalPrepList(["물병", "물통", "선크림"])).toEqual(["물통", "선크림"]);
   });
 });
