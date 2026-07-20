@@ -11,7 +11,6 @@ import {
   Moon,
   PartyPopper,
   Sparkles,
-  ShieldCheck,
   Sun,
   Sunrise,
   Thermometer,
@@ -23,6 +22,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -45,10 +51,8 @@ import {
 } from "@/lib/profile";
 import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
 import { track } from "@/lib/analytics";
-import ConsentFields from "@/components/ConsentFields";
 import {
   emptyConsentSelection,
-  hasAllRequiredConsents,
   readLocalConsentSelection,
   saveLocalConsentSelection,
   syncLocalConsentsToDb,
@@ -110,22 +114,21 @@ const defaultState: State = {
 
 const Onboarding = () => {
   const router = useRouter();
-  const [consentOnly, setConsentOnly] = useState(false);
   const [step, setStep] = useState(1);
   const [done, setDone] = useState(false);
   const [s, setS] = useState<State>(defaultState);
   const [consentChecked, setConsentChecked] = useState(false);
-  const [consentAccepted, setConsentAccepted] = useState(false);
   const [consents, setConsents] = useState(emptyConsentSelection);
+  // "먼저 둘러볼게요" 이탈 직전 안내 — 입력의 가치(맞춤 정확도)와 개인정보 취급을
+  // 한 번 알려주고 보낸다. 붙잡는 팝업이 아니라 안내이므로 둘러보기는 그대로 허용.
+  const [browseNoticeOpen, setBrowseNoticeOpen] = useState(false);
   // 가입 화면에서 약관에 이미 동의했는지 — 안 했으면(Google 로그인 직행 등) 2단계
   // 인라인 동의에 약관 체크를 함께 노출한다. 체크 순간 사라지지 않도록 마운트 시 고정.
   const [termsAlreadyAgreed, setTermsAlreadyAgreed] = useState(false);
 
   useEffect(() => {
-    setConsentOnly(new URLSearchParams(location.search).get("consentOnly") === "1");
     const savedConsents = readLocalConsentSelection();
     setConsents(savedConsents);
-    setConsentAccepted(hasAllRequiredConsents(savedConsents));
     setTermsAlreadyAgreed(savedConsents.terms_privacy);
     setConsentChecked(true);
   }, []);
@@ -154,22 +157,6 @@ const Onboarding = () => {
   useEffect(() => {
     track("onboarding_step", { step });
   }, [step]);
-
-  const acceptConsents = async () => {
-    if (!hasAllRequiredConsents(consents)) {
-      toast.error("필수 동의 항목을 모두 확인해주세요.");
-      return;
-    }
-    // Google 로그인 등 가입 화면을 거치지 않은 경로도 약관 동의가 여기서 처음
-    // 확정될 수 있으므로, 가입과 동일하게 베타 이용기록 활용을 함께 기록한다.
-    saveLocalConsentSelection(withBundledBetaAnalytics(consents));
-    await syncLocalConsentsToDb("onboarding");
-    if (consentOnly) {
-      router.replace("/auth/landing");
-      return;
-    }
-    setConsentAccepted(true);
-  };
 
   const update = (patch: Partial<State>) => setS((prev) => ({ ...prev, ...patch }));
   const toggleCond = (c: string) =>
@@ -261,54 +248,6 @@ const Onboarding = () => {
   };
 
   if (!consentChecked) return null;
-
-  if (consentOnly && !consentAccepted) {
-    return (
-      <div className="page-shell">
-        <div className="page-frame flex min-h-dvh flex-col bg-background">
-          <header className="border-b border-border/60">
-            <div className="container-mobile flex h-14 items-center">
-              <Link href="/" className="flex h-11 items-center text-sm text-muted-foreground hover:text-foreground">
-                <ArrowLeft className="mr-2 h-5 w-5" />
-                돌아가기
-              </Link>
-            </div>
-          </header>
-          <main className="container-mobile flex-1 py-8">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-tint text-accent">
-              <ShieldCheck size={24} strokeWidth={1.75} />
-            </div>
-            <h1 className="mt-5 text-[1.375rem] font-bold tracking-tight">아이 정보를 안전하게 활용할게요</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground break-keep">
-              아이에게 맞는 리포트를 계속 제공하기 위해 보호자 확인이 필요해요.
-            </p>
-
-            <div className="mt-6">
-              <ConsentFields value={consents} onChange={setConsents} context="profile" />
-            </div>
-          </main>
-          <div className="container-mobile sticky bottom-0 border-t border-border/60 bg-background/95 py-4 backdrop-blur-md">
-            <Button
-              type="button"
-              size="lg"
-              onClick={acceptConsents}
-              disabled={!hasAllRequiredConsents(consents)}
-              className="h-12 w-full bg-primary text-base text-primary-foreground hover:bg-primary-hover shadow-soft"
-            >
-              확인하고 계속하기
-            </Button>
-            <Link
-              href="/"
-              onClick={markBrowseHome}
-              className="mt-3 flex min-h-11 items-center justify-center text-sm text-muted-foreground hover:text-foreground"
-            >
-              나가기
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (done) {
     return (
@@ -794,15 +733,49 @@ const Onboarding = () => {
             >
               {step === TOTAL ? "완료" : "다음"}
             </Button>
-            <Link
-              href="/home"
-              onClick={markBrowseHome}
-              className="mt-3 flex min-h-11 items-center justify-center text-xs text-muted-foreground hover:text-foreground"
+            <button
+              type="button"
+              onClick={() => setBrowseNoticeOpen(true)}
+              className="mt-3 flex min-h-11 w-full items-center justify-center text-xs text-muted-foreground hover:text-foreground"
             >
               먼저 둘러볼게요
-            </Link>
+            </button>
           </div>
         </main>
+
+        <Dialog open={browseNoticeOpen} onOpenChange={setBrowseNoticeOpen}>
+          <DialogContent className="max-w-[350px] rounded-2xl">
+            <DialogHeader className="text-left">
+              <DialogTitle className="text-[16px] font-semibold">
+                맞춤형 리포트에는 정보가 필요해요
+              </DialogTitle>
+              <DialogDescription className="text-[13px] leading-relaxed text-muted-foreground break-keep">
+                아이의 체질과 건강 정보를 입력하면 아이데이가 우리 아이 맞춤형으로
+                케어 가이드를 작성할 수 있어요. 입력한 정보는 맞춤 리포트에만 사용되니
+                안심하세요.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setBrowseNoticeOpen(false)}
+                className="h-12 w-full rounded-[14px] bg-primary-tint text-[15px] font-semibold text-accent transition-smooth hover:bg-secondary"
+              >
+                이어서 입력하기
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  markBrowseHome();
+                  router.push("/home");
+                }}
+                className="h-12 w-full rounded-[14px] bg-muted text-[15px] font-semibold text-foreground transition-smooth hover:bg-border"
+              >
+                홈 둘러보기
+              </button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
