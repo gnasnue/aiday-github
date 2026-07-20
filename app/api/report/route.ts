@@ -22,6 +22,21 @@ const ptyLabel = (pty: number | null) => {
   return null;
 };
 
+// 강수 신호 — 프롬프트에 넣을 표기. 자외선·미세먼지를 등급으로만 넣는 원칙과 동일하게,
+// 40~59% 강수확률은 수치를 빼고 정성 신호로만 준다. 수치가 입력에 있으면 규칙("hook에 절대
+// 올리지 않기")이 있어도 hook으로 새기 때문(2026-07-20 eval S04, 페르소나·모델 전반 재발).
+//  · 비/소나기 예보(pty>0) 또는 확률 60% 이상 → 확정 신호, 수치 유지(hook·message에 그대로 다룸)
+//  · 40~59% → "비 올 수도"(무수치) — message에서 '혹시 몰라 우산' 수준으로만
+//  · 40% 미만 → 생략(배경 잡음)
+const rainSignal = (pty: number | null, pop: number | null): string => {
+  const ptyText = ptyLabel(pty);
+  if (ptyText) return pop != null && pop >= 60 ? ` / ${ptyText} (강수확률 ${pop}%)` : ` / ${ptyText}`;
+  if (pop == null) return "";
+  if (pop >= 60) return ` (강수확률 ${pop}%)`;
+  if (pop >= 40) return " (비 올 수도)";
+  return "";
+};
+
 // 에어코리아 등급 → 텍스트
 const gradeLabel = (grade: number | null) => {
   if (grade === 1) return "좋음";
@@ -255,12 +270,11 @@ export async function POST(req: NextRequest) {
     if (!s) return null;
     const timeStr = endTime ? `${time}~${endTime}` : time;
     const sky = skyLabel(s.sky);
-    const rain = s.pty ? ` / ${ptyLabel(s.pty)}` : "";
-    const pop = s.pop != null ? ` (강수확률 ${s.pop}%)` : "";
+    const rain = rainSignal(s.pty, s.pop); // pty·강수확률 통합 신호 (40~59%는 무수치)
     // 강함(6) 이상일 때만 일정 줄에 표기 — 보통·낮음이 입력에 있으면 출력으로 샌다 (uvSummary와 동일 원칙)
     const uvV = uvAtHour(parseInt((time ?? "").split(":")[0], 10));
     const uvStr = uvV != null && uvV >= 6 ? `, 자외선 ${uvLabel(uvV)}` : "";
-    return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}${pop}, 습도 ${s.humidity ?? "?"}%${uvStr}`;
+    return `- ${label} ${timeStr}: 기온 ${s.temp}°C, ${sky}${rain}, 습도 ${s.humidity ?? "?"}%${uvStr}`;
   };
 
   const scheduleLines = [
@@ -280,8 +294,8 @@ export async function POST(req: NextRequest) {
     ? scheduleLines.join("\n")
     : hourly.length
       ? "(일과 미입력 — 등원·하원 시각을 알 수 없음. 아침/낮/저녁 시간대로만 안내)\n" +
-        hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${s.pty ? ` / ${ptyLabel(s.pty)}` : ""}${s.pop != null ? ` (강수 ${s.pop}%)` : ""}`).join("\n")
-      : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%, 강수확률 ${weather.pop ?? "?"}%`;
+        hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${rainSignal(s.pty, s.pop)}`).join("\n")
+      : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%${rainSignal(weather.pty, weather.pop)}`;
 
   prompt = buildReportPrompt({
     name: child.name,
