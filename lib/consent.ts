@@ -35,7 +35,7 @@ export const emptyConsentSelection = (): ConsentSelection => ({
 
 // 지인 베타 최소 동의(2026-07-20): 약관 동의 하나에 베타 이용기록·피드백 활용을 포함해
 // 기록한다 — 리포트 하단 등 별도 분석 동의 프롬프트를 두지 않기 위한 번들.
-// 노출 문구(ConsentFields signup 각주)와 개인정보처리방침 §3이 이 번들을 고지한다.
+// 노출 문구(이용약관 §5 베타테스트 참여)와 개인정보처리방침 §3이 이 번들을 고지한다.
 export const withBundledBetaAnalytics = (selection: ConsentSelection): ConsentSelection =>
   selection.terms_privacy ? { ...selection, beta_analytics: true } : selection;
 

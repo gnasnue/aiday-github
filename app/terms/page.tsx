@@ -69,6 +69,14 @@ export default function TermsPage() {
                 개선에 활용합니다. 이용자는 언제든 참여를 중단하고 동의를 철회하거나 데이터 삭제를
                 요청할 수 있습니다.
               </p>
+              <p>
+                베타 기간에는 이용기록·피드백이 서비스 개선에 활용되고 베타 종료 후 90일 이내
+                삭제됩니다. 자세한 처리 내용은{" "}
+                <Link href="/privacy" className="font-medium text-accent underline underline-offset-4">
+                  개인정보처리방침
+                </Link>
+                에서 확인할 수 있습니다.
+              </p>
             </TermsSection>
 
             <TermsSection title="6. 이용자의 금지 행위">

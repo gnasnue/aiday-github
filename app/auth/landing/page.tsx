@@ -11,21 +11,12 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 import {
-  type ChildProfile,
   PROFILES_KEY,
   fetchProfilesFromDb,
   realLocalProfiles,
   uploadLocalProfilesToDb,
 } from "@/lib/profile";
-import {
-  hasAllRequiredConsents,
-  readLocalConsentSelection,
-  syncLocalConsentsToDb,
-} from "@/lib/consent";
-
-const hasHealthDetails = (profile: ChildProfile) =>
-  (profile.conditions?.some((item) => item !== "해당없음") ?? false) ||
-  Boolean(profile.conditionEtc || profile.cold || profile.hot || profile.sweat);
+import { syncLocalConsentsToDb } from "@/lib/consent";
 
 const AuthLanding = () => {
   const router = useRouter();
@@ -57,14 +48,9 @@ const AuthLanding = () => {
         return;
       }
 
-      // 이미 건강 관련 정보가 있는 기존·로컬 프로필만 보호자 확인을 먼저 받는다.
-      // 신규 사용자는 기본정보부터 입력하고, 건강정보 입력 직전에 맥락 안에서 확인한다.
-      const localProfiles = realLocalProfiles();
-      const hasStoredHealthDetails = [...res.list, ...localProfiles].some(hasHealthDetails);
-      if (hasStoredHealthDetails && !hasAllRequiredConsents(readLocalConsentSelection())) {
-        router.replace("/onboarding?consentOnly=1");
-        return;
-      }
+      // 건강 정보 활용 동의는 별도 게이트 화면 없이 맥락 안에서만 받는다 —
+      // 신규 입력은 온보딩 2단계 인라인, 기존 프로필 수정은 마이 편집 화면.
+      // (2026-07-20 결정: 가입 직후 전체 화면 동의 게이트는 지인 베타 이탈 요소라 제거)
 
       // 가입 시 확인한 약관 등 현재까지의 동의 이력을 계정에 동기화한다.
       await syncLocalConsentsToDb("auth_sync");
