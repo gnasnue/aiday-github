@@ -38,3 +38,6 @@ dist-ssr
 
 # 로컬 보관용 (GitHub 미추적)
 Trash Can/
+
+# chip A/B 하네스가 실행 시 재생성하는 시나리오 덤프 (아티팩트)
+scripts/__chip-ab-scenarios.json

@@ -92,7 +92,7 @@ flowchart TD
 | ③ 체크리스트 | A (AI) | 실패 시 B |
 | ④ 케어플랜 칩 | **C (규칙)** | `?prep=ai`일 때 A |
 
-③은 AI 기본, ④는 규칙 기본 — 기본 상태에서 두 표면이 다른 엔진에서 나온다. (AI 단일화 vs 규칙 유지의 최종 결정은 후속 과제.)
+③은 AI 기본, ④는 규칙 기본 — 두 표면이 다른 엔진에서 나온다. 이는 **2026-07-20 데이터로 확정된 의도적 결정**이다: 칩 A/B(`scripts/chip-ab.test.ts`, 48슬롯) 결과 커버리지 갭 규칙 0 vs AI 10, 결정성 규칙 0 vs AI 7슬롯 흔들림 — 칩은 매 슬롯 빠짐없이·흔들림 없이 보여야 하는 표면이라 규칙이 적합하고, AI의 풍부한 뉘앙스는 message·checklist에서 살린다. `?prep=ai` 실험은 은퇴(하네스는 회귀용 유지). 근거: [docs/report-eval/chip-ab.md](./report-eval/chip-ab.md), [PRODUCT-DECISIONS](./PRODUCT-DECISIONS.md).
 
 ### 2026-07-20 개선 (구조적 약점 3건 해결)
 
