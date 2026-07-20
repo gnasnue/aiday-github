@@ -69,8 +69,13 @@ const insert = async (
   table: "events" | "feedback",
   row: Record<string, unknown>
 ): Promise<boolean> => {
-  const { hasAnalyticsConsent } = await import("./consent");
-  if (!hasAnalyticsConsent()) return false;
+  // 자동 수집(events)만 분석 동의로 게이트한다. feedback은 사용자가 직접 버튼을
+  // 눌러 제출하는 자발 제공이라 동의 상태와 무관하게 전송한다 (새 기기 로그인 등
+  // 로컬 동의 기록이 없는 상태에서도 👍/👎가 조용히 실패하지 않도록).
+  if (table === "events") {
+    const { hasAnalyticsConsent } = await import("./consent");
+    if (!hasAnalyticsConsent()) return false;
+  }
   // supabase 클라이언트는 모듈 로드 시점에 env(NEXT_PUBLIC_*)를 요구하므로 지연 로드 —
   // 브라우저 밖(vitest 등)에서 ageBand 같은 순수 로직만 임포트해도 안전하게 한다.
   const { supabase } = await import("./supabase");

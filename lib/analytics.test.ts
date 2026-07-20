@@ -3,8 +3,9 @@ import { ageBand, sendFeedback, track } from "./analytics";
 
 // insert 경로 검증용 supabase 목 — 실제 네트워크·env 없이 페이로드만 캡처한다
 const inserted: { table: string; row: Record<string, unknown> }[] = [];
-// 계측은 beta_analytics 동의 뒤에만 동작한다(lib/consent.ts 게이트) — 테스트는 동의 상태로 고정
-vi.mock("./consent", () => ({ hasAnalyticsConsent: () => true }));
+// events는 beta_analytics 동의 뒤에만 동작한다(lib/consent.ts 게이트) — 기본은 동의 상태
+let analyticsConsent = true;
+vi.mock("./consent", () => ({ hasAnalyticsConsent: () => analyticsConsent }));
 vi.mock("./supabase", () => ({
   supabase: {
     auth: { getSession: async () => ({ data: { session: null } }) },
@@ -63,6 +64,7 @@ const stubBrowserGlobals = () => {
 describe("sendFeedback / track (supabase 목)", () => {
   beforeEach(() => {
     inserted.length = 0;
+    analyticsConsent = true;
     stubBrowserGlobals();
   });
   afterEach(() => vi.unstubAllGlobals());
@@ -83,6 +85,21 @@ describe("sendFeedback / track (supabase 목)", () => {
   it("게스트(세션 없음)는 user_id null로 적재한다", async () => {
     await sendFeedback({ kind: "general", message: "의견" });
     expect(inserted[0].row.user_id).toBeNull();
+  });
+
+  it("분석 동의가 없어도 자발 제출인 feedback은 전송된다", async () => {
+    analyticsConsent = false;
+    const ok = await sendFeedback({ kind: "report", rating: "down" });
+    expect(ok).toBe(true);
+    expect(inserted[0].table).toBe("feedback");
+  });
+
+  it("분석 동의가 없으면 events는 전송하지 않는다", async () => {
+    analyticsConsent = false;
+    track("page_view");
+    // fire-and-forget이라 완료 신호가 없다 — 마이크로태스크를 비운 뒤 미적재를 확인
+    await new Promise((r) => setTimeout(r, 20));
+    expect(inserted.length).toBe(0);
   });
 
   it("track은 세션 ID를 이벤트마다 재사용한다", async () => {

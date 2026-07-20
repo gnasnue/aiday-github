@@ -17,7 +17,7 @@ export default function PrivacyPage() {
           </div>
         </header>
         <main className="container-mobile py-8">
-          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v2</p>
+          <p className="text-xs font-medium text-accent">2026년 7월 20일 시행 · 베타 v3</p>
           <h1 className="mt-2 text-[1.375rem] font-bold tracking-tight">개인정보처리방침</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted-foreground break-keep">
             아이데이는 날씨·대기질 등 환경 데이터를 아이의 특성에 맞게 해석하는 베타
@@ -29,8 +29,9 @@ export default function PrivacyPage() {
             <PolicySection id="collection" title="1. 수집 항목, 목적 및 보유 기간">
               <p>
                 계정, 기본 프로필, 위치 요청 등 서비스 제공에 꼭 필요한 정보는 이용자와의 계약
-                체결·이행을 위해 처리하며 별도 동의를 요구하지 않습니다. 건강 관련 정보와 선택적
-                베타 분석처럼 동의가 필요한 항목은 실제 이용 시점에 따로 확인합니다.
+                체결·이행을 위해 처리하며 별도 동의를 요구하지 않습니다. 베타 사용 기록의 개선
+                활용은 가입 시 약관 동의에 포함해 확인하고, 아이 건강 관련 정보는 실제 입력
+                시점에 따로 동의를 받습니다.
               </p>
               <PolicyItem
                 title="계정 및 인증"
@@ -79,7 +80,9 @@ export default function PrivacyPage() {
               <p>
                 알레르기, 비염, 천식, 아토피 등 건강 특이사항은 민감정보에 해당할 수 있어 일반
                 개인정보 처리와 분리하여 동의를 받습니다. 입력하지 않아도 기본 리포트를 이용할 수
-                있지만 개인화 범위는 줄어들 수 있습니다.
+                있지만 개인화 범위는 줄어들 수 있습니다. 동의한 건강 정보는 맞춤 리포트 제공에만
+                이용하며, 프로필 삭제·회원 탈퇴 또는 동의 철회 시까지 보관한 뒤 지체 없이
+                파기합니다.
               </p>
               <p>
                 아동의 정보를 입력하는 사람은 해당 아동의 법정대리인이어야 합니다. 법정대리인은
@@ -90,9 +93,11 @@ export default function PrivacyPage() {
 
             <PolicySection id="beta" title="3. 베타테스트 분석 및 자유 의견">
               <p>
-                행동 분석은 별도 동의 후에만 시작합니다. 페이지 방문, 온보딩 단계, 가입 완료,
-                리포트 조회·새로고침·오류, 체크리스트 사용을 기록하며 광고 프로파일링에는 사용하지
-                않습니다. 동의 전에는 분석 이벤트를 전송하지 않습니다.
+                베타 사용 기록 분석은 가입 시 약관 동의에 포함해 안내하며, 동의 전에는 분석
+                이벤트를 전송하지 않습니다. 페이지 방문, 온보딩 단계, 가입 완료, 리포트
+                조회·새로고침·오류, 체크리스트 사용을 기록하며 광고 프로파일링에는 사용하지
+                않습니다. 리포트 평가(도움이 되었나요)와 자유 의견은 이용자가 직접 제출한
+                경우에만 수집합니다.
               </p>
               <p className="font-medium text-foreground">
                 자유 의견에는 아이나 보호자의 이름, 질병명, 연락처 등 개인정보를 적지 마세요.

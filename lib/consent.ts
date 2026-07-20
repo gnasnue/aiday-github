@@ -1,4 +1,4 @@
-export const CONSENT_POLICY_VERSION = "2026-07-20-v2";
+export const CONSENT_POLICY_VERSION = "2026-07-20-v3";
 export const CONSENT_STORAGE_KEY = "aiday:consents:v2";
 export const CONSENT_UPDATED_EVENT = "aiday:consent-updated";
 
@@ -32,6 +32,12 @@ export const emptyConsentSelection = (): ConsentSelection => ({
   overseas_transfer: false,
   marketing: false,
 });
+
+// 지인 베타 최소 동의(2026-07-20): 약관 동의 하나에 베타 이용기록·피드백 활용을 포함해
+// 기록한다 — 리포트 하단 등 별도 분석 동의 프롬프트를 두지 않기 위한 번들.
+// 노출 문구(ConsentFields signup 각주)와 개인정보처리방침 §3이 이 번들을 고지한다.
+export const withBundledBetaAnalytics = (selection: ConsentSelection): ConsentSelection =>
+  selection.terms_privacy ? { ...selection, beta_analytics: true } : selection;
 
 export const hasAllRequiredConsents = (selection: ConsentSelection): boolean =>
   REQUIRED_CONSENT_TYPES.every((type) => selection[type]);

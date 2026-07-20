@@ -8,6 +8,7 @@ import {
   Pencil,
   Trash2,
   ChevronRight,
+  Database,
   MapPin,
   FileText,
   MessageCircle,
@@ -264,7 +265,8 @@ const My = () => {
               {([
                 { l: "알림 설정", Icon: Bell },
                 { l: "위치 설정", Icon: MapPin, action: requestLocation, value: `서울 ${location.gu}` },
-                { l: "약관 및 정책", Icon: FileText },
+                { l: "데이터 기준 안내", Icon: Database, action: () => router.push("/me/data-sources") },
+                { l: "약관 및 정책", Icon: FileText, action: () => router.push("/me/policies") },
                 { l: "의견 보내기", Icon: MessageSquareText, action: () => setFeedbackOpen(true) },
                 { l: "고객 문의", Icon: MessageCircle },
                 { l: "로그아웃", Icon: LogOut, action: logout },
