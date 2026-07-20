@@ -1,7 +1,14 @@
 import type { ChildProfile } from "./profile";
 import type { TimeSlot, WeatherData } from "./weather-api";
 import { hasJongseong, withDativeParticle } from "./korean";
-import { hasRespiratory, hasSkin, isSweatProne, isSweatWeather } from "./domain/child-conditions";
+import {
+  ageInMonths,
+  canRecommendMask,
+  hasRespiratory,
+  hasSkin,
+  isSweatProne,
+  isSweatWeather,
+} from "./domain/child-conditions";
 
 export interface CheckItem {
   icon: string;
@@ -59,7 +66,10 @@ export function buildRecommendation(
     itemRecommends.push("**목수건**");
   }
 
-  // 꽃가루 + 미세먼지 → 마스크
+  // 꽃가루 + 미세먼지 → 마스크. 단, 만 2세(24개월) 미만 영아에게는 마스크를 권하지
+  // 않는다(질식 위험) — AI 프롬프트·케어 플랜 칩(prep.ts)과 같은 canRecommendMask 기준.
+  // 경고 자체가 사라지지 않도록 "실내 놀이 준비"로 대체한다.
+  const maskOk = canRecommendMask(ageInMonths(profile.age, profile.birth));
   const highPollen = slots.some(
     (t) => t.pollen === "높음" || t.pollen === "매우높음"
   );
@@ -68,13 +78,22 @@ export function buildRecommendation(
   );
   if (highPollen || badDust) {
     const reason = highPollen ? "꽃가루 높음" : "미세먼지 나쁨";
-    const text = hasRhinitis
-      ? `마스크 필수 (호흡기 민감 + ${reason})`
-      : `마스크 (${reason})`;
-    checklist.push({ icon: "😷", text, key: "마스크" });
+    if (maskOk) {
+      const text = hasRhinitis
+        ? `마스크 필수 (호흡기 민감 + ${reason})`
+        : `마스크 (${reason})`;
+      checklist.push({ icon: "😷", text, key: "마스크" });
+      itemRecommends.push("**마스크**");
+    } else {
+      checklist.push({
+        icon: "🧸",
+        text: `실내 놀이거리 (${reason} · 마스크가 어려운 나이)`,
+        key: "실내놀이",
+      });
+      itemRecommends.push("**실내 놀이거리**");
+    }
     if (highPollen) envReasons.push("__꽃가루 높음__");
     if (badDust) envReasons.push("__미세먼지 나쁨__");
-    itemRecommends.push("**마스크**");
   }
 
   // 건조 (평균 습도 < 45). 슬롯이 비면(이론상) 건조 미판정(50)으로 폴백.

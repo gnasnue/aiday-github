@@ -5,6 +5,7 @@ import {
   hasSkin as hasSkinCondition,
   isSweatWeather,
 } from "./domain/child-conditions";
+import { canonicalPrep } from "./prep-vocab";
 
 /**
  * 시간대별 환경 카드 하단 "준비물 키워드" 규칙 엔진 (A/B 중 규칙 기반 변형).
@@ -24,7 +25,10 @@ export function buildPrepKeywords(
   // 시간대와 무관한 상수 신호라 이 슬롯에서만 켜, 전 슬롯 반복 노출을 막는다.
   isPrimarySlot = false,
   // 땀·더위 체질(프로필 hot/sweat). "여벌 옷" 등 땀 대비 준비물의 임계값을 낮춘다.
-  sweatProne = false
+  sweatProne = false,
+  // 마스크 권장 가능 여부(canRecommendMask) — 24개월 미만이면 false. AI 프롬프트의
+  // 동일 규칙과 정렬: 마스크 대신 "실내놀이"(외출 대체) 신호를 낸다.
+  maskAllowed = true
 ): string[] {
   const hasResp = hasRespiratory(conditions);
   const hasAllergy = hasAllergyCondition(conditions);
@@ -48,7 +52,7 @@ export function buildPrepKeywords(
 
   // 폭염권 기온 — 모자는 햇빛 차단 목적이므로 자외선이 낮은 시간대(저녁 등)엔 제외
   if (slot.temp >= 31) {
-    out.push({ keyword: "물병", priority: 90 });
+    out.push({ keyword: "물통", priority: 90 });
     if (slot.uv !== "낮음") out.push({ keyword: "모자", priority: 60 });
   }
   // 한파권 기온
@@ -68,12 +72,18 @@ export function buildPrepKeywords(
     out.push({ keyword: "얇은 겉옷", priority: 80 });
   }
 
-  // 미세먼지·꽃가루 → 마스크 (호흡기·알레르기 체질이면 우선순위 상향)
+  // 미세먼지·꽃가루 → 마스크 (호흡기·알레르기 체질이면 우선순위 상향).
+  // 마스크를 쓸 수 없는 나이(24개월 미만)면: 강한 신호(미세먼지 나쁨, 체질×꽃가루)는
+  // "실내놀이"(외출 대체)로 바꿔 경고 자체가 사라지지 않게 하고, 약한 신호(무체질
+  // 꽃가루)는 대체 없이 생략한다.
   const dustBad = slot.dust === "나쁨" || slot.dust === "매우나쁨";
   const pollenHigh = slot.pollen === "높음" || slot.pollen === "매우높음";
   if (dustBad || (pollenHigh && (hasResp || hasAllergy))) {
-    out.push({ keyword: "마스크", priority: hasResp || hasAllergy ? 95 : 70 });
-  } else if (pollenHigh) {
+    out.push({
+      keyword: maskAllowed ? "마스크" : "실내놀이",
+      priority: hasResp || hasAllergy ? 95 : 70,
+    });
+  } else if (pollenHigh && maskAllowed) {
     out.push({ keyword: "마스크", priority: 55 });
   }
 
@@ -116,8 +126,10 @@ export function buildPrepKeywords(
  * 준비물 칩 강조(오렌지) 판정 — 아이템 종류가 아니라 "이 슬롯 환경에서 이 아이템이
  * 건강 보호에 긴급한가"를 슬롯 데이터로 판정한다 (2026-07-20 확정).
  * 종전의 고정 화이트리스트({우산·마스크·선크림})는 예비 신호(강수 40~50%)의 우산까지
- * 강조하고, 폭염 물병·한파 방한용품 같은 긴급 신호는 강조하지 못했다.
- * 키워드 기반이라 AI 변형(prepVariant=ai)이 생성한 칩에도 동일하게 적용된다.
+ * 강조하고, 폭염 물통·한파 방한용품 같은 긴급 신호는 강조하지 못했다.
+ * 키워드 기반이라 AI 변형(prepVariant=ai)이 생성한 칩에도 동일하게 적용된다 —
+ * AI 어휘("물통"/"자외선차단제" 등)는 canonicalPrep으로 표준화한 뒤 판정하므로
+ * 별칭이 와도 강조가 누락되지 않는다.
  */
 export function isCriticalPrep(
   keyword: string,
@@ -127,18 +139,18 @@ export function isCriticalPrep(
   const windowPop = slot.popWindow ?? slot.pop;
   const rainSure =
     slot.rainWindow || (slot.pty != null && slot.pty > 0) || (windowPop != null && windowPop >= 60);
-  switch (keyword) {
+  const dustBad = slot.dust === "나쁨" || slot.dust === "매우나쁨";
+  const pollenRisky =
+    (slot.pollen === "높음" || slot.pollen === "매우높음") &&
+    (hasRespiratory(conditions) || hasAllergyCondition(conditions));
+  switch (canonicalPrep(keyword)) {
     case "우산":
     case "우비":
       return rainSure; // 예비 신호(창 40~50%)의 우산은 강조하지 않는다
     case "마스크":
-      return (
-        slot.dust === "나쁨" ||
-        slot.dust === "매우나쁨" ||
-        ((slot.pollen === "높음" || slot.pollen === "매우높음") &&
-          (hasRespiratory(conditions) || hasAllergyCondition(conditions)))
-      );
-    case "물병":
+    case "실내놀이": // 마스크 못 쓰는 나이의 대체 신호 — 같은 환경 근거로 강조
+      return dustBad || pollenRisky;
+    case "물통":
       return slot.temp >= 31; // 폭염
     case "방한용품":
       return slot.temp <= 0; // 한파

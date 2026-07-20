@@ -22,12 +22,14 @@ import {
 import { buildRecommendation, type Recommendation } from "@/lib/recommendation-engine";
 import { useLocation } from "@/lib/useLocation";
 import type { WeatherData } from "@/lib/weather-api";
-import { buildTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
+import { buildTimeline, buildTomorrowTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { buildPrepKeywords, isCriticalPrep } from "@/lib/prep";
-import { isSweatProne } from "@/lib/domain/child-conditions";
+import { canonicalPrep, canonicalPrepList } from "@/lib/prep-vocab";
+import { ageInMonths, canRecommendMask, isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
 import { localDateStr } from "@/lib/date";
+import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
 // localDateStr(lib/date.ts): 로컬 기준 YYYY-MM-DD — 리포트 피드백 1일 1회 키와 공유
@@ -35,7 +37,8 @@ import { localDateStr } from "@/lib/date";
 // AI 리포트 당일 캐시 키 — 프롬프트/스키마 변경 시 버전(v..)을 올려 구캐시를 무효화한다.
 // 리포트 생성 effect와 마운트 프라임 effect가 반드시 같은 키를 쓰도록 한 곳에서 만든다
 // (예전에 두 곳에 하드코딩해 버전이 어긋나며 프라임이 캐시를 못 찾던 회귀가 있었다).
-const reportCacheKey = (childId: string) => `aiday:report:v19:${childId}:${localDateStr()}`;
+// v21: 판단 순서·개인화 프롬프트 개편 + 자외선 강함 미만 입력 제외 (2026-07-20, docs/report-eval/)
+const reportCacheKey = (childId: string) => `aiday:report:v21:${childId}:${localDateStr()}`;
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
@@ -232,7 +235,10 @@ const Home = () => {
       return loadProfiles()[0].id;
     }
   });
-  const [checked, setChecked] = useState<number[]>([]);
+  // 체크 상태는 항목 key 기준 — 인덱스 기준이면 목록이 교체될 때(폴백→AI 도착,
+  // 급변 재생성) 체크가 엉뚱한 항목으로 옮겨간다. 같은 key(같은 준비물)는 목록이
+  // 바뀌어도 체크가 유지되고, 사라진 항목의 체크는 자연히 무시된다.
+  const [checked, setChecked] = useState<string[]>([]);
   const { location, locating, requestLocation } = useLocation();
   const [loading, setLoading] = useState(true);
   // 실측 도착 전엔 null — mock 초기값이 실측인 척 렌더되지 않게 한다 (2026-07 조사: 무표기 폴백).
@@ -541,6 +547,7 @@ const Home = () => {
       activeReportRef.current = { ctrl, childId };
 
       let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
+      let morningRegen = false; // 새벽 잠정본을 06시 이후 당일 발표본으로 교체하는 경우
       // 계측 세션 로컬 캡처 — 초기 진입이면 fetchEnv의 세션(env 마커 포함)을 1회 점유(claim)하고,
       // 이미 점유·보고된 세션(재방문·프로필 전환·중첩 요청)이면 리포트 전용 새 세션을 만든다.
       // 어느 경로든 세션을 claim해, 뒤이은 요청이 같은 세션에 마커를 덧쓰지 않게 한다
@@ -579,7 +586,12 @@ const Home = () => {
 
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
         if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
-          if (!envChanged(cached.env, sig)) {
+          // 새벽(00~06시) 생성 잠정본은 06시 이후 첫 방문에서 당일 발표본(02시 예보·
+          // 당일 자외선)으로 조용히 교체한다 — 재료가 전날 밤 예보 기준이었기 때문.
+          // 06시 전이면 잠정본이 그 시점의 최선이므로 그대로 캐시 히트.
+          const morningRefresh =
+            typeof cached.ts === "number" && needsMorningRefresh(cached.ts);
+          if (!envChanged(cached.env, sig) && !morningRefresh) {
             perfMark(perf, "cache_hit");
             outcome = "cache_hit";
             if (isCurrent()) {
@@ -593,6 +605,7 @@ const Home = () => {
             return;
           }
           regenerating = true;
+          morningRegen = morningRefresh && !envChanged(cached.env, sig);
         }
 
         perfMark(perf, "report_fetch_start"); // 캐시 미스 → 서버 요청 착수
@@ -716,7 +729,7 @@ const Home = () => {
           try {
             localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
           } catch {}
-          if (regenerating) toast("날씨가 바뀌어 브리핑을 새로 썼어요");
+          if (regenerating) toast(morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
           else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
           outcome = "done";
@@ -843,6 +856,17 @@ const Home = () => {
   // 빈 상태는 시간대별 환경·케어 플랜 섹션이 "데이터 지연" 안내로 렌더한다.
   const displaySlots = useMemo<HomeTimeSlot[]>(() => timeline ?? [], [timeline]);
 
+  // 내일 미리보기 — 시간대별 환경 섹션의 "오늘|내일" 세그먼트 (2026-07-20).
+  // 같은 env 응답에 실려 온 내일분 예보·자외선으로 구성. 내일 미세먼지·꽃가루는 존재하지
+  // 않는 값이라(실측/당일 발행) 렌더에서 두 지표 행을 숨기고 "당일 아침 확정" 안내로 대체.
+  // AI 리포트·케어 플랜은 오늘 전용 유지 — 내일 해석은 밤 예고편 알림 설계(§3-7)와 함께.
+  const [envDay, setEnvDay] = useState<"today" | "tomorrow">("today");
+  const tomorrowSlots = useMemo<HomeTimeSlot[]>(
+    () => (envRaw ? buildTomorrowTimeline(cur?.schedule, envRaw) ?? [] : []),
+    [envRaw, cur?.schedule]
+  );
+  const timelineSlots = envDay === "tomorrow" ? tomorrowSlots : displaySlots;
+
   // 규칙 기반 추천(AI 리포트 폴백 + 상단 환경 칩).
   // 체크리스트·메시지는 실측 슬롯(displaySlots)을 근거로 삼아 상단 칩과 어긋나지 않게 하고,
   // 칩(badges)은 종전대로 weatherData의 실측 스칼라값에서 도출한다.
@@ -870,14 +894,16 @@ const Home = () => {
     return h * 60 + (m || 0) <= now.getHours() * 60 + now.getMinutes();
   };
 
-  // 지나간 슬롯의 AI prep 고정 저장 — 슬롯 시각을 지날 때의 값을 그날 내내 유지
+  // 지나간 슬롯의 AI prep 고정 저장 — 슬롯 시각을 지날 때의 값을 그날 내내 유지.
+  // 저장 전에 표준화(canonicalPrepList) — 냉동된 값도 화면 어휘와 같게.
   useEffect(() => {
     if (prepVariant !== "ai" || !prepFrozenKey) return;
     const additions: Record<string, string[]> = {};
     for (const slot of displaySlots) {
       if (!slotPassed(slot.hour) || frozenPrep[slot.time]) continue;
       const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
-      if (Array.isArray(fromAi) && fromAi.length > 0) additions[slot.time] = fromAi.slice(0, 2);
+      if (Array.isArray(fromAi) && fromAi.length > 0)
+        additions[slot.time] = canonicalPrepList(fromAi).slice(0, 2);
     }
     if (!Object.keys(additions).length) return;
     const merged = { ...frozenPrep, ...additions };
@@ -891,17 +917,19 @@ const Home = () => {
   const slotPrep = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
     const sweatProne = isSweatProne(cur?.hot, cur?.sweat);
+    // 24개월 미만이면 규칙 엔진도 마스크 대신 실내놀이 — AI 프롬프트 규칙과 정렬 (R1)
+    const maskOk = canRecommendMask(ageInMonths(cur?.age, cur?.birth));
     displaySlots.forEach((slot, i) => {
       const frozen = slotPassed(slot.hour) ? frozenPrep[slot.time] : undefined;
       const fromAi = frozen ?? aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
       map[slot.time] =
         prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
-          ? fromAi.slice(0, 2)
-          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne);
+          ? canonicalPrepList(fromAi).slice(0, 2)
+          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne, maskOk);
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions, cur?.hot, cur?.sweat]);
+  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions, cur?.hot, cur?.sweat, cur?.age, cur?.birth]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;
@@ -923,23 +951,33 @@ const Home = () => {
     </p>
   ) : null;
 
-  // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback
+  // AI 체크리스트가 있으면 사용, 없으면 recommendation engine fallback.
+  // 이름은 canonicalPrep으로 표준화(물통/물병, 선크림/자외선차단제 등 별칭 통일 — 케어
+  // 플랜 칩과 같은 어휘), key도 표준화된 이름 기반이라 목록이 교체돼도 같은 준비물의
+  // 체크가 유지된다. 같은 이름이 중복 생성되면 뒤 항목에 인덱스를 붙여 key 충돌을 막는다.
   const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
     if (aiChecklist.length > 0) {
-      return aiChecklist.map((item, i) => {
+      const seenKeys = new Map<string, number>();
+      return aiChecklist.map((item) => {
         // "☂️ 우산" 형태 파싱
         const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
-        if (match) return { icon: match[1], text: match[2], key: `ai-${i}` };
         // icon은 화면에 raw로 렌더링되지 않는다 — 체크리스트 UI는 항상 checklistIcon()을
         // 거쳐 LineIcon/lucide로 매핑되고, 매칭 실패 시 CircleCheck로 fallback된다.
         // 이 문자열은 키워드 매칭·텍스트 공유용 데이터로만 쓰인다.
-        return { icon: "✅", text: item, key: `ai-${i}` };
+        const icon = match ? match[1] : "✅";
+        const text = canonicalPrep(match ? match[2] : item);
+        const n = seenKeys.get(text) ?? 0;
+        seenKeys.set(text, n + 1);
+        return { icon, text, key: n === 0 ? text : `${text}-${n}` };
       });
     }
     return baseChecklist;
   }, [aiChecklist, baseChecklist]);
 
-  const allDone = checked.length === activeChecklist.length;
+  // checked에는 목록 교체로 사라진 항목의 key가 남아 있을 수 있다 — 현재 목록과의
+  // 교집합만 센다.
+  const checkedCount = activeChecklist.filter((c) => checked.includes(c.key)).length;
+  const allDone = checkedCount === activeChecklist.length;
 
   // ── 하루 케어 플랜 "지금" 판정 — 슬롯 시각 ±W 밴드 ──────────────────────
   // 종전엔 "지나간 마지막 슬롯"을 무조건 "지금"으로 삼아, 등원~하원 6시간 빈칸 내내
@@ -1011,6 +1049,11 @@ const Home = () => {
     const mm = String(d.getMinutes()).padStart(2, "0");
     return `${base} ${hh}:${mm} 기준`;
   })();
+
+  // 새벽(00~06시) 생성 잠정본 여부 — 전날 밤 발표본 재료로 만든 리포트임을 카드 안에서
+  // 알린다. 06시 이후 방문 시 리포트 effect가 당일 발표본으로 재생성해 ts가 갱신되면
+  // 캡션은 자연히 사라진다. "언제 보라"가 아니라 "앱이 알아서 갱신한다"를 전달하는 문구.
+  const reportProvisional = reportTs != null && isProvisionalReport(reportTs);
 
   // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만).
   // 라벨(옅게)+값(진하게) 쌍으로 렌더해 한 줄에서 각 지표가 바로 스캔되게 한다.
@@ -1153,14 +1196,14 @@ const Home = () => {
   // Reset checklist when profile changes
   useEffect(() => setChecked([]), [active]);
 
-  const toggle = (i: number) => {
+  const toggle = (key: string) => {
     // 지표 3(체크리스트 인터랙션율) — 항목 텍스트는 AI 생성물이라 이름이 섞일 수 있어
-    // key(ai-N / 폴백 key)만 기록한다.
+    // key(표준화된 준비물명 / 폴백 key)만 기록한다.
     track("checklist_toggled", {
-      item: activeChecklist[i]?.key ?? String(i),
-      checked: !checked.includes(i),
+      item: key,
+      checked: !checked.includes(key),
     });
-    setChecked((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
+    setChecked((p) => (p.includes(key) ? p.filter((x) => x !== key) : [...p, key]));
   };
 
   return (
@@ -1282,6 +1325,14 @@ const Home = () => {
                 </div>
               </div>
 
+              {/* 잠정본 안내 — 새벽(00~06시) 생성 리포트에만 노출되는 trust line.
+                  면책이 아니라 "앱이 아침에 알아서 갱신한다"는 관리 능력의 신호로 쓴다. */}
+              {reportProvisional && (
+                <p className="mb-2 text-[13px] leading-[1.5] text-muted-foreground break-keep">
+                  전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요
+                </p>
+              )}
+
               {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 라벨은 옅게(faint),
                   값은 진하게(foreground/bold, 숫자는 .num)로 대비를 줘 가독성을 높인다. */}
               {nowWeatherItems.length > 0 && (
@@ -1393,21 +1444,21 @@ const Home = () => {
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
                     <p className="num text-xs text-muted-foreground">
-                      <b className="text-foreground">{checked.length}</b> / {activeChecklist.length}
+                      <b className="text-foreground">{checkedCount}</b> / {activeChecklist.length}
                     </p>
                   )}
                 </div>
                 <ul className="mt-1.5">
-                  {activeChecklist.map((c, i) => {
-                    const on = checked.includes(i);
+                  {activeChecklist.map((c) => {
+                    const on = checked.includes(c.key);
                     // "제목 (사유)" 형태를 제목/사유 두 줄로 분리 — 괄호가 없으면 제목만
                     const m = c.text.match(/^(.*?)\s*[（(](.+?)[)）]\s*$/);
                     const title = m ? m[1].trim() : c.text;
                     const reason = m ? m[2].trim() : "";
                     return (
-                      <li key={i}>
+                      <li key={c.key}>
                         <button
-                          onClick={() => toggle(i)}
+                          onClick={() => toggle(c.key)}
                           className="flex w-full items-center gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
                         >
                           <span
@@ -1453,22 +1504,50 @@ const Home = () => {
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
           <section className="mt-8">
-            <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
+              {/* 오늘|내일 세그먼트 — DESIGN.md 세그먼트 문법(프로필 전환과 동일).
+                  저녁에 "내일 아침 준비"를 능동 조회할 수 있게 한다 (2026-07-20 결정). */}
+              <div className="flex shrink-0 items-center gap-1 rounded-full bg-muted p-1" role="group" aria-label="조회 날짜 선택">
+                {([["today", "오늘"], ["tomorrow", "내일"]] as const).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setEnvDay(key)}
+                    aria-pressed={envDay === key}
+                    className={`flex min-h-8 shrink-0 items-center rounded-full px-3.5 text-[13px] transition-smooth active:scale-[0.97] ${
+                      envDay === key
+                        ? "bg-card font-bold text-foreground shadow-soft"
+                        : "font-medium text-muted-foreground"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             {/* 실측 없음: mock 카드 대신 정직한 안내 — 어떤 값도 실측인 척 보여주지 않는다 */}
-            {!loading && displaySlots.length === 0 && (
+            {!loading && timelineSlots.length === 0 && (
               <div className="mt-3 rounded-2xl bg-card p-5 text-center shadow-soft">
-                <p className="text-[13.5px] font-semibold text-foreground">환경 데이터를 불러오지 못했어요</p>
+                <p className="text-[13.5px] font-semibold text-foreground">
+                  {envDay === "tomorrow" ? "내일 예보를 불러오지 못했어요" : "환경 데이터를 불러오지 못했어요"}
+                </p>
                 <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
                   기상청 응답이 지연되고 있어요. 네트워크 확인 후 잠시 뒤 다시 열어주세요.
                 </p>
               </div>
+            )}
+            {/* 내일 모드: 미세먼지(실측)·꽃가루(당일 발행)는 내일 값이 없다 — 숨기고 정직하게 안내 */}
+            {!loading && envDay === "tomorrow" && timelineSlots.length > 0 && (
+              <p className="mt-2 text-[12px] leading-[1.5] text-muted-foreground break-keep">
+                내일 예보 기준이에요 — 미세먼지·꽃가루는 당일 아침에 확정되면 보여드려요
+              </p>
             )}
             <div className="mt-3 -mx-5 flex flex-nowrap gap-2.5 overflow-x-auto overflow-y-hidden px-5 pb-2 scrollbar-hide [-webkit-overflow-scrolling:touch]">
               {loading
                 ? Array.from({ length: 3 }).map((_, i) => (
                     <Skeleton key={i} className="h-44 w-[150px] shrink-0 rounded-2xl" />
                   ))
-                : displaySlots.map((t) => (
+                : timelineSlots.map((t) => (
                     <article
                       key={t.time}
                       className="w-[148px] shrink-0 rounded-2xl bg-card p-4 shadow-soft transition-smooth"
@@ -1490,9 +1569,15 @@ const Home = () => {
                         {([
                           // 경고(오렌지)만 색을 쓰고 좋음·보통은 무색(neutral) — 24개 값 그리드에서
                           // 경고가 묻히지 않도록 "특이사항 없음 = 색 없음" 원칙 적용 (good/초록 미사용)
-                          ["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"],
+                          // 내일 모드: 미세먼지·꽃가루는 내일 값이 존재하지 않아(실측/당일 발행)
+                          // 행 자체를 뺀다 — 중립 폴백("보통"/"낮음")을 예보인 척 보여주지 않기.
+                          ...(envDay === "today"
+                            ? [["미세먼지", t.dust, ["나쁨", "매우나쁨"].includes(t.dust) ? "warn" : "neutral"] as [string, string, StatusTone]]
+                            : []),
                           ["자외선", t.uv, ["강함", "매우강함"].includes(t.uv) ? "warn" : "neutral"],
-                          ["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"],
+                          ...(envDay === "today"
+                            ? [["꽃가루", t.pollen, ["높음", "매우높음"].includes(t.pollen) ? "warn" : "neutral"] as [string, string, StatusTone]]
+                            : []),
                           // 습도: 양극단 경고 — ≤40% 건조(피부·호흡기) / ≥80% 후텁지근(AI 리포트 로직과 일치)
                           ["습도", `${t.humidity}%`, t.humidity <= 40 || t.humidity >= 80 ? "warn" : "neutral"],
                           ["바람", t.wind, t.wind === "강함" ? "warn" : "neutral"],

@@ -58,12 +58,19 @@ export type ScheduleInput = {
 };
 
 export type EnvRaw = {
-  weather: { hourlyForecast?: WeatherHour[] } | null;
+  weather: {
+    hourlyForecast?: WeatherHour[];
+    hourlyForecastTomorrow?: WeatherHour[]; // 내일 미리보기용 (같은 발표본에서 추출)
+  } | null;
   air: {
     pm10Grade?: number | null;
     hourly?: Record<string, number | null>; // 오늘 시각별 pm10 1시간 등급 실측
   } | null;
-  uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null;
+  uv: {
+    uvi?: number | null;
+    hourly?: Record<string, number | null>;
+    hourlyTomorrow?: Record<string, number | null>; // 내일 미리보기용
+  } | null;
   pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null;
 };
 
@@ -228,4 +235,25 @@ export function buildTimeline(
   }
 
   return slots.length ? slots : null;
+}
+
+/**
+ * 내일 미리보기 슬롯 — 홈 "오늘|내일" 세그먼트용 (2026-07-20).
+ * 같은 응답에 실려 온 내일분(hourlyForecastTomorrow·uv.hourlyTomorrow)으로 buildTimeline을
+ * 재사용한다. 미세먼지(실측만 연동)·꽃가루(당일 발행)는 내일 값이 존재하지 않으므로 null을
+ * 넘긴다 — 이때 dust/pollen 라벨은 중립 폴백("보통"/"낮음")이 되므로, 렌더에서 두 지표
+ * 행을 숨기고 "당일 아침 확정" 안내로 대체해야 한다(존재하지 않는 값을 위장하지 않기).
+ */
+export function buildTomorrowTimeline(
+  schedule: ScheduleInput | undefined,
+  env: EnvRaw
+): HomeTimeSlot[] | null {
+  const hours = env.weather?.hourlyForecastTomorrow ?? [];
+  if (!hours.length) return null;
+  return buildTimeline(schedule, {
+    weather: { hourlyForecast: hours },
+    air: null,
+    uv: { uvi: null, hourly: env.uv?.hourlyTomorrow },
+    pollen: null,
+  });
 }

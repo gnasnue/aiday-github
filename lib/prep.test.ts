@@ -40,7 +40,7 @@ describe("buildPrepKeywords — 우산", () => {
   });
 
   it("창 max 40~50% 예비 신호는 더 급한 신호 2개에 밀려난다", () => {
-    // 폭염(물병 90 + 모자 60) 슬롯에서는 우산(55)이 상위 2개 경쟁에서 탈락
+    // 폭염(물통 90 + 모자 60) 슬롯에서는 우산(55)이 상위 2개 경쟁에서 탈락
     const kws = buildPrepKeywords(slot({ pop: 45, popWindow: 45, temp: 33, uv: "강함" }), null);
     expect(kws).toHaveLength(2);
     expect(kws).not.toContain("우산");
@@ -90,10 +90,15 @@ describe("isCriticalPrep — 긴급도 기반 강조", () => {
     expect(isCriticalPrep("우산", slot({ pop: 45, popWindow: 45 }))).toBe(false);
   });
 
-  it("폭염 물병·한파 방한용품은 강조한다 (종전 화이트리스트에선 누락)", () => {
-    expect(isCriticalPrep("물병", slot({ temp: 33 }))).toBe(true);
-    expect(isCriticalPrep("물병", slot({ temp: 28 }))).toBe(false);
+  it("폭염 물통·한파 방한용품은 강조한다 (종전 화이트리스트에선 누락)", () => {
+    expect(isCriticalPrep("물통", slot({ temp: 33 }))).toBe(true);
+    expect(isCriticalPrep("물통", slot({ temp: 28 }))).toBe(false);
     expect(isCriticalPrep("방한용품", slot({ temp: -2 }))).toBe(true);
+  });
+
+  it("별칭 어휘도 표준화 후 판정한다 — AI가 '물병'·'자외선차단제'로 내도 강조 누락 없음", () => {
+    expect(isCriticalPrep("물병", slot({ temp: 33 }))).toBe(true);
+    expect(isCriticalPrep("자외선차단제", slot({ uv: "매우강함" }))).toBe(true);
   });
 
   it("마스크: 미세먼지 나쁨이면 강조, 꽃가루 높음은 호흡기·알레르기 체질일 때만 강조", () => {
@@ -111,5 +116,35 @@ describe("isCriticalPrep — 긴급도 기반 강조", () => {
   it("쾌적·보조 준비물(보습제·여벌 옷 등)은 강조하지 않는다", () => {
     expect(isCriticalPrep("보습제", slot({ humidity: 30 }))).toBe(false);
     expect(isCriticalPrep("여벌 옷", slot({ temp: 30, humidity: 80 }))).toBe(false);
+  });
+
+  it("실내놀이(마스크 대체 신호)는 마스크와 같은 환경 근거로 강조한다", () => {
+    expect(isCriticalPrep("실내놀이", slot({ dust: "나쁨" }))).toBe(true);
+    expect(isCriticalPrep("실내놀이", slot({}))).toBe(false);
+  });
+});
+
+// 마스크 연령 규칙(R1) — 24개월 미만이면 마스크 대신 실내놀이. AI 프롬프트의
+// "만 2세 미만 마스크 금지"와 규칙 엔진이 어긋나 화면이 자기모순되던 구멍의 회귀 방지.
+describe("buildPrepKeywords — 마스크 연령 규칙", () => {
+  it("maskAllowed=false면 미세먼지 나쁨에 마스크 대신 실내놀이를 낸다", () => {
+    const kws = buildPrepKeywords(slot({ dust: "나쁨" }), null, [], false, false, false);
+    expect(kws).not.toContain("마스크");
+    expect(kws).toContain("실내놀이");
+  });
+
+  it("maskAllowed=false면 약한 신호(무체질 꽃가루)는 대체 없이 생략한다", () => {
+    const kws = buildPrepKeywords(slot({ pollen: "높음" }), null, [], false, false, false);
+    expect(kws).not.toContain("마스크");
+    expect(kws).not.toContain("실내놀이");
+  });
+
+  it("체질 아이 + 꽃가루 높음도 마스크 불가 나이면 실내놀이로 대체한다", () => {
+    const kws = buildPrepKeywords(slot({ pollen: "높음" }), null, ["비염"], false, false, false);
+    expect(kws).toContain("실내놀이");
+  });
+
+  it("기본값(maskAllowed 미지정)은 종전과 동일하게 마스크를 낸다", () => {
+    expect(buildPrepKeywords(slot({ dust: "나쁨" }), null)).toContain("마스크");
   });
 });
