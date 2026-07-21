@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { usePathname } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   MapPin,
   ChevronDown,
@@ -12,26 +11,32 @@ import {
   CloudSunRain,
   CloudRain,
   CloudSnow,
+  CloudFog,
+  CircleDashed,
+  Flower2,
   Droplet,
   Droplets,
-  Leaf,
-  TreeDeciduous,
-  TreePine,
-  Sprout,
+  Wind,
   Home,
   Trees,
   Umbrella,
   ChevronRight,
   Sparkles,
+  type LucideIcon,
 } from "lucide-react";
-import LineIcon from "@/components/LineIcon";
-import WeatherNowCard from "@/components/WeatherNowCard";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
 import { useLocation } from "@/lib/useLocation";
 import { withSubjectSuffix } from "@/lib/korean";
+import {
+  hasRespiratory,
+  hasAllergy,
+  hasSkin,
+  ageInMonths,
+  canRecommendMask,
+} from "@/lib/domain/child-conditions";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
 import {
   judgeWeekendDay,
@@ -71,16 +76,6 @@ const weekIcon = (code: string, size = 24) => {
   }
 };
 
-/* ----------------------------- helpers ----------------------------- */
-
-// v3: 상태는 순백 카드 위 "상태색 텍스트"로만 — 틴트 배경·보더·브랜드 오렌지(accent) 금지
-const levelTone = (label: string) => {
-  if (["매우높음", "매우나쁨", "위험"].includes(label)) return "text-status-bad";
-  if (["높음", "나쁨"].includes(label)) return "text-status-warn";
-  if (label === "보통") return "text-status-neutral";
-  return "text-muted-foreground";
-};
-
 const uvLabel = (v: number) =>
   v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
 
@@ -94,13 +89,60 @@ const humidityLabel = (h: number) =>
 const o3Grade = (ppm: number | null): number | null =>
   ppm === null ? null : ppm <= 0.03 ? 1 : ppm <= 0.09 ? 2 : ppm <= 0.15 ? 3 : 4;
 
-/* ----------------------------- nav ----------------------------- */
+/* ---- 지표 리스트 행 (2026-07-21 IA 재구성) ----
+   등급이 주인공, 수치는 보조. 색·도트는 warn·bad에만 — "특이사항 없음 = 색 없음"(홈과 동일 원칙). */
 
+type RowTone = "warn" | "bad" | "neutral" | "muted" | "off";
+
+const labelToTone = (label: string): RowTone =>
+  ["매우높음", "매우나쁨", "위험"].includes(label)
+    ? "bad"
+    : ["높음", "나쁨", "강함", "건조", "매우습함"].includes(label)
+      ? "warn"
+      : ["보통", "다습"].includes(label)
+        ? "neutral"
+        : "muted";
+
+const gradeTextTone: Record<RowTone, string> = {
+  warn: "text-status-warn",
+  bad: "text-status-bad",
+  neutral: "text-status-neutral",
+  muted: "text-muted-foreground",
+  off: "text-faint",
+};
+
+const rowIconTone = (tone: RowTone) =>
+  tone === "warn"
+    ? "bg-status-warn-bg text-status-warn"
+    : tone === "bad"
+      ? "bg-status-bad-bg text-status-bad"
+      : tone === "off"
+        ? "bg-muted text-faint"
+        : "bg-muted text-muted-foreground";
+
+type EnvRow = {
+  key: string;
+  name: string;
+  sub?: string; // 이름 옆 보조 표기 (대기질 압축 행)
+  note?: string; // 행 하단 한 줄 — 체질 각주(warn 행) 또는 결측 안내
+  noteMuted?: boolean; // 결측 안내는 faint 톤
+  Icon: LucideIcon;
+  grade: string;
+  value?: string;
+  tone: RowTone;
+};
+
+/* ---- 야외활동 지수 히어로: 등급 → 상태색 (게이지 fill은 상태색만, 브랜드 오렌지 금지) ---- */
+const HERO_TONE: Record<string, { text: string; fill: string }> = {
+  좋음: { text: "text-status-good", fill: "bg-status-good" },
+  보통: { text: "text-status-neutral", fill: "bg-status-neutral" },
+  주의: { text: "text-status-warn", fill: "bg-status-warn" },
+  나쁨: { text: "text-status-bad", fill: "bg-status-bad" },
+};
 
 /* ----------------------------- page ----------------------------- */
 
 const Environment = () => {
-  const pathname = usePathname();
   // 초기값은 SSR 안전한 defaultProfiles로. useState 초기값·렌더 중 localStorage를 읽으면
   // 서버(기본 프로필)와 클라 첫 렌더(저장 프로필)가 어긋나 하이드레이션 불일치(React #418)가 난다.
   // 저장된 프로필·활성 아이는 마운트 후 effect에서 주입한다.
@@ -175,100 +217,141 @@ const Environment = () => {
     fetchAll();
   }, [fetchAll]);
 
-  /* 맞춤 인사이트 — 실측 환경값 + 아이 프로필 조건으로만 생성 (가정값 없음).
-     데이터가 없는 항목은 카드를 만들지 않는다(없는 값을 실제처럼 보이지 않게). */
-  const insights = useMemo(() => {
-    const list: { icon: ReactNode; title: string; body: string; tone: "warn" | "info" | "ok" }[] = [];
+  /* 지금 환경 지표 — 단일 카드 리스트 행. 실측만 표시하고 결측은 정직하되 압축한다.
+     체질 각주는 warn·bad 행에만 붙인다(경고+개인화가 동시에 성립할 때) — 판단은 홈 담당. */
+  const envRows = useMemo<EnvRow[]>(() => {
+    const rows: EnvRow[] = [];
     const conds = cur?.conditions ?? [];
-    const hasResp = conds.some((c) => c.includes("호흡기"));
-    const hasAllergy = conds.some((c) => c.includes("알레르기"));
-    const hasSkin = conds.some((c) => c.includes("피부"));
-    const sensitive = hasResp || hasAllergy;
+    const watchAir = hasRespiratory(conds) || hasAllergy(conds);
+    const watchSkin = hasSkin(conds);
+    const childName = cur?.name ?? "아이";
 
-    // 1) 미세먼지 — 실측 등급 있을 때만
-    if (air && (air.pm10Grade != null || air.pm25Grade != null)) {
-      const g = Math.max(air.pm10Grade ?? 0, air.pm25Grade ?? 0);
-      if (g >= 3) {
-        list.push({
-          icon: <LineIcon name="mask" size={20} strokeWidth={1.75} />,
-          title: `미세먼지 ${gradeToLabel(air.pm10Grade)} / 초미세 ${gradeToLabel(air.pm25Grade)}`,
-          body: sensitive
-            ? "호흡기·알레르기가 민감한 아이에겐 부담이 큰 수치예요. 장시간 야외활동은 피하고 KF94 마스크를 챙기세요."
-            : "장시간 야외활동은 피하고, 외출 시 마스크·귀가 후 손 씻기를 잊지 마세요.",
-          tone: "warn",
-        });
-      } else if (g >= 1) {
-        list.push({
-          icon: <Leaf size={20} strokeWidth={1.75} aria-hidden />,
-          title: `미세먼지 ${gradeToLabel(g)}`,
-          body: "야외 활동에 무리 없는 수치예요.",
-          tone: "ok",
-        });
-      }
+    // 대기질 3종 — 동시 결측이면 1행으로 압축, 개별 결측은 "--"
+    const airAllMissing =
+      !air || (air.pm10Grade == null && air.pm25Grade == null && air.o3 == null);
+    if (airAllMissing) {
+      rows.push({
+        key: "air",
+        name: "대기질",
+        sub: "미세·초미세·오존",
+        Icon: Cloud,
+        grade: "잠시 후",
+        tone: "off",
+        note: "측정소 응답 지연 — 잠시 후 자동 갱신돼요",
+        noteMuted: true,
+      });
+    } else {
+      const airRow = (
+        key: string,
+        name: string,
+        Icon: LucideIcon,
+        grade: number | null,
+        v: number | null,
+        unit: string
+      ): EnvRow => {
+        // 등급이 1~4 밖(null·0 등 결측 표기)이면 "알 수 없음" 대신 결측(--)으로 — 실측값이 있으면 수치만 보조 표기
+        if (grade == null || grade < 1 || grade > 4)
+          return { key, name, Icon, grade: "--", tone: "off", value: v != null ? `${v} ${unit}` : undefined };
+        const label = gradeToLabel(grade);
+        return {
+          key,
+          name,
+          Icon,
+          grade: label,
+          tone: labelToTone(label),
+          value: v != null ? `${v} ${unit}` : undefined,
+        };
+      };
+      rows.push(airRow("pm10", "미세먼지", Cloud, air.pm10Grade, air.pm10, "㎍/㎥"));
+      rows.push(airRow("pm25", "초미세먼지", CloudFog, air.pm25Grade, air.pm25, "㎍/㎥"));
+      rows.push(airRow("o3", "오존", CircleDashed, o3Grade(air.o3), air.o3, "ppm"));
     }
 
-    // 2) 꽃가루 — 실측 위험지수 반영 (프로필로 강도만 조절)
+    // 꽃가루 — 실패 / 제공 기간 외(참나무·소나무 4~6월, 잡초 8~10월) / 정상
     const pollenVals = pollen
       ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
       : [];
-    const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
-    if (pollenMax != null && pollenMax >= 2) {
-      list.push({
-        icon: <TreeDeciduous size={20} strokeWidth={1.75} aria-hidden />,
-        title: `꽃가루 ${pollenGradeLabel(pollenMax)}`,
-        body: sensitive
-          ? "호흡기·알레르기 민감 아이는 특히 주의하세요. KF94 마스크·모자, 귀가 후 옷 털기·세안·코 세척이 도움됩니다."
-          : "민감한 아이라면 외출 시 마스크·모자를 챙기고 귀가 후 세안·코 세척을 권장해요.",
-        tone: pollenMax >= 3 ? "warn" : "info",
+    if (!pollen) {
+      rows.push({ key: "pollen", name: "꽃가루", Icon: Flower2, grade: "불러오지 못했어요", tone: "off" });
+    } else if (pollenVals.length === 0) {
+      rows.push({
+        key: "pollen",
+        name: "꽃가루",
+        Icon: Flower2,
+        grade: "제공 기간 아님",
+        tone: "off",
+        value: "참나무·소나무 4~6월",
+      });
+    } else {
+      const max = Math.max(...pollenVals);
+      const label = pollenGradeLabel(max);
+      rows.push({
+        key: "pollen",
+        name: "꽃가루",
+        Icon: Flower2,
+        grade: label,
+        tone: labelToTone(label),
+        value: `지수 ${max}`,
       });
     }
 
-    // 3) 자외선 — 실측 지수 높음 이상일 때
-    if (uv?.uvi != null && uv.uvi >= 6) {
-      list.push({
-        icon: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
-        title: `자외선 ${uvLabel(uv.uvi)} (지수 ${uv.uvi})`,
-        body: hasSkin
-          ? "민감 피부에는 자외선 차단이 중요해요. 자외선차단제·모자·긴소매로 노출을 줄이세요."
-          : "정오~오후 2시 외출은 모자·자외선차단제로 노출을 줄여주세요.",
-        tone: "warn",
-      });
+    // 자외선
+    if (uv?.uvi != null) {
+      const label = uvLabel(uv.uvi);
+      rows.push({ key: "uv", name: "자외선", Icon: Sun, grade: label, tone: labelToTone(label), value: `지수 ${uv.uvi}` });
+    } else {
+      rows.push({ key: "uv", name: "자외선", Icon: Sun, grade: "--", tone: "off" });
     }
 
-    // 4) 습도 — 실측값 기준 건조/다습
+    // 습도
     if (weather?.humidity != null) {
-      const h = weather.humidity;
-      if (h <= 35) {
-        list.push({
-          icon: <LineIcon name="droplet" size={20} strokeWidth={1.75} />,
-          title: `습도 건조 (${h}%)`,
-          body: hasSkin
-            ? "민감 피부엔 자극이 큰 환경이에요. 보습제를 자주 덧바르고 실내 가습을 권장합니다."
-            : "수분 섭취를 늘리고 실내 가습으로 호흡기·피부 건조를 예방하세요.",
-          tone: "info",
-        });
-      } else if (h >= 75) {
-        list.push({
-          icon: <Droplets size={20} strokeWidth={1.75} aria-hidden />,
-          title: `습도 높음 (${h}%)`,
-          body: "땀·습기로 피부 트러블이 생기기 쉬워요. 통풍이 잘 되는 옷을 입히고 자주 환기해주세요.",
-          tone: "info",
-        });
-      }
-    }
-
-    // 5) 바람 — 실측 풍속
-    if (weather?.windSpeed != null && weather.windSpeed >= 5) {
-      list.push({
-        icon: <LineIcon name="scarf" size={20} strokeWidth={1.75} />,
-        title: `바람 ${weather.windSpeed}m/s`,
-        body: "체감온도가 낮아질 수 있어요. 얇은 바람막이나 목수건을 챙기면 좋아요.",
-        tone: "info",
+      const label = humidityLabel(weather.humidity);
+      rows.push({
+        key: "humidity",
+        name: "습도",
+        Icon: Droplets,
+        grade: label,
+        tone: labelToTone(label),
+        value: `${weather.humidity}%`,
       });
+    } else {
+      rows.push({ key: "humidity", name: "습도", Icon: Droplets, grade: "--", tone: "off" });
     }
 
-    return list;
-  }, [cur, air, weather, uv, pollen]);
+    // 바람 — 홈 타임라인과 동일 매핑 (≥9 강함 / ≥4 보통 / 약함)
+    if (weather?.windSpeed != null) {
+      const ws = weather.windSpeed;
+      const label = ws >= 9 ? "강함" : ws >= 4 ? "보통" : "약함";
+      rows.push({ key: "wind", name: "바람", Icon: Wind, grade: label, tone: labelToTone(label), value: `${ws} m/s` });
+    } else {
+      rows.push({ key: "wind", name: "바람", Icon: Wind, grade: "--", tone: "off" });
+    }
+
+    // 체질 각주 — 마스크는 연령 안전 규칙(canRecommendMask, 만 2세 미만 금지)을 공유한다
+    const isAlert = (r?: EnvRow) => !!r && (r.tone === "warn" || r.tone === "bad");
+    if (watchAir) {
+      const maskOk = canRecommendMask(ageInMonths(cur?.age, cur?.birth));
+      const maskNote = maskOk
+        ? `호흡기가 민감한 ${childName}에겐 KF94 마스크가 필요해요`
+        : `만 2세 미만 ${childName}에겐 마스크 대신 외출 줄이기가 안전해요`;
+      const target = ["pm25", "pm10", "pollen"]
+        .map((k) => rows.find((r) => r.key === k))
+        .find(isAlert);
+      if (target) target.note = maskNote;
+    }
+    if (watchSkin) {
+      const uvRow = rows.find((r) => r.key === "uv");
+      if (isAlert(uvRow)) uvRow!.note = `피부가 민감한 ${childName}에겐 선크림·모자가 좋아요`;
+      const humRow = rows.find((r) => r.key === "humidity");
+      if (isAlert(humRow) && humRow!.grade === "건조")
+        humRow!.note = `피부가 민감한 ${childName}에겐 보습제를 자주 발라주세요`;
+    }
+
+    return rows;
+  }, [air, pollen, uv, weather, cur]);
+
+  // 전 지표 결측 — 카드 대신 정직한 안내 1장
+  const envAllMissing = !weather && !air && !uv && !pollen;
 
   /* 주간 날씨 온도 바 스케일 — 그 주의 실제 최저~최고 범위로 정규화 */
   const weekTempRange = useMemo(() => {
@@ -318,7 +401,8 @@ const Environment = () => {
     toast("의견 고마워요! 더 좋은 주말 추천을 준비할게요");
   };
 
-  /* 오늘의 야외활동 지수 — 환경 수치 종합 (데이터 로딩 전엔 null) */
+  /* 오늘의 야외활동 지수 — 환경 수치 종합 (데이터 로딩 전엔 null).
+     이 화면의 유일한 판단(히어로). 상세 판단·준비물은 홈 담당. */
   const outdoor = useMemo(() => {
     if (!weather && !air && !uv && !pollen) return null;
     const pollenMax = pollen
@@ -334,6 +418,8 @@ const Environment = () => {
       windSpeed: weather?.windSpeed ?? null,
     });
   }, [weather, air, uv, pollen]);
+
+  const heroTone = outdoor ? HERO_TONE[outdoor.label] ?? HERO_TONE["보통"] : HERO_TONE["보통"];
 
   const [refreshing, setRefreshing] = useState(false);
   const refresh = async () => {
@@ -368,16 +454,17 @@ const Environment = () => {
         />
 
         <main className="container-mobile pt-5">
-          {/* Personalized insights */}
+          {/* 타이틀 + 위치 */}
           <section>
             <div className="flex items-start justify-between gap-2">
               <h1 className="text-[20px] font-bold tracking-tight">
                 {cur ? `${withSubjectSuffix(cur.name)} 위한 맞춤 환경 정보` : "맞춤 환경 정보"}
               </h1>
-              {/* Location — 홈과 동일한 전역 위치(useLocation). 탭하면 실위치 기반으로 기준지 변경. */}
+              {/* Location — 홈과 동일한 전역 위치(useLocation). 탭하면 실위치 기반으로 기준지 변경.
+                  min-h-11: 44px 터치 타겟 (2026-07-19 감사 C-9) */}
               <button
                 onClick={requestLocation}
-                className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                className="flex min-h-11 shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
               >
                 <MapPin className="h-3.5 w-3.5" />
                 <span>{locating ? "위치 확인 중…" : `서울 ${location.gu}`}</span>
@@ -391,213 +478,114 @@ const Environment = () => {
             </p>
           </section>
 
-          {/* 지금 날씨 카드 — outfit 화면과 동일한 공용 WeatherNowCard.
-             오른쪽 메시지는 env 실데이터인 야외활동 지수로 채운다. */}
+          {/* ① 야외활동 지수 — 히어로 (화면의 유일한 판단).
+             등급(display 26)이 주인공, 점수는 보조. 게이지 fill은 상태색만 (C-3). */}
           {loading ? (
-            <Skeleton className="mt-4 h-36 w-full rounded-2xl" />
-          ) : (
-            <div className="mt-4 animate-fade-up">
-              <WeatherNowCard
-                temp={weather?.temperature ?? null}
-                feelsLike={weather?.feelsLike}
-                sky={weather?.sky}
-                pty={weather?.pty}
-                windSpeed={weather?.windSpeed}
-                humidity={weather?.humidity}
-                pop={weather?.pop}
-              />
-            </div>
-          )}
-
-          {/* Outdoor activity index */}
-          {loading ? (
-            <Skeleton className="mt-4 h-28 w-full rounded-2xl" />
+            <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
           ) : outdoor ? (
-            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
-              <p className="text-xs font-medium text-accent">오늘의 야외활동 지수</p>
-              <div className="mt-1 flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-foreground">{outdoor.score}</span>
-                <span className="text-sm text-muted-foreground">/ 100 · {outdoor.label}</span>
+            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
+              <p className="eyebrow">오늘의 야외활동 지수</p>
+              <div className="mt-2 flex items-baseline gap-2.5">
+                <span
+                  className={`text-[26px] font-extrabold leading-none tracking-[-0.02em] ${heroTone.text}`}
+                >
+                  {outdoor.label}
+                </span>
+                <span className="num text-[15px] text-muted-foreground">{outdoor.score} / 100</span>
               </div>
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted">
+              <div
+                className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted"
+                role="meter"
+                aria-label={`야외활동 지수 ${outdoor.score}점, ${outdoor.label}`}
+                aria-valuenow={outdoor.score}
+                aria-valuemin={0}
+                aria-valuemax={100}
+              >
                 <div
-                  className={`h-full rounded-full ${
-                    outdoor.label === "좋음"
-                      ? "bg-status-good"
-                      : outdoor.label === "보통"
-                        ? "bg-primary"
-                        : "bg-status-warn"
-                  }`}
+                  className={`h-full rounded-full ${heroTone.fill}`}
                   style={{ width: `${outdoor.score}%` }}
                 />
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-foreground">
+              <p className="mt-3 text-sm leading-relaxed text-foreground break-keep">
                 {outdoor.comment}
               </p>
-              {outdoor.basis.length > 0 && (
-                <p className="mt-2 border-t border-border pt-2 text-xs leading-relaxed text-muted-foreground">
-                  아이데이 종합 지표(공인 지수 아님) · {outdoor.basis.join(" · ")} 기준
-                </p>
-              )}
+              <p className="mt-3 border-t border-border pt-2.5 text-xs leading-relaxed text-muted-foreground">
+                아이데이 종합 지표(공인 지수 아님)
+                {outdoor.basis.length > 0 ? ` · ${outdoor.basis.join(" · ")} 기준` : ""}
+              </p>
             </section>
           ) : null}
 
-          {/* 맞춤 인사이트 — 프로필(체질) 반영 요약 */}
-          {loading ? (
-            <div className="mt-6 space-y-2.5">
-              <Skeleton className="h-20 w-full rounded-2xl" />
-              <Skeleton className="h-20 w-full rounded-2xl" />
-            </div>
-          ) : insights.length > 0 ? (
-            <div className="mt-6 space-y-2.5">
-              {insights.map((it, i) => (
-                <article
-                  key={i}
-                  className="flex items-start gap-3 rounded-2xl bg-card p-4 shadow-soft"
-                >
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
-                      it.tone === "warn"
-                        ? "bg-status-warn-bg text-status-warn"
-                        : it.tone === "info"
-                          ? "bg-status-info-bg text-status-info"
-                          : "bg-primary-tint text-accent"
-                    }`}
-                  >
-                    {it.icon}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-foreground">{it.title}</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{it.body}</p>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div className="mt-6 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-              지금은 특별히 주의할 환경 요인이 없어요
-              <p className="mt-1 text-xs">쾌적한 하루예요</p>
-            </div>
-          )}
-
-          {/* Air quality */}
-          <section className="mt-7">
-            <h2 className="text-[17px] font-bold tracking-tight">대기질 · 미세먼지</h2>
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[
-                { k: "PM10", v: air?.pm10 ?? "--", label: gradeToLabel(air?.pm10Grade ?? null), unit: "㎍/㎥" },
-                { k: "PM2.5", v: air?.pm25 ?? "--", label: gradeToLabel(air?.pm25Grade ?? null), unit: "㎍/㎥" },
-                { k: "오존", v: air?.o3 != null ? air.o3 : "--", label: gradeToLabel(o3Grade(air?.o3 ?? null)), unit: "ppm" },
-              ].map((d) => (
-                <div
-                  key={d.k}
-                  className="rounded-2xl bg-card p-3 text-center shadow-soft"
-                >
-                  <p className="text-xs font-medium text-muted-foreground">{d.k}</p>
-                  <p className="num mt-1 text-xl font-bold text-foreground">{d.v}</p>
-                  <p className="text-xs text-faint">{d.unit}</p>
-                  <p className={`mt-1 text-xs font-bold ${levelTone(d.label)}`}>{d.label}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Pollen */}
-          <section className="mt-7">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[17px] font-bold tracking-tight">꽃가루 지수</h2>
-              <a
-                href="https://www.weather.go.kr/w/forecast/life/life-weather-index.do?tabIndex=4"
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-medium text-accent"
-              >
-                기상청 출처
-              </a>
-            </div>
+          {/* ② 지금 환경 지표 — 단일 카드 리스트 행. 등급 우선, 수치는 보조(faint). */}
+          <section className="mt-8">
+            <h2 className="text-[17px] font-bold tracking-tight">지금 환경 지표</h2>
             {loading ? (
-              <Skeleton className="mt-3 h-20 w-full rounded-2xl" />
-            ) : pollen && (pollen.oak !== null || pollen.pine !== null || pollen.weed !== null) ? (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                {[
-                  { k: "참나무", v: pollen.oak, Icon: TreeDeciduous },
-                  { k: "소나무", v: pollen.pine, Icon: TreePine },
-                  { k: "잡초", v: pollen.weed, Icon: Sprout },
-                ].map((d) => {
-                  const label = pollenGradeLabel(d.v);
-                  return (
-                    <div
-                      key={d.k}
-                      className="rounded-2xl bg-card p-3 text-center shadow-soft"
-                    >
-                      <d.Icon className="mx-auto h-5 w-5 text-muted-foreground" strokeWidth={1.75} aria-hidden />
-                      <p className="mt-1 text-xs font-medium text-muted-foreground">{d.k}</p>
-                      <p className={`mt-1 text-sm font-bold ${levelTone(label)}`}>{label}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : pollen ? (
-              // 모든 종이 null = 200 응답이지만 제공 기간이 아님 (참나무·소나무 4~6월, 잡초 8~10월)
+              <Skeleton className="mt-3 h-96 w-full rounded-2xl" />
+            ) : envAllMissing ? (
               <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                지금은 꽃가루 예보 제공 기간이 아니에요
-                <p className="mt-1 text-xs">참나무·소나무는 4~6월, 잡초는 8~10월에 제공돼요</p>
+                환경 데이터를 불러오지 못했어요
+                <p className="mt-1 text-xs">네트워크 확인 후 잠시 뒤 다시 시도해주세요</p>
               </div>
             ) : (
-              <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center text-sm text-muted-foreground">
-                꽃가루 데이터를 불러오지 못했어요
-                <p className="mt-1 text-xs">잠시 후 다시 시도해주세요</p>
-              </div>
+              <>
+                <ul className="mt-3 divide-y divide-border rounded-2xl bg-card px-4 shadow-soft">
+                  {envRows.map((r) => (
+                    <li key={r.key} className="flex min-h-14 items-center gap-3 py-3">
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${rowIconTone(r.tone)}`}
+                      >
+                        <r.Icon size={19} strokeWidth={1.75} aria-hidden />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`text-[16px] font-medium ${
+                            r.tone === "off" ? "text-muted-foreground" : "text-foreground"
+                          }`}
+                        >
+                          {r.name}
+                          {r.sub && (
+                            <span className="ml-1.5 text-[13px] font-normal text-faint">{r.sub}</span>
+                          )}
+                        </p>
+                        {r.note && (
+                          <p
+                            className={`mt-0.5 text-[13px] leading-snug break-keep ${
+                              r.noteMuted ? "text-faint" : "text-muted-foreground"
+                            }`}
+                          >
+                            {r.note}
+                          </p>
+                        )}
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <p
+                          className={`flex items-center justify-end gap-1.5 text-sm font-semibold ${gradeTextTone[r.tone]}`}
+                        >
+                          {(r.tone === "warn" || r.tone === "bad") && (
+                            <span
+                              className="h-[5px] w-[5px] shrink-0 rounded-full bg-current"
+                              aria-hidden="true"
+                            />
+                          )}
+                          {r.grade}
+                        </p>
+                        {r.value && (
+                          <p className="num mt-0.5 text-[13px] text-faint">{r.value}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-2 px-1 text-xs text-muted-foreground/80">
+                  기상청 · 에어코리아 실측
+                  {air?.stationName ? ` — ${air.stationName} 측정소 기준` : ""}
+                </p>
+              </>
             )}
           </section>
 
-          {/* UV + Humidity */}
-          <section className="mt-7 grid grid-cols-2 gap-3">
-            <div className="rounded-2xl bg-card p-4 shadow-soft">
-              <p className="text-xs font-medium text-muted-foreground">자외선 지수</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">
-                {uv?.uvi != null ? uv.uvi : "--"}
-              </p>
-              <p className={`text-xs font-bold ${uv?.uvi != null ? levelTone(uvLabel(uv.uvi)) : "text-muted-foreground"}`}>
-                {uv?.uvi != null ? uvLabel(uv.uvi) : (loading ? "로딩 중" : "데이터 없음")}
-              </p>
-              <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                <div
-                  className={`h-full rounded-full ${
-                    uv?.uvi == null
-                      ? "bg-primary"
-                      : uv.uvi >= 6
-                        ? "bg-status-warn"
-                        : uv.uvi >= 3
-                          ? "bg-primary"
-                          : "bg-status-good"
-                  }`}
-                  style={{ width: uv?.uvi != null ? `${Math.min(uv.uvi / 11 * 100, 100)}%` : "0%" }}
-                />
-              </div>
-            </div>
-            <div className="rounded-2xl bg-card p-4 shadow-soft">
-              <p className="text-xs font-medium text-muted-foreground">온·습도</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">
-                {weather?.humidity != null ? `${weather.humidity}%` : "--"}
-              </p>
-              <p
-                className={`text-xs font-bold ${
-                  (weather?.humidity ?? 50) <= 30 || (weather?.humidity ?? 50) >= 75
-                    ? "text-status-warn"
-                    : "text-status-neutral"
-                }`}
-              >
-                {weather?.humidity != null ? humidityLabel(weather.humidity) : "로딩 중"}
-              </p>
-              <p className="mt-2 text-xs text-muted-foreground">
-                실내 권장 40~60%
-              </p>
-            </div>
-          </section>
-
-          {/* Weekly */}
-          <section className="mt-7">
+          {/* ③ 주간 날씨 */}
+          <section className="mt-8">
             <div className="flex items-baseline justify-between">
               <h2 className="text-[17px] font-bold tracking-tight">주간 날씨</h2>
             </div>
@@ -668,10 +656,10 @@ const Environment = () => {
             )}
           </section>
 
-          {/* 이번 주말 나들이 — 주간날씨 하단. 날씨로 실내/실외 판단 + 서울 큐레이션 장소.
+          {/* ④ 이번 주말 나들이 — 주간날씨 하단. 날씨로 실내/실외 판단 + 서울 큐레이션 장소.
              장소 "검색"이 아니라 판단 지원(코어)의 연장. 실사용 수요는 하단 프로브로 검증. */}
           {!loading && weekendPlan && weekendPlan.length > 0 && (
-            <section className="mt-7">
+            <section className="mt-8">
               <h2 className="text-[17px] font-bold tracking-tight">이번 주말 나들이</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 주말 날씨로 실내·실외를 판단하고, 그 조건에 맞는 서울 나들이 장소를 추천해요
@@ -735,7 +723,8 @@ const Environment = () => {
                 })}
               </div>
 
-              {/* 인앱 수요 프로브 — 클릭은 이벤트만 기록, 가짜 기능 없음 */}
+              {/* 인앱 수요 프로브 — 클릭은 이벤트만 기록, 가짜 기능 없음.
+                 버튼은 primary-tint+accent (R-2: 17px bold 미만 흰 텍스트 금지 규칙 준수) */}
               <div className="mt-3 rounded-2xl bg-card p-4 shadow-soft text-center">
                 {outingProbed ? (
                   <p className="text-xs leading-relaxed text-muted-foreground">
@@ -751,7 +740,7 @@ const Environment = () => {
                     </p>
                     <button
                       onClick={sendOutingProbe}
-                      className="mt-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+                      className="mt-3 inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-primary-tint px-4 text-[13px] font-semibold text-accent"
                     >
                       <Sparkles className="h-4 w-4" strokeWidth={1.75} aria-hidden />
                       더 보고 싶어요
