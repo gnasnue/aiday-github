@@ -8,6 +8,7 @@ export type OutdoorIndexInput = {
   uvi?: number | null;
   pollenMax?: number | null; // 참나무·소나무·잡초 중 최고 등급(1~4)
   pop?: number | null; // 강수확률(%)
+  humidity?: number | null; // 상대습도(%)
   temp?: number | null; // 기온(°C)
   windSpeed?: number | null; // 풍속(m/s)
 };
@@ -66,19 +67,59 @@ export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResul
     else if (pollen >= 2) push(5, "꽃가루가 다소 있어요");
   }
 
-  // 강수확률
+  // 강수확률 — 앱 전체가 ≥60%를 확정 강수(우산·실내권장) 경계로, 40~59%를
+  // 예비 신호로 쓴다(prep·outfit·home·report·weekend와 동일). 지수 버킷도 같은
+  // 60/40 경계에 맞춰, 60%가 단독으로 "좋음"에 남지 않도록 감점을 키운다.
   const pop = input.pop ?? null;
   if (pop != null) {
-    if (pop >= 70) push(30, "비 올 확률이 높아요");
-    else if (pop >= 50) push(20, "비 소식이 있어요");
-    else if (pop >= 30) push(8, "강수확률이 다소 있어요");
+    if (pop >= 70) push(38, "비 올 확률이 높아요");
+    else if (pop >= 60) push(30, "비 올 확률이 높아요");
+    else if (pop >= 40) push(12, "비 소식이 있어요");
   }
 
-  // 기온 극값
+  // 기온·습도 — 더위는 습도와 결합해 체감·땀띠 위험이 커지므로 불쾌지수(DI)로
+  // 판정하고, 추위는 기온 단독으로 본다. 아이 기준으로는 26°C·90% 같은 고온다습도
+  // "무리 없음"이 아니다.
   const temp = input.temp ?? null;
-  if (temp != null) {
-    if (temp <= 0 || temp >= 33) push(20, temp >= 33 ? "무더위가 심해요" : "매우 추워요");
-    else if (temp <= 5 || temp >= 31) push(10, temp >= 31 ? "더운 편이에요" : "추운 편이에요");
+  const humidity = input.humidity ?? null;
+
+  // 기상청 불쾌지수: DI = 0.81T + 0.01·RH·(0.99T − 14.3) + 46.3
+  // (75~80 = 다수 불쾌, 80↑ = 전원 불쾌). 기온만으로는 안 잡히는 여름 고온다습을 잡는다.
+  const di =
+    temp != null && humidity != null && temp >= 24
+      ? 0.81 * temp + 0.01 * humidity * (0.99 * temp - 14.3) + 46.3
+      : null;
+
+  // 더위: 기온 단독 감점과 불쾌지수 감점 중 큰 값만 적용해 중복 감점을 막는다.
+  let heatPenalty = 0;
+  let heatText = "";
+  if (temp != null && temp >= 33) {
+    heatPenalty = 22; // 극단값은 감점만으로 80 밑으로 내려 점수·라벨 괴리를 막는다
+    heatText = "무더위가 심해요";
+  } else if (temp != null && temp >= 31) {
+    heatPenalty = 10;
+    heatText = "더운 편이에요";
+  }
+  if (di != null) {
+    // 감점만으로 점수가 80 밑으로 내려가게 한다(env가 점수·막대를 같이 노출하므로
+    // 점수는 높은데 라벨만 '보통'인 괴리를 피한다). DI≥76 임계는 env의 습도 '매우습함'
+    // (>75%) 표기 경계와도 대략 맞물린다.
+    const diPenalty = di >= 80 ? 28 : di >= 76 ? 21 : 0;
+    if (diPenalty > heatPenalty) {
+      heatPenalty = diPenalty;
+      heatText = di >= 80 ? "무덥고 습해요" : "다소 무덥고 습해요";
+    }
+  }
+  push(heatPenalty, heatText);
+
+  // 추위: 기온 단독 (극단값은 감점만으로 80 밑으로)
+  if (temp != null && temp <= 0) push(22, "매우 추워요");
+  else if (temp != null && temp <= 5) push(10, "추운 편이에요");
+
+  // 습도 단독 — 기온이 있으면 위 불쾌지수가 담당하므로, 기온 미상일 때의 fallback만.
+  if (temp == null && humidity != null) {
+    if (humidity >= 90) push(10, "공기가 매우 습해요");
+    else if (humidity >= 80) push(5, "다소 습한 편이에요");
   }
 
   // 바람
@@ -89,7 +130,20 @@ export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResul
   }
 
   score = Math.max(0, Math.min(100, Math.round(score)));
-  const label = labelOf(score);
+
+  // 결정적 저해 신호가 있으면 점수와 무관하게 "좋음" 라벨을 막는다. 앱의 다른
+  // 화면이 warn/주의로 표시하는 상황에서 히어로 판단만 "좋음"이라 말하는 모순을
+  // 산식 가중치와 독립적으로 차단한다.
+  //  - 확정 강수 ≥60% · 대기 매우나쁨 · 고온다습 불쾌지수 ≥76
+  //  - 극단 기온(≤0°C·≥33°C): "매우 추워요/무더위"가 감점 -20으로 80점에 안착해
+  //    "좋음 + 무리 없어요"로 자기모순되던 케이스 차단
+  const decisiveDeterrent =
+    (pop != null && pop >= 60) ||
+    airGrade >= 4 ||
+    (di != null && di >= 76) ||
+    (temp != null && (temp <= 0 || temp >= 33));
+  let label = labelOf(score);
+  if (decisiveDeterrent && label === "좋음") label = "보통";
 
   // 코멘트: 가장 큰 감점 요인 최대 2개 + 상태별 마무리 문구
   reasons.sort((a, b) => b.penalty - a.penalty);
@@ -112,6 +166,7 @@ export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResul
   if (uvi != null) basis.push(`자외선 ${uviLabelValue(uvi)}`);
   if (pollen != null) basis.push(`꽃가루 ${pollenBandLabel(pollen)}`);
   if (pop != null) basis.push(`강수확률 ${pop}%`);
+  if (humidity != null && humidity >= 80) basis.push(`습도 ${Math.round(humidity)}%`);
   if (temp != null) basis.push(`기온 ${Math.round(temp)}°C`);
   if (wind != null && wind >= 5) basis.push(`바람 ${wind}m/s`);
 

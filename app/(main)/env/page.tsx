@@ -323,6 +323,7 @@ const Environment = () => {
       uvi: uv?.uvi ?? null,
       pollenMax,
       pop: weather?.pop ?? null,
+      humidity: weather?.humidity ?? null,
       temp: weather?.temperature ?? null,
       windSpeed: weather?.windSpeed ?? null,
     });
