@@ -15,8 +15,8 @@ const items = (time: string, cats: Record<string, string>, date = DATE): FcstIte
     fcstTime: time,
   }));
 
-const full = (time: string, over: Record<string, string> = {}) =>
-  items(time, { TMP: "24", SKY: "1", PTY: "0", REH: "50", WSD: "2", POP: "10", ...over });
+const full = (time: string, over: Record<string, string> = {}, date = DATE) =>
+  items(time, { TMP: "24", SKY: "1", PTY: "0", REH: "50", WSD: "2", POP: "10", ...over }, date);
 
 describe("kmaNum", () => {
   it("범위 안의 값만 통과시킨다", () => {
@@ -89,5 +89,34 @@ describe("buildHourlyForecast", () => {
   it("다른 날짜 항목은 섞이지 않는다", () => {
     const src = full("0600", {}).map((it) => ({ ...it, fcstDate: "20260723" }));
     expect(buildHourlyForecast(src, [], DATE)).toEqual([]);
+  });
+
+  // 단기예보 발표본은 +3일치를 담고 있어, 같은 items에서 날짜만 바꿔 내일분을 뽑는다
+  // (홈 "오늘|내일" 세그먼트 — buildTomorrowTimeline 입력).
+  it("같은 발표본에서 날짜별로 오늘·내일을 분리해 뽑는다", () => {
+    const TOMORROW = "20260723";
+    const src = [
+      ...full("0900", { TMP: "26" }),
+      ...full("0900", { TMP: "31", POP: "80" }, TOMORROW),
+    ];
+    const today = buildHourlyForecast(src, [], DATE);
+    const tomorrow = buildHourlyForecast(src, [], TOMORROW);
+    expect(today).toHaveLength(1);
+    expect(today[0].temp).toBe(26);
+    expect(today[0].pop).toBe(10);
+    expect(tomorrow).toHaveLength(1);
+    expect(tomorrow[0].temp).toBe(31);
+    expect(tomorrow[0].pop).toBe(80);
+  });
+
+  it("내일분 센티널도 오늘과 동일하게 걸러진다", () => {
+    const TOMORROW = "20260723";
+    const src = [
+      ...full("0600", { TMP: "-999" }, TOMORROW),
+      ...full("0900", { REH: "-999" }, TOMORROW),
+    ];
+    const out = buildHourlyForecast(src, [], TOMORROW);
+    expect(out.map((s) => s.hour)).toEqual(["09:00"]);
+    expect(out[0].humidity).toBeNull();
   });
 });

@@ -243,6 +243,15 @@ export async function GET(request: NextRequest) {
     // 그대로 나가면 홈 시간대 카드·리포트 프롬프트에 "-999°C"가 실린다.
     const hourlyForecast = buildHourlyForecast(items, fillItems, todayStr);
 
+    // 내일 미리보기(홈 "오늘|내일" 세그먼트, buildTomorrowTimeline)용.
+    // 단기예보 발표본은 +3일치를 담고 있어 이미 받아 온 응답에서 그대로 뽑는다 — 추가 호출 없음.
+    const tomorrow = new Date(kst.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr =
+      String(tomorrow.getUTCFullYear()) +
+      String(tomorrow.getUTCMonth() + 1).padStart(2, "0") +
+      String(tomorrow.getUTCDate()).padStart(2, "0");
+    const hourlyForecastTomorrow = buildHourlyForecast(items, fillItems, tomorrowStr);
+
     // SKY: 1=맑음, 3=구름많음, 4=흐림
     // PTY: 0=없음, 1=비, 2=비/눈, 3=눈, 4=소나기
     // 현재 스칼라: 실황(T1H·REH·WSD·PTY) 우선, 없으면 예보 최근접값.
@@ -277,6 +286,7 @@ export async function GET(request: NextRequest) {
         ? `${obsBase.base_date} ${obsBase.base_time}`
         : `${base_date} ${base_time}`,
       hourlyForecast,
+      hourlyForecastTomorrow,
     });
   } catch (err) {
     console.error("[weather API]", err);

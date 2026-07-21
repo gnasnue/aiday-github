@@ -130,14 +130,24 @@ export async function GET(request: NextRequest) {
       Number(todayStr.slice(6, 8)),
       0
     );
+    const SLOT_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
     const hourly: Record<string, number | null> = {};
-    for (const h of [0, 3, 6, 9, 12, 15, 18, 21]) {
+    for (const h of SLOT_HOURS) {
       hourly[String(h)] = uviAt(todayMidnightMs + h * 60 * 60 * 1000);
+    }
+
+    // 내일 미리보기(홈 "오늘|내일" 세그먼트)용 — 오프셋 필드가 h75(약 3일치)까지라
+    // 같은 발표본에서 내일분이 그대로 나온다. 추가 호출 없음.
+    const tomorrowMidnightMs = todayMidnightMs + 24 * 60 * 60 * 1000;
+    const hourlyTomorrow: Record<string, number | null> = {};
+    for (const h of SLOT_HOURS) {
+      hourlyTomorrow[String(h)] = uviAt(tomorrowMidnightMs + h * 60 * 60 * 1000);
     }
 
     return NextResponse.json({
       uvi: uvValue,
       hourly,
+      hourlyTomorrow,
       region,
       date: announcedDateStr || todayStr,
     });
