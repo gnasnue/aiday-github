@@ -33,6 +33,7 @@ lib 도메인 로직은 vitest 유닛 테스트(`npm test`)로, 화면 동작은
 - **DESIGN.md** — 디자인 시스템. 아래 Design System 섹션 참조.
 - **docs/PRODUCT-DECISIONS.md** — 성공 지표·출시 기준·확정된 제품 결정. 출시 범위나 보류 항목 판단 시 참조.
 - **docs/perf-home-latency.md** — 홈 지연 계측(`?perf=1`) 사용법·로그 읽는 법·2026-07 조사 요약. 홈 로딩 성능 진단 시 참조.
+- **docs/01-plan/features/web-push-notifications.plan.md** — 웹 푸시 알림(매일 아침 케어 리포트) 구현 계획안. iOS 16.4+ PWA 제약·아키텍처·마일스톤 정리. **미착수** — 구현 전 `/plan-eng-review`로 아키텍처 검증 권장.
 - **CHANGELOG.md / VERSION** — 아래 Conventions 참조.
 
 ## Conventions
