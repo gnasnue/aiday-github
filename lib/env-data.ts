@@ -15,7 +15,7 @@
  * `missing`에 남는다. 소비처는 `missing`을 보고 "모르는 건 말하지 않는" 판단을 할 수 있다.
  */
 
-import type { AppLocation } from "@/lib/location";
+import type { AppLocation } from "./location";
 
 /* ----------------------------- 신호·페이로드 타입 ----------------------------- */
 
@@ -173,7 +173,10 @@ const sanitizeAir = (raw: RawJson): EnvAir | null => {
 
 const sanitizePollen = (raw: RawJson): EnvPollen | null => {
   if (!raw) return null;
-  // 꽃가루 위험지수는 0~4 (0=없음 ~ 4=매우높음)
+  // 꽃가루 위험지수 범위. 기상청 공식 안내는 "낮음/보통/높음/매우높음 4단계"라고만 밝히고
+  // 숫자 매핑을 공개하지 않는다(권위 있는 값은 조회서비스 3.0 명세 문서 안). 2차 출처는
+  // 0~3이라 하는데, 확정 전까지는 넉넉한 0~4로 두어 유효값을 잘못 버리지 않게 한다 —
+  // 상한이 실제로 3이면 lib/timeline의 pollenLabel과 함께 바로잡아야 한다(별도 조사 중).
   return {
     oak: num(raw.oak, 0, 4),
     pine: num(raw.pine, 0, 4),

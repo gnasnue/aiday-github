@@ -38,6 +38,7 @@ import {
   canRecommendMask,
 } from "@/lib/domain/child-conditions";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
+import { humidityLabel } from "@/lib/timeline";
 import {
   fetchEnvData,
   envRegion,
@@ -90,9 +91,6 @@ const uvLabel = (v: number) =>
 
 const pollenGradeLabel = (g: number | null) =>
   g === null ? "--" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
-
-const humidityLabel = (h: number) =>
-  h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
 
 // 환경부 오존 1시간 기준 등급 (ppm): ≤0.03 좋음 / ≤0.09 보통 / ≤0.15 나쁨 / 초과 매우나쁨
 const o3Grade = (ppm: number | null): number | null =>

@@ -89,8 +89,15 @@ export const dustLabel = (g: number | null): DustLevel =>
 export const pollenLabel = (g: number | null): PollenLevel =>
   g == null ? "낮음" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
 
-// 자외선지수(UVI) → 라벨 (홈 카드 표시 계층 4단계)
-const uvLevel = (v: number | null): UvLevel =>
+// 습도(%) → 라벨. 환경정보 화면에서 옮겨 왔다 — 건조 판정이 화면마다 달랐던 탓에
+// (env 30 / 준비물 45 / 건강팁 40) 같은 습도에 한 화면은 "쾌적", 다른 화면은 "건조"라
+// 말할 수 있었다. 표시 계층의 단일 기준은 여기다.
+export const humidityLabel = (h: number) =>
+  h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
+
+// 자외선지수(UVI) → 라벨 (홈 카드·건강팁 공용 표시 계층 4단계).
+// 기상청 자외선지수 단계와 정렬: 낮음<3 / 보통 3~5 / 높음(강함) 6~7 / 매우높음 8+
+export const uvLabel = (v: number | null): UvLevel =>
   v == null ? "낮음" : v >= 8 ? "매우강함" : v >= 6 ? "강함" : v >= 3 ? "보통" : "낮음";
 
 // 풍속(m/s) → 라벨 (홈 환경 매핑과 동일 임계값)
@@ -210,7 +217,7 @@ export function buildTimeline(
       temp: Math.round(w.temp),
       feels: feelsLikeC(w.temp, w.humidity, wind),
       dust: dustLabel(dustAt(env.air?.hourly, th, dustG)),
-      uv: uvLevel(nearestUv(env.uv?.hourly, th) ?? env.uv?.uvi ?? null),
+      uv: uvLabel(nearestUv(env.uv?.hourly, th) ?? env.uv?.uvi ?? null),
       pollen: pollenLabel(pollenG),
       humidity: w.humidity ?? 0,
       wind: windLevel(wind),
