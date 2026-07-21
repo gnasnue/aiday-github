@@ -680,16 +680,16 @@ Today's OOTD
 
 | 라우트 | 메서드 | 파라미터 (기본값) | 응답 필드 | 캐시 |
 |--------|--------|------------------|-----------|------|
-| `/api/weather` | GET | `lat`(37.5665), `lon`(126.9780) | `temperature, feelsLike, sky, pty, humidity, windSpeed, pop, hourlyForecast[]`(06~21시 3시간 간격 6슬롯: `hour, temp, sky, pty, humidity, windSpeed, pop`) | 30분 |
+| `/api/weather` | GET | `lat`(37.5665), `lon`(126.9780) | `temperature, feelsLike, sky, pty, humidity, windSpeed, pop, hourlyForecast[]`(06~21시 3시간 간격 6슬롯: `hour, temp, sky, pty, humidity, windSpeed, pop`), `hourlyForecastTomorrow[]`(내일분, 같은 발표본에서 추출 — 홈 "내일" 세그먼트용) | 30분 |
 | `/api/air` | GET | `station`(종로구) | `pm10, pm25, pm10Grade, pm25Grade, khai, khaiGrade, o3, no2, stationName, dataTime` (등급: 1좋음~4매우나쁨) | 1시간 |
 | `/api/pollen` | GET | `region`(서울, 시/도명) | `oak, pine, weed, region, date` — ⚠️ `weed`는 **항상 null** (기상청 V3에 잡초 오퍼레이션 없음) | 6시간 |
-| `/api/uv` | GET | `region`(서울) | `uvi, hourly{0..21}, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산, 당일 자료 없으면 24시간 전 fallback | 1시간 |
+| `/api/uv` | GET | `region`(서울) | `uvi, hourly{0..21}, hourlyTomorrow{0..21}, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산(내일분도 같은 발표본에서), 당일 자료 없으면 24시간 전 fallback | 1시간 |
 | `/api/weather/weekly` | GET | `region`(서울), `lat`(37.5665), `lon`(126.9780) | `week[7]`(`day, date, icon, high, low, rain, weekend, source`) — D0~D2 단기예보(getVilageFcst) + D+3~ 중기예보(getMidLandFcst+getMidTa) 병합. `source`는 short/mid | 단기 30분·중기 3시간 |
 | `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
 
 - 공통 에러: API 키 미설정 503 / 업스트림 오류 502 / 파싱·기타 500 (+ air는 측정 데이터 없음 404). 클라이언트는 `error` 필드 유무로 판별
 - 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), `ANTHROPIC_BASE_URL`(report, 선택 — AI 게이트웨이/프록시 엔드포인트, 미설정 시 기본 주소), Supabase 키
-- **필드 활용 현황:** `/api/weather`의 `hourlyForecast`는 홈 "시간대별 환경"(`buildTimeline`)·환경정보 "시간대별 날씨"·`/api/report` 일정 매핑에서 모두 사용 중. `feelsLike`는 홈 timeline에서 자체 계산(`temp - 0.7*wind`)해 표시하나 API 필드 자체는 UI 직접 참조 안 함
+- **필드 활용 현황:** `/api/weather`의 `hourlyForecast`는 홈 "시간대별 환경"(`buildTimeline`)·환경정보 "시간대별 날씨"·`/api/report` 일정 매핑에서 모두 사용 중. `hourlyForecastTomorrow`·`uv.hourlyTomorrow`는 홈 "오늘\|내일" 세그먼트(`buildTomorrowTimeline`) 전용. `feelsLike`는 홈 timeline에서 자체 계산(`temp - 0.7*wind`)해 표시하나 API 필드 자체는 UI 직접 참조 안 함
 - ⚠️ **인증 없음:** 5개 라우트 모두 인증·레이트리밋 없이 공개. 특히 `/api/report`는 호출당 Claude 비용이 발생하므로 공개 배포 전 보호 필요 (게스트 정책과 함께 결정)
 
 ### 클라이언트 저장소 (localStorage)
