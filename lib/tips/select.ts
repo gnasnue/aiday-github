@@ -13,7 +13,7 @@
  *     조용히 발동하지 않는 버그가 재발한다.
  */
 
-import type { EnvData } from "../env-data";
+import { isPollenSeason, type EnvData } from "../env-data";
 import { dustLabel, pollenLabel, uvLabel, humidityLabel } from "../timeline";
 import {
   hasRespiratory,
@@ -210,8 +210,13 @@ export function selectTips(
 
     const reading = env ? readSignal(env, entry.requires) : null;
     if (reading == null) {
-      // fail-closed — 모르는 것에 대해서는 말하지 않는다
-      if (!suppressed.includes(entry.requires)) suppressed.push(entry.requires);
+      // fail-closed — 모르는 것에 대해서는 말하지 않는다.
+      // 다만 제공 기간 밖의 꽃가루처럼 "없는 게 정상"인 결측은 침묵 목록에 넣지 않는다.
+      // 넣으면 화면이 7월에 "꽃가루를 불러오지 못했어요"라고 사실과 다른 말을 한다.
+      const expectedAbsence = entry.requires === "pollen" && !isPollenSeason(now);
+      if (!expectedAbsence && !suppressed.includes(entry.requires)) {
+        suppressed.push(entry.requires);
+      }
       continue;
     }
     if (entry.minLevel != null && reading.level < entry.minLevel) continue;

@@ -103,6 +103,18 @@ export type EnvData = {
  */
 export const envRegion = (_location: AppLocation): string => "서울";
 
+/**
+ * 꽃가루 지수 제공 기간인가. 기상청은 참나무·소나무를 4~6월에만 발표한다
+ * (잡초류는 8~10월이지만 조회서비스 V3에 오퍼레이션이 없어 우리는 받지 못한다).
+ *
+ * 제공 기간 밖의 결측은 **고장이 아니라 정상**이다. 이걸 구분하지 않으면 7월에
+ * "꽃가루 정보를 불러오지 못했어요"라고 말하게 되는데, 사실이 아니다.
+ */
+export const isPollenSeason = (now: Date = new Date()): boolean => {
+  const m = now.getMonth() + 1;
+  return m >= 4 && m <= 6;
+};
+
 /* ----------------------------- 값 검증 ----------------------------- */
 
 /**

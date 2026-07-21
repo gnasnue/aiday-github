@@ -60,7 +60,8 @@ describe("selectTips — fail-closed (결측 시 침묵)", () => {
   it("환경 데이터가 아예 없으면 조건부 팁은 하나도 노출하지 않는다", () => {
     const r = selectTips(null, 건강한아이, NOW);
     expect(ids(r)).toEqual(["general-hygiene"]);
-    expect(r.suppressedSignals).toEqual(["uv", "air", "pollen", "humidity"]);
+    // 꽃가루는 7월(제공 기간 밖)이라 침묵 목록에서 빠진다 — 없는 게 정상인 결측
+    expect(r.suppressedSignals).toEqual(["uv", "air", "humidity"]);
   });
 
   it("자외선을 모르면 자외선 팁을 띄우지 않는다 — 근거 없는 확신을 만들지 않기 위해", () => {
@@ -97,6 +98,24 @@ describe("selectTips — fail-closed (결측 시 침묵)", () => {
 
   it("정상 데이터에서는 침묵 신호가 없다", () => {
     expect(selectTips(baseEnv(), 건강한아이, NOW).suppressedSignals).toEqual([]);
+  });
+
+  it("제공 기간 밖(7월)의 꽃가루 결측은 '못 불러왔다'고 말하지 않는다 — 없는 게 정상", () => {
+    const r = selectTips(
+      baseEnv({ pollen: { oak: null, pine: null, weed: null } }),
+      건강한아이,
+      NOW // 2026-07-22
+    );
+    expect(r.suppressedSignals).not.toContain("pollen");
+  });
+
+  it("제공 기간(5월)의 꽃가루 결측은 침묵 신호로 알린다 — 이때는 실제 고장", () => {
+    const r = selectTips(
+      baseEnv({ pollen: { oak: null, pine: null, weed: null } }),
+      건강한아이,
+      new Date("2026-05-10T09:00:00+09:00")
+    );
+    expect(r.suppressedSignals).toContain("pollen");
   });
 });
 
