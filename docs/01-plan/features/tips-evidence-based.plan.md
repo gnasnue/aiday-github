@@ -1,7 +1,7 @@
 # 건강팁(근거 기반) 구현 계획안 (Evidence-Based Health Tips)
 
 > tips 화면(`/tips`)을 공신력 있는 기관의 리포트·가이드라인·공지에 **실제로 근거한** 콘텐츠로 재구현하기 위한 계획.
-> 상태: **계획(pre-implementation)** — 2026-07-22 `/plan-eng-review` + `/plan-ceo-review`(HOLD SCOPE) 통과. **M2가 MVP 출시 단위**로 재스코핑됨(§6). M3/M4/개인화 확대는 도메인 전문가 검토 + 법률 검토 게이팅. **M2는 [PRODUCT-DECISIONS.md](../../../docs/PRODUCT-DECISIONS.md) 출시 차단(Blocker)으로 공식 등재됨** — 블로커 #42(홈 목데이터 차단)와 동일 종류의 신뢰 위반이라 공개 베타 전 완료 필수.
+> 상태: **계획(pre-implementation)** — 2026-07-22 `/plan-eng-review` + `/plan-ceo-review`(HOLD SCOPE) 통과. **M2가 MVP 출시 단위**로 재스코핑됨(§6). M3/M4/개인화 확대는 도메인 전문가 검토 + 법률 검토 게이팅. **M2는 [PRODUCT-DECISIONS.md](../../../docs/PRODUCT-DECISIONS.md) 출시 차단(Blocker)으로 공식 등재됨** — 기존 블로커 **"홈 '시간대별 환경'·종합솔루션 실데이터 연동"**과 동일 종류의 신뢰 위반(실측·근거 표기 + 목데이터 병존)이라 공개 베타 전 완료 필수.
 
 ## 0. 배경 — 왜 지금 재구현하는가
 
@@ -45,7 +45,8 @@ type TipSource = {
 
 ### ② 선별 엔진 (순수 함수, vitest 대상) — `lib/tips/select.ts`
 `selectTips(env, profile): Tip[]`
-- **목데이터 제거.** 실 환경 데이터는 **공유 헬퍼 `lib/env-data.ts` `fetchEnvData(location)`**에서 받는다 (D-A1). 이 헬퍼가 위치→파라미터 매핑·타임아웃·KMA 센티널(±900) 검증을 **한 곳에** 담당. tips가 첫 소비자, home/env/outfit은 후속 이전(비차단).
+- **목데이터 제거.** 실 환경 데이터는 **공유 헬퍼 `lib/env-data.ts` `fetchEnvData(location)`**에서 받는다 (D-A1). 이 헬퍼가 위치→파라미터 매핑·타임아웃·KMA 센티널(±900) 검증을 **한 곳에** 담당.
+  - **소비자 범위(D-A1 개정):** tips **+ env 화면을 M2에서 함께 이전한다.** tips만 붙이면 fetch 구현이 3개→4개로 늘어 A1이 잡으려던 위치 불일치가 그대로 남고, M2 수용 기준인 "env 화면과 동일 출처·등급"이 **검증이 아니라 우연**이 된다. env는 가장 단순한 raw `fetch().then()`(env/page.tsx:201~205)이라 이전 비용이 낮다. home(getJson 타임아웃·재시도)·outfit은 계획대로 별도 PR — home은 가장 불안정해 블래스트 반경을 분리.
 - **심각도는 공인 등급 공유 소스에서 도출** (D-A2): air 등급(1~4)·UV 표준 밴드·`pollenLabel`·앱 건조 임계값(35%). 자체 숫자 cutoff 금지 → env/home과 화면 간 모순 제거.
   - ※ PM2.5 특이 메시징 보존(D10): 미세먼지 콘텐츠는 `max(pm10Grade,pm25Grade)`로 뭉개지 말고 PM2.5 등급을 별도로 참조(폐포·혈관 침투 문구의 근거).
 - **프로필 매칭은 `lib/domain/child-conditions.ts` 공유** — 인라인 재구현 제거, 3중 정렬 상속.
@@ -73,7 +74,7 @@ type TipSource = {
 ## 6. 구현 순서 (마일스톤 — 2026-07-22 재스코핑)
 
 - **M1 — 데이터/엔진 추출:** `lib/tips/content/*.ts`(선언적 테이블) + `lib/tips/select.ts` 순수 함수 + `lib/env-data.ts` 공유 헬퍼. 유닛 테스트 동반.
-- **M2 — 실데이터 연결 (★ MVP 출시 단위):** 목 `env` 제거, `fetchEnvData` 연결, 공인 등급 기반 severity, `child-conditions` 프로필 매칭 + 나이 게이팅, fail-closed, 계절 중립 일반 카드, 출처를 정직한 "문서명+연도(+홈페이지)" + 비승인 고지로 격상.
+- **M2 — 실데이터 연결 (★ MVP 출시 단위):** 목 `env` 제거, `fetchEnvData` 연결(**tips + env 화면**), 공인 등급 기반 severity, `child-conditions` 프로필 매칭 + 나이 게이팅, fail-closed, 계절 중립 일반 카드, 출처를 정직한 "문서명+연도(+홈페이지)" + 비승인 고지로 격상.
 - **M3 — [게이팅] 출처 딥링크 강화 + 개인화 확대:** 전문가+법률 게이트 통과 후. 딥링크는 확보 가능한 문서에만(불가하면 "문서명+연도" 유지).
 - **M4 — [게이팅] 검증 자동화:** 링크-생존 스크립트 + 사람 6개월 재검토 주기. M3와 함께 게이트 뒤.
 
@@ -83,7 +84,7 @@ type TipSource = {
 - [x] **D2** 인용 정직성: 문서명 특정 + (가능 시)딥링크, 폴백은 문서명+연도+홈페이지
 - [x] **D3** authoring/검증: 엔지니어 큐레이션 + 링크검증, 전문가·법률은 M3 게이트
 - [x] **D4** 저장 위치: 레포 내 파일(`lib/tips/`)
-- [x] **D-A1** 환경 fetch: 공유 헬퍼 `lib/env-data.ts` 신규, tips만 우선 연결
+- [x] **D-A1** 환경 fetch: 공유 헬퍼 `lib/env-data.ts` 신규. **소비자는 M2에서 tips + env 화면**(2026-07-22 개정 — tips만 붙이면 구현이 4개로 늘어 위치 불일치가 남고 "env와 등급 일치" 수용 기준이 우연이 됨), home·outfit은 후속 PR
 - [x] **D-A2** 심각도: 공인 등급 공유 소스에서 도출(자체 cutoff 금지)
 - [x] **D-C1** 결측/에러: fail-closed + 정직한 안내
 - [x] **D4-재스코핑** 외부 목소리 수용 — M2 먼저 출시, M3/M4/개인화는 전문가+법률 게이팅
@@ -91,10 +92,19 @@ type TipSource = {
 - [x] **D9** 콘텐츠는 선언적 임계값 테이블(클로저 아님)
 - [x] **D10** 미세먼지는 PM2.5 등급 별도 참조(등급 뭉개기 금지)
 - [x] **D11** 마스크 권고 나이 게이팅(canRecommendMask) 연결
-- [x] **D-CEO2** PRODUCT-DECISIONS.md 출시 차단(Blocker)에 공식 등재 (블로커 #42와 동일 취급)
+- [x] **D-CEO2** PRODUCT-DECISIONS.md 출시 차단(Blocker)에 공식 등재 (기존 "홈 시간대별 환경·종합솔루션 실데이터 연동" 블로커와 동일 취급)
 - [x] **D-CEO4** fetchEnvData에 AbortController+세대 카운터로 프로필전환/이탈 레이스 방지
 - [x] **D-CEO8** fail-closed 발동을 기존 events/feedback 계측에 경량 이벤트로 기록
-- [ ] MVP 팁 토픽 범위: 현행 5(자외선·미세먼지·꽃가루·건조·일반)에 기온(폭염·한파) 추가 여부 — M2 착수 시 확정
+- [x] **D12** MVP 팁 토픽 범위: **현행 5개 유지**(자외선·미세먼지·꽃가루·건조·일반), 기온(폭염·한파) 추가는 M3 게이트 뒤 후보 (2026-07-22). 근거: M2는 "정직화 최소" 단위이고, 폭염·한파 대응은 홈 케어 플랜·옷차림이 이미 담당해 중복이며, 신규 토픽은 출처 큐레이션 비용으로 M2를 늘림
+
+## 8. 검증 (수용 기준 — M2)
+
+- tips가 **오늘 실제 환경값**에 따라 팁을 노출한다(목데이터 0).
+- tips와 env가 **동일한 `fetchEnvData`**를 통해 같은 위치 파라미터·등급을 사용한다(화면 간 등급 일치가 우연이 아니라 구조로 보장).
+- 데모·구형·온보딩 프로필 모두에서 프로필 매칭·나이 게이팅이 올바르게 발동한다.
+- 환경 데이터 결측/에러 시 조건부 팁이 침묵하고 정직한 안내가 뜬다(fail-closed).
+- 노출된 모든 출처가 홈페이지가 아니라 **특정 문서**(문서명+연도)를 가리키고 비승인 고지가 있다.
+- `npm run build` · `npm run lint` · `npm test`(select·env-data) 통과.
 
 ## What already exists (재사용 현황)
 
@@ -102,7 +112,7 @@ type TipSource = {
 |---|---|
 | `lib/domain/child-conditions.ts` (hasResp/Allergy/Skin, canRecommendMask, ageInMonths) | ✅ 재사용 (인라인 매칭 제거) |
 | `lib/useLocation.ts` 전역 위치 | ✅ 재사용 |
-| env·outfit·home의 4개 API fetch (3가지 다른 구현) | ⚠️ `lib/env-data.ts`로 통합, tips 우선 소비 (D-A1) |
+| env·outfit·home의 4개 API fetch (3가지 다른 구현) | ⚠️ `lib/env-data.ts`로 통합 — **M2에서 tips + env 이전**, home·outfit 후속 (D-A1) |
 | `lib/outdoor-index.ts` / `lib/timeline.ts`(dustLabel·pollenLabel) 등급 산식 | ✅ severity 소스로 재사용 (D-A2) |
 | 현재 tips 카드 UI·필터·면책·프로필 배너 | ✅ 유지, 출처 렌더만 격상 |
 
@@ -111,9 +121,13 @@ type TipSource = {
 - **M3 출처 딥링크 강화** — 한국 학회 딥링크 불가 태반 + 법률/전문가 게이트 선행 필요.
 - **M4 검증 자동화(스케줄 태스크)** — 내용 드리프트를 못 잡는 자동화를 사람 검토보다 먼저 만들지 않는다.
 - **개인화 확대**(질환별 세분 조언) — 의료법·라이어빌리티 검토 전 보류.
-- **home/env/outfit의 `fetchEnvData` 이전** — 비차단 후속(가장 불안정한 home은 별도 PR).
+- **home·outfit의 `fetchEnvData` 이전** — 비차단 후속, 별도 PR(가장 불안정한 home은 블래스트 반경 분리). **env는 M2에 편입**(D-A1 개정).
 - **꽃가루 잡초(weed)** — API가 항상 null(기상청 V3 미제공), 계산 자연 제외.
 - **LLM 기반 팁/출처 생성** — 설계 원칙상 영구 제외.
+- **기온(폭염·한파) 토픽 추가** — 홈 케어 플랜·옷차림과 중복. M3 게이트 뒤 후보 (D12).
+- **Approach B(홈 판단 근거 드릴다운으로 tips 재구성)** — 방향성은 옳지만 IA 변경 범위가 커 M2(정직화 최소)로 먼저 신뢰 위반을 제거하고, 수요가 `/api/feedback` 프로브로 확인되면 재검토 (CEO 리뷰).
+- **Approach C(공개 베타 전 tips 탭 숨김)** — M2가 최고가치·최저위험으로 확정된 상태라 숨기는 것보다 고치는 비용이 더 낮음 (CEO 리뷰).
+- **보안 위협모델 확장** — 신규 사용자 입력·엔드포인트가 없어 위협 표면 불변, 별도 조치 불요 (CEO 리뷰 Section 3).
 
 ## Failure modes (신규 코드패스별)
 
@@ -130,10 +144,10 @@ type TipSource = {
 ## Implementation Tasks
 이 리뷰의 findings에서 합성. Claude Code/Codex로 실행, 완료 시 체크.
 
-- [ ] **T1 (P1, human: ~3h / CC: ~25min)** — lib/env-data — 공유 `fetchEnvData(location)` 추출
-  - Surfaced by: Architecture A1 — env fetch 3중 복제 + 위치 3중 불일치·센티널 중앙화
-  - Files: `lib/env-data.ts`, `lib/env-data.test.ts`, `app/(main)/tips/page.tsx`
-  - Verify: `npm test`(센티널·위치매핑 회귀), tips가 실데이터 표시
+- [ ] **T1 (P1, human: ~4h / CC: ~35min)** — lib/env-data — 공유 `fetchEnvData(location)` 추출 + **tips·env 두 소비자 연결**
+  - Surfaced by: Architecture A1 — env fetch 3중 복제 + 위치 3중 불일치·센티널 중앙화. tips 단독 연결은 구현을 4개로 늘려 A1을 무력화(D-A1 개정)
+  - Files: `lib/env-data.ts`, `lib/env-data.test.ts`, `app/(main)/tips/page.tsx`, `app/(main)/env/page.tsx`
+  - Verify: `npm test`(센티널·위치매핑 회귀), tips가 실데이터 표시, **env 화면 회귀 없음**(야외활동 지수·시간대별·주간 값이 이전과 동일)
 - [ ] **T1b (P1, human: ~1h / CC: ~10min)** — lib/env-data — AbortController + 세대 카운터로 레이스 방지
   - Surfaced by: CEO 리뷰 Section 4 — 프로필 전환 중 이전 fetch 응답이 늦게 도착해 다른 아이 tips 표시 위험, 화면 이탈 시 미정리
   - Files: `lib/env-data.ts`, `app/(main)/tips/page.tsx`
@@ -162,25 +176,11 @@ type TipSource = {
   - Files: `lib/tips/select.ts` 또는 `app/(main)/tips/page.tsx`(발동 지점), 기존 `events`/`feedback` 계측 경로 재사용
   - Verify: 결측 시뮬레이션 → `tips_fail_closed` 이벤트(결측 신호명 포함) 기록 확인
 
-## 8. 검증 (수용 기준 — M2)
-
-- tips가 **오늘 실제 환경값**(env 화면과 동일 출처·등급)에 따라 팁을 노출한다(목데이터 0, 화면 간 등급 일치).
-- 데모·구형·온보딩 프로필 모두에서 프로필 매칭·나이 게이팅이 올바르게 발동한다.
-- 환경 데이터 결측/에러 시 조건부 팁이 침묵하고 정직한 안내가 뜬다(fail-closed).
-- 노출된 모든 출처가 홈페이지가 아니라 **특정 문서**(문서명+연도)를 가리키고 비승인 고지가 있다.
-- `npm run build` · `npm run lint` · `npm test`(select·env-data) 통과.
-
-## NOT in scope (CEO 리뷰 추가분)
-
-- **Approach B(홈 판단 근거 드릴다운으로 tips 재구성)** — 방향성은 옳지만 IA 변경 범위가 커 M2(정직화 최소)로 먼저 신뢰 위반을 제거하고, 수요가 `/api/feedback` 프로브로 확인되면 재검토.
-- **Approach C(공개 베타 전 tips 탭 숨김)** — 이미 M2가 최고가치·최저위험으로 확정된 상태라 숨기는 것보다 고치는 비용이 더 낮음.
-- **Section 3 보안 위협모델 확장** — 신규 사용자 입력·엔드포인트가 없어 위협 표면 불변, 별도 조치 불요.
-
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
-| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | clean (HOLD_SCOPE) | Approach A(정직화 최소) 채택; Blocker #42 편입 결정; Section 4·8 신규 발견 2건(레이스 방지·관측 이벤트) 계획 반영 |
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | clean (HOLD_SCOPE) | Approach A(정직화 최소) 채택; 출시 차단(Blocker) 편입 결정; Section 4·8 신규 발견 2건(레이스 방지·관측 이벤트) 계획 반영 |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open→resolved | 5 issues raised, 5 resolved; 2 critical failure-mode gaps (테스트+에러처리로 커버 요구) |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — (CEO Section 11 통과, 구현 후 실행 권장) |
 | Outside Voice | Claude subagent | Independent 2nd opinion | 1 | issues_found | 4×P1, 3×P2, 3×P3; 재스코핑(M2-first)로 수용 |
