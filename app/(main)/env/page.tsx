@@ -29,7 +29,7 @@ import WeatherNowCard from "@/components/WeatherNowCard";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { ChildProfile, loadProfiles } from "@/lib/profile";
+import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
 import { useLocation } from "@/lib/useLocation";
 import { withSubjectSuffix } from "@/lib/korean";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
@@ -101,14 +101,21 @@ const o3Grade = (ppm: number | null): number | null =>
 
 const Environment = () => {
   const pathname = usePathname();
-  const [profiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const activeId = (() => {
+  // 초기값은 SSR 안전한 defaultProfiles로. useState 초기값·렌더 중 localStorage를 읽으면
+  // 서버(기본 프로필)와 클라 첫 렌더(저장 프로필)가 어긋나 하이드레이션 불일치(React #418)가 난다.
+  // 저장된 프로필·활성 아이는 마운트 후 effect에서 주입한다.
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [activeId, setActiveId] = useState<string | undefined>(defaultProfiles[0]?.id);
+  useEffect(() => {
+    const list = loadProfiles();
+    setProfiles(list);
     try {
-      return localStorage.getItem("aiweather:activeProfileId") || profiles[0]?.id;
+      const saved = localStorage.getItem("aiweather:activeProfileId");
+      setActiveId(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id);
     } catch {
-      return profiles[0]?.id;
+      setActiveId(list[0]?.id);
     }
-  })();
+  }, []);
   const cur = profiles.find((p) => p.id === activeId) ?? profiles[0];
   const { location, locating, requestLocation } = useLocation();
   const [loading, setLoading] = useState(true);
