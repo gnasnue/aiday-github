@@ -1,0 +1,764 @@
+<title>아이데이 화면 구성 설명서</title>
+<style>
+  :root{
+    --bg:#EDE9E4; --card:#FFFFFF; --card-2:#FAF8F6;
+    --ink:#26201B; --muted:#6E655D; --faint:#9C938A;
+    --brand:#F97316; --brand-ink:#C2540A; --tint:#FFEDDD; --cream:#FFF2E0;
+    --line:#E7E1DB; --line-soft:#F0ECE8;
+    --phone-bg:#F6F4F2; --phone-frame:#1B1713; --phone-line:#EDE8E3;
+    --good:#3D8B5F; --warn:#D4622A; --bad:#BF2C22; --info:#295EA3; --neutral:#8A8078;
+    --shadow-card:0 6px 24px -8px rgba(58,44,30,.18),0 2px 6px -2px rgba(58,44,30,.10);
+    --shadow-soft:0 1px 2px rgba(58,44,30,.06),0 1px 1px rgba(58,44,30,.04);
+    --radius:20px;
+    --sans:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Segoe UI",system-ui,sans-serif;
+    --maxw:1180px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#15110D; --card:#211C17; --card-2:#1A1611;
+      --ink:#F3EEE8; --muted:#B4A99E; --faint:#877D72;
+      --brand:#FB8C3C; --brand-ink:#F6A667; --tint:#3A2A1C; --cream:#33281B;
+      --line:#332B23; --line-soft:#2A231C;
+      --phone-bg:#1B1712; --phone-frame:#000; --phone-line:#2E271F;
+      --good:#5FB682; --warn:#E9834E; --bad:#E0655B; --info:#6FA0DB; --neutral:#A99E92;
+      --shadow-card:0 8px 30px -10px rgba(0,0,0,.6),0 2px 6px -2px rgba(0,0,0,.4);
+      --shadow-soft:0 1px 2px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EDE9E4; --card:#FFFFFF; --card-2:#FAF8F6;
+    --ink:#26201B; --muted:#6E655D; --faint:#9C938A;
+    --brand:#F97316; --brand-ink:#C2540A; --tint:#FFEDDD; --cream:#FFF2E0;
+    --line:#E7E1DB; --line-soft:#F0ECE8;
+    --phone-bg:#F6F4F2; --phone-frame:#1B1713; --phone-line:#EDE8E3;
+    --good:#3D8B5F; --warn:#D4622A; --bad:#BF2C22; --info:#295EA3; --neutral:#8A8078;
+    --shadow-card:0 6px 24px -8px rgba(58,44,30,.18),0 2px 6px -2px rgba(58,44,30,.10);
+    --shadow-soft:0 1px 2px rgba(58,44,30,.06),0 1px 1px rgba(58,44,30,.04);
+  }
+  :root[data-theme="dark"]{
+    --bg:#15110D; --card:#211C17; --card-2:#1A1611;
+    --ink:#F3EEE8; --muted:#B4A99E; --faint:#877D72;
+    --brand:#FB8C3C; --brand-ink:#F6A667; --tint:#3A2A1C; --cream:#33281B;
+    --line:#332B23; --line-soft:#2A231C;
+    --phone-bg:#1B1712; --phone-frame:#000; --phone-line:#2E271F;
+    --good:#5FB682; --warn:#E9834E; --bad:#E0655B; --info:#6FA0DB; --neutral:#A99E92;
+    --shadow-card:0 8px 30px -10px rgba(0,0,0,.6),0 2px 6px -2px rgba(0,0,0,.4);
+    --shadow-soft:0 1px 2px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);
+    line-height:1.6;letter-spacing:-.01em;font-size:16px;
+    -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .i{width:1em;height:1em;fill:none;stroke:currentColor;stroke-width:1.85;
+    stroke-linecap:round;stroke-linejoin:round;display:inline-block;vertical-align:-.14em;flex:none}
+
+  /* ---------- Hero ---------- */
+  .hero{padding:72px 0 40px}
+  .eyebrow{font-size:12px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--brand-ink);margin:0 0 18px}
+  .hero h1{font-size:clamp(30px,5.4vw,50px);line-height:1.12;font-weight:800;
+    letter-spacing:-.03em;margin:0 0 20px;text-wrap:balance;max-width:16ch}
+  .hero .lede{font-size:clamp(16px,2.2vw,19px);color:var(--muted);max-width:52ch;margin:0}
+  .brandmark{display:inline-flex;align-items:center;gap:9px;margin-bottom:26px;
+    font-weight:800;letter-spacing:-.02em;font-size:19px}
+  .brandmark .dot{width:22px;height:22px;border-radius:7px;background:var(--brand);
+    display:grid;place-items:center;color:#fff;font-size:13px;box-shadow:var(--shadow-soft)}
+
+  /* ---------- How to read ---------- */
+  .howto{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;
+    margin:8px 0 12px;padding:24px;background:var(--card);border-radius:var(--radius);
+    box-shadow:var(--shadow-soft)}
+  .howto .ht{display:flex;gap:13px;align-items:flex-start}
+  .howto .htn{flex:none;width:30px;height:30px;border-radius:9px;background:var(--tint);
+    color:var(--brand-ink);display:grid;place-items:center;font-weight:800;font-size:14px}
+  .howto h4{margin:0 0 3px;font-size:15px;font-weight:700}
+  .howto p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
+
+  /* ---------- TOC ---------- */
+  .toc{display:flex;flex-wrap:wrap;gap:9px;margin:26px 0 4px}
+  .toc a{font-size:13.5px;font-weight:600;color:var(--ink);text-decoration:none;
+    padding:8px 14px;border-radius:999px;background:var(--card);box-shadow:var(--shadow-soft);
+    transition:transform .12s ease,color .12s ease}
+  .toc a:hover{color:var(--brand-ink);transform:translateY(-1px)}
+  .toc a b{color:var(--faint);font-weight:700;margin-right:6px;font-variant-numeric:tabular-nums}
+
+  /* ---------- Section ---------- */
+  section.blk{padding:52px 0;border-top:1px solid var(--line);margin-top:44px}
+  section.blk:first-of-type{border-top:0;margin-top:0}
+  .shead{margin-bottom:34px;max-width:60ch}
+  .shead .sk{display:inline-flex;align-items:center;gap:10px;margin-bottom:14px}
+  .shead .snum{font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--brand-ink);
+    text-transform:uppercase}
+  .shead .route{font-size:11.5px;font-weight:700;color:var(--muted);background:var(--card);
+    padding:4px 9px;border-radius:7px;font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;
+    letter-spacing:0}
+  .shead h2{font-size:clamp(23px,3.4vw,30px);font-weight:800;letter-spacing:-.025em;
+    margin:0 0 10px;line-height:1.18;text-wrap:balance}
+  .shead p{margin:0;color:var(--muted);font-size:15.5px}
+
+  /* ---------- Screen layout ---------- */
+  .screen{display:grid;grid-template-columns:330px 1fr;gap:44px;align-items:start}
+  .phonewrap{display:flex;justify-content:center}
+
+  /* ---------- Phone frame ---------- */
+  .phone{width:320px;background:var(--phone-frame);border-radius:42px;padding:11px;
+    box-shadow:var(--shadow-card);flex:none}
+  .phone .screenw{background:var(--phone-bg);border-radius:32px;overflow:hidden;position:relative}
+  .statusbar{height:30px;display:flex;align-items:center;justify-content:space-between;
+    padding:0 20px;font-size:11px;font-weight:700;color:var(--ink);opacity:.8}
+  .statusbar .notch{position:absolute;top:8px;left:50%;transform:translateX(-50%);
+    width:74px;height:16px;background:var(--phone-frame);border-radius:0 0 12px 12px}
+  .statusbar .sig{display:flex;gap:3px;align-items:center}
+  .statusbar .sig i{width:3px;height:9px;background:currentColor;border-radius:1px;display:inline-block;opacity:.55}
+  .statusbar .sig i:nth-child(2){height:11px;opacity:.7}
+  .statusbar .sig i:nth-child(3){height:13px;opacity:.85}
+  .mk{padding:14px 15px 18px;font-size:12px;line-height:1.42}
+  .mk::-webkit-scrollbar{display:none}
+
+  /* callout badges (scoped to mockups) */
+  .mk [data-n]{position:relative}
+  .mk [data-n]::before{content:attr(data-n);position:absolute;top:-8px;left:-8px;
+    min-width:19px;height:19px;padding:0 2px;border-radius:999px;background:var(--brand);
+    color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 4px rgba(0,0,0,.35);z-index:5;font-variant-numeric:tabular-nums;
+    border:1.5px solid var(--phone-bg)}
+  .mk [data-n].nr::before{left:auto;right:-8px}
+
+  /* mockup primitives */
+  .mk-card{background:var(--card);border-radius:15px;padding:11px;box-shadow:var(--shadow-soft);margin-bottom:11px}
+  .mk-hero{background:var(--card);border-radius:16px;box-shadow:var(--shadow-card);margin-bottom:11px;overflow:hidden}
+  .mk-band{background:var(--cream);padding:9px 11px;display:flex;align-items:center;justify-content:space-between}
+  .mk-title{font-weight:700;font-size:12px}
+  .mk-sub{color:var(--muted);font-size:10.5px;line-height:1.4}
+  .mk-hair{height:1px;background:var(--line-soft);margin:9px 0}
+  .row{display:flex;align-items:center;gap:7px}
+  .between{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .wrap-row{display:flex;flex-wrap:wrap;gap:6px}
+  .grow{flex:1;min-width:0}
+  .tabs{display:flex;background:var(--phone-line);border-radius:999px;padding:3px;gap:2px}
+  .tabs .t{flex:1;text-align:center;font-size:11px;padding:5px 4px;border-radius:999px;color:var(--muted);font-weight:600}
+  .tabs .t.on{background:var(--card);color:var(--ink);font-weight:700;box-shadow:var(--shadow-soft)}
+  .chip{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:999px;
+    font-size:10.5px;font-weight:600;background:var(--card);color:var(--muted);box-shadow:var(--shadow-soft)}
+  .chip.on{background:var(--tint);color:var(--brand-ink)}
+  .chip.warn{background:var(--card);color:var(--warn)}
+  .chip.warn::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--warn)}
+  .chip.dash{background:transparent;border:1.3px dashed var(--line);color:var(--muted);box-shadow:none}
+  .pill{display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;
+    padding:2px 7px;border-radius:999px;background:var(--tint);color:var(--brand-ink)}
+  .ibtn{width:26px;height:26px;border-radius:50%;background:var(--card-2);display:grid;place-items:center;
+    color:var(--muted);font-size:13px;box-shadow:var(--shadow-soft);flex:none;position:relative}
+  .ibtn .bdot{position:absolute;top:3px;right:3px;width:6px;height:6px;border-radius:50%;background:var(--brand);border:1px solid var(--card)}
+  .ico{width:24px;height:24px;border-radius:8px;background:var(--phone-line);display:grid;place-items:center;color:var(--muted);font-size:12px;flex:none}
+  .ico.tint{background:var(--tint);color:var(--brand-ink)}
+  .ico.warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+  .ico.good{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good)}
+  .ico.info{background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
+  .avatar{width:28px;height:28px;border-radius:50%;background:#E4B98F;color:#5A3210;display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+  @media (prefers-color-scheme:dark){.avatar{background:#7A5230;color:#FCE9D6}}
+  :root[data-theme="dark"] .avatar{background:#7A5230;color:#FCE9D6}
+  .cta{background:var(--brand);color:#fff;border-radius:11px;text-align:center;font-weight:700;font-size:12px;padding:9px;box-shadow:var(--shadow-soft)}
+  .cta.ghost{background:var(--phone-line);color:var(--ink)}
+  .cta.dash{background:transparent;border:1.4px dashed var(--line);color:var(--brand-ink)}
+  .hook{font-size:16px;font-weight:800;letter-spacing:-.02em;line-height:1.32}
+  .num{font-variant-numeric:tabular-nums;font-weight:800;letter-spacing:-.03em}
+  .big{font-size:26px}
+  .gauge{height:7px;border-radius:999px;background:var(--phone-line);overflow:hidden}
+  .gauge>i{display:block;height:100%;border-radius:999px;background:var(--brand)}
+  .gauge>i.good{background:var(--good)} .gauge>i.warn{background:var(--warn)}
+  .cbox{width:17px;height:17px;border-radius:50%;border:1.6px solid var(--line);flex:none;display:grid;place-items:center;color:transparent}
+  .cbox.on{border-color:var(--good);color:var(--good);background:color-mix(in srgb,var(--good) 12%,transparent)}
+  .statdot{width:5px;height:5px;border-radius:50%;flex:none}
+  .toggle{width:30px;height:18px;border-radius:999px;background:var(--brand);position:relative;flex:none}
+  .toggle::after{content:"";position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+  .toggle.off{background:var(--phone-line)} .toggle.off::after{left:2px;right:auto}
+  .field{border:1.4px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;color:var(--faint);background:var(--card)}
+  .select{border:1.4px solid var(--line);border-radius:10px;padding:8px 10px;font-size:11px;background:var(--card);display:flex;align-items:center;justify-content:space-between;color:var(--ink);font-weight:600}
+  .seg3{display:flex;gap:6px}
+  .seg3 .s{flex:1;text-align:center;font-size:11px;font-weight:600;padding:7px 4px;border-radius:9px;background:var(--card);box-shadow:var(--shadow-soft);color:var(--muted)}
+  .seg3 .s.on{background:var(--tint);color:var(--brand-ink);font-weight:700}
+  .tiletile{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .itile{background:var(--card-2);border-radius:9px;padding:7px;display:flex;gap:6px;align-items:center}
+  .callbox{background:var(--tint);border-radius:9px;padding:7px 8px;display:flex;gap:6px;color:var(--brand-ink);font-size:10.5px;line-height:1.4}
+  .sect-h{font-weight:800;font-size:13px;letter-spacing:-.02em;margin:15px 2px 9px}
+  .bnav{display:flex;justify-content:space-between;background:var(--card);border-top:1px solid var(--line-soft);padding:7px 10px 5px;margin:14px -15px -18px}
+  .bnav .tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9.5px;color:var(--faint);font-weight:600;flex:1}
+  .bnav .tab .tIc{width:30px;height:22px;display:grid;place-items:center;border-radius:999px;font-size:15px}
+  .bnav .tab.on{color:var(--brand-ink)} .bnav .tab.on .tIc{background:var(--cream);color:var(--brand)}
+  .timeline .tl{display:flex;gap:8px;margin-bottom:9px}
+  .timeline .rail{display:flex;flex-direction:column;align-items:center;flex:none;width:12px}
+  .timeline .tdot{width:10px;height:10px;border-radius:50%;background:var(--phone-line);border:2px solid var(--phone-bg)}
+  .timeline .tdot.now{background:var(--brand);box-shadow:0 0 0 3px var(--tint)}
+  .timeline .line{width:2px;flex:1;background:var(--line-soft);margin-top:2px}
+  .timeline .tcard{flex:1;background:var(--card);border-radius:11px;padding:8px 9px;box-shadow:var(--shadow-soft)}
+  .timeline .tcard.now{box-shadow:0 0 0 1.4px var(--brand)}
+  .hscroll{display:flex;gap:8px;overflow:hidden}
+  .fcard{flex:none;width:82px;background:var(--card);border-radius:11px;padding:9px 8px;box-shadow:var(--shadow-soft)}
+  .daynum{font-variant-numeric:tabular-nums}
+
+  /* ---------- Legend ---------- */
+  .legend{list-style:none;margin:0;padding:0;display:grid;gap:3px}
+  .leg{display:flex;gap:14px;padding:15px 4px;border-bottom:1px solid var(--line-soft)}
+  .leg:last-child{border-bottom:0}
+  .lnum{flex:none;width:24px;height:24px;border-radius:999px;background:var(--brand);color:#fff;
+    font-weight:800;font-size:12.5px;display:grid;place-items:center;font-variant-numeric:tabular-nums;
+    box-shadow:var(--shadow-soft)}
+  .ltext{min-width:0}
+  .lname{margin:0 0 4px;font-weight:700;font-size:15.5px;letter-spacing:-.015em;
+    display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+  .term{font-size:11px;font-weight:700;color:var(--brand-ink);background:var(--tint);
+    padding:2px 8px;border-radius:6px;letter-spacing:.01em;white-space:nowrap}
+  .ldesc{margin:0;font-size:14px;color:var(--muted);line-height:1.55}
+  .ldesc b{color:var(--ink);font-weight:600}
+
+  /* ---------- Glossary ---------- */
+  .gloss{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .gcard{background:var(--card);border-radius:15px;padding:17px 18px;box-shadow:var(--shadow-soft)}
+  .gcard h4{margin:0 0 3px;font-size:15.5px;font-weight:700;letter-spacing:-.02em}
+  .gcard .en{font-size:11px;font-weight:700;color:var(--brand-ink);letter-spacing:.02em;text-transform:uppercase;margin:0 0 8px}
+  .gcard p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.55}
+
+  /* ---------- Footer ---------- */
+  footer{border-top:1px solid var(--line);margin-top:52px;padding:34px 0 60px;color:var(--faint);font-size:13px}
+  footer b{color:var(--muted);font-weight:600}
+
+  a{color:inherit}
+  @media (max-width:860px){
+    .screen{grid-template-columns:1fr;gap:30px}
+    .phonewrap{position:static}
+    .hero{padding:52px 0 30px}
+    .wrap{padding:0 18px}
+  }
+</style>
+
+<div class="wrap">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero">
+    <div class="brandmark"><span class="dot">☀</span> AiDay · 아이데이</div>
+    <p class="eyebrow">화면 구성 설명서 · UI 요소 안내</p>
+    <h1>아이데이의 모든 화면, 이름표를 붙였습니다</h1>
+    <p class="lede">각 화면을 휴대폰 그림으로 재현하고, 요소마다 번호(①②③)를 달았어요.
+      번호 옆에는 <b>그 요소의 이름</b>과 <b>업계에서 쓰는 UI/UX 용어</b>, 그리고 <b>무슨 역할을 하는지</b>를 적었습니다.
+      기획·디자인이 처음이어도 화면을 보며 용어를 익힐 수 있게 만든 안내서예요.</p>
+  </header>
+
+  <!-- how to read -->
+  <div class="howto">
+    <div class="ht"><span class="htn">①</span><div><h4>번호 = 위치</h4><p>왼쪽 휴대폰 그림 위 주황색 번호와, 오른쪽 목록의 같은 번호가 한 쌍이에요.</p></div></div>
+    <div class="ht"><span class="htn">가</span><div><h4>굵은 글씨 = 이름</h4><p>우리가 그 요소를 부르는 한국어 이름입니다.</p></div></div>
+    <div class="ht"><span class="htn">EN</span><div><h4>주황 태그 = 용어</h4><p>디자이너·개발자가 공통으로 쓰는 표준 UI/UX 명칭이에요.</p></div></div>
+    <div class="ht"><span class="htn">↧</span><div><h4>위 → 아래 순서</h4><p>화면을 스크롤하며 실제로 보이는 순서 그대로 정리했어요.</p></div></div>
+  </div>
+
+  <!-- TOC -->
+  <nav class="toc">
+    <a href="#common"><b>00</b>공통 요소</a>
+    <a href="#home"><b>01</b>홈 · AI 리포트</a>
+    <a href="#env"><b>02</b>환경정보</a>
+    <a href="#outfit"><b>03</b>옷차림</a>
+    <a href="#tips"><b>04</b>건강팁</a>
+    <a href="#me"><b>05</b>마이페이지</a>
+    <a href="#onboarding"><b>06</b>온보딩</a>
+    <a href="#login"><b>07</b>로그인</a>
+    <a href="#glossary"><b>★</b>용어 사전</a>
+  </nav>
+
+  <!-- ===================== 00 COMMON ===================== -->
+  <section class="blk" id="common">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 00</span></div>
+      <h2>공통 요소 — 모든 화면에 항상 있는 두 가지</h2>
+      <p>아래 두 요소는 5개 메인 화면(홈·환경정보·옷차림·건강팁·마이) 어디서나 같은 자리에 나타납니다. 화면마다 반복 설명하지 않으니 여기서 먼저 익혀 두세요.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <!-- header -->
+            <div class="between mk-card" data-n="1" style="margin-bottom:22px">
+              <div class="row" style="font-weight:800;letter-spacing:-.02em"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div>
+              <div class="ibtn" data-n="2"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/></svg><span class="bdot"></span></div>
+            </div>
+            <p class="mk-sub" style="text-align:center;margin:30px 6px">↑ 화면 맨 위 <b style="color:var(--ink)">헤더</b><br>↓ 화면 맨 아래 <b style="color:var(--ink)">하단 내비게이션</b></p>
+            <!-- bottom nav -->
+            <div class="bnav" data-n="3" style="position:relative;margin:34px 0 8px;border-radius:14px;border:1px solid var(--line-soft)">
+              <div class="tab on"><span class="tIc" data-n="4"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5M3 12h16a2.5 2.5 0 11-2.5 2.5M3 16h9a2.5 2.5 0 11-2.5 2.5"/></svg></span>환경정보</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext">
+          <p class="lname">헤더 <span class="term">Header / App Bar</span></p>
+          <p class="ldesc">화면 맨 위에 고정된 띠. 아이데이 헤더는 <b>브랜드 로고</b>와 <b>오른쪽 동작 버튼</b>만 두는 아주 간결한 형태예요. (홈·마이엔 알림 벨, 환경정보엔 새로고침 버튼이 들어갑니다.)</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext">
+          <p class="lname">아이콘 버튼 <span class="term">Icon Button</span></p>
+          <p class="ldesc">글자 없이 아이콘만으로 동작을 나타내는 동그란 버튼. 여기 벨 위 작은 점은 <b>알림 배지(dot badge)</b> — "새 소식/예정 기능"을 암시하는 표시입니다.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext">
+          <p class="lname">하단 내비게이션 <span class="term">Bottom Navigation / Tab Bar</span></p>
+          <p class="ldesc">화면 아래 고정된 이동 메뉴. 앱의 큰 방(홈·환경정보·옷차림·건강팁·마이) 사이를 오가는 <b>탭 5개</b>가 들어 있어요.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext">
+          <p class="lname">활성 탭 표시 <span class="term">Active State</span></p>
+          <p class="ldesc">지금 보고 있는 탭을 알려 주는 강조. 아이콘 뒤에 크림색 알약이 깔리고 글자가 주황색으로 진해집니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 01 HOME ===================== -->
+  <section class="blk" id="home">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 01</span><span class="route">/home · 홈</span></div>
+      <h2>홈 — 오늘의 AI 리포트</h2>
+      <p>앱을 켜면 처음 보이는 화면. 우리 아이 기준으로 오늘 하루의 <b>결론 한 줄</b>과 챙길 것, 시간대별 환경, 케어 플랜을 한눈에 보여 줍니다.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <!-- profile + location -->
+            <div class="between" style="margin-bottom:12px;gap:6px">
+              <div class="tabs" data-n="1" style="flex:1">
+                <span class="t on">민준</span><span class="t">서아</span>
+                <span class="t" style="flex:none;padding:5px 8px;color:var(--brand-ink)">+ 추가</span>
+              </div>
+              <span class="chip" data-n="2" style="flex:none"><svg class="i" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>서울 강남구</span>
+            </div>
+            <!-- AI report hero -->
+            <div data-n="3" class="nr" style="position:relative"><div class="mk-hero">
+              <div class="mk-band" data-n="4">
+                <div><div class="mk-title" style="color:var(--brand-ink)">AI 리포트</div><div class="mk-sub">7월 21일 (화) 07:30 기준</div></div>
+                <div class="row" data-n="5">
+                  <span class="ibtn"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></span>
+                  <span class="ibtn"><svg class="i" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M8.4 13.3l7.2 4.4M15.6 6.3l-7.2 4.4"/></svg></span>
+                </div>
+              </div>
+              <div style="padding:11px">
+                <p class="mk-sub" data-n="7" style="margin:0 0 9px">현재날씨 <b class="num" style="color:var(--ink)">28°</b> · 체감 <b class="num" style="color:var(--ink)">30°</b> · 미세먼지 <b style="color:var(--ink)">보통</b> · 습도 <b class="num" style="color:var(--ink)">62%</b></p>
+                <div class="between" style="align-items:flex-end;gap:8px">
+                  <p class="hook grow" data-n="6" style="margin:0">햇빛이 강해요 —<br>얇은 긴팔로 피부를 지켜요</p>
+                  <span class="chip" style="flex:none">자세히 <svg class="i" viewBox="0 0 24 24" style="font-size:11px"><path d="M6 9l6 6 6-6"/></svg></span>
+                </div>
+                <div class="mk-hair"></div>
+                <div class="between" data-n="8"><span style="font-weight:800;font-size:12px">오늘 챙길 것</span><span class="mk-sub num">1 / 3</span></div>
+                <div style="margin-top:8px;display:grid;gap:7px">
+                  <div class="row" data-n="9"><span class="cbox on"><svg class="i" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><span class="ico tint"><svg class="i" viewBox="0 0 24 24"><path d="M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z"/></svg></span><span class="grow" style="font-weight:600">선크림 <span class="mk-sub">(외출 15분 전)</span></span></div>
+                  <div class="row"><span class="cbox"></span><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span><span class="grow" style="font-weight:600">얇은 긴팔</span></div>
+                </div>
+              </div>
+            </div></div>
+            <!-- 시간대별 환경 -->
+            <div class="between"><div class="sect-h" data-n="10" style="margin:6px 2px">시간대별 환경</div>
+              <div class="tabs" style="width:96px;flex:none;padding:2px"><span class="t on" style="padding:4px">오늘</span><span class="t" style="padding:4px">내일</span></div></div>
+            <div class="hscroll" data-n="11">
+              <div class="fcard"><div class="mk-sub">등원</div><div style="text-align:center;margin:5px 0;color:var(--warn)"><svg class="i" viewBox="0 0 24 24" style="font-size:20px"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg></div><div class="num" style="text-align:center">27°</div><div class="mk-hair"></div><div class="between"><span class="mk-sub">자외선</span><span class="row"><span class="statdot" style="background:var(--warn)"></span><b style="font-size:10px">강함</b></span></div></div>
+              <div class="fcard"><div class="mk-sub">야외활동</div><div style="text-align:center;margin:5px 0;color:var(--faint)"><svg class="i" viewBox="0 0 24 24" style="font-size:20px"><path d="M6 15a4 4 0 011-7.9A5 5 0 0117 9a3.5 3.5 0 01.5 6.9"/></svg></div><div class="num" style="text-align:center">31°</div><div class="mk-hair"></div><div class="between"><span class="mk-sub">습도</span><b style="font-size:10px">58%</b></div></div>
+              <div class="fcard" style="opacity:.55"><div class="mk-sub">하원</div></div>
+            </div>
+            <!-- 케어 플랜 -->
+            <div class="sect-h" data-n="12">오늘의 케어 플랜</div>
+            <div class="timeline">
+              <div class="tl"><div class="rail"><span class="tdot now"></span><span class="line"></span></div>
+                <div class="tcard now"><div class="between"><b style="font-size:11px">08:30 등원 <span class="num" style="color:var(--muted)">27°</span> · <span style="color:var(--warn)">자외선 강함</span></b><span style="color:var(--warn)"><svg class="i" viewBox="0 0 24 24" style="font-size:14px"><circle cx="12" cy="12" r="4"/><path d="M12 3v1M12 20v1M3 12h1M20 12h1"/></svg></span></div>
+                  <div class="wrap-row" data-n="13" style="margin-top:6px"><span class="chip warn">선크림</span><span class="chip">모자</span></div></div></div>
+              <div class="tl"><div class="rail"><span class="tdot"></span></div>
+                <div class="tcard"><b style="font-size:11px">14:00 하원 <span class="num" style="color:var(--muted)">31°</span> · 무난해요</b></div></div>
+            </div>
+            <div class="bnav" style="margin-top:14px">
+              <div class="tab on"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5"/></svg></span>환경정보</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">프로필 전환 세그먼트 컨트롤 <span class="term">Segmented Control</span></p><p class="ldesc">아이가 여럿일 때 화면에 표시할 아이를 고르는 알약형 전환 스위치. 선택된 아이가 흰 카드로 떠오릅니다. 끝의 <b>"+ 추가"</b>는 새 아이 등록으로 가는 버튼이에요.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">위치 버튼 <span class="term">Location Button</span></p><p class="ldesc">기준 지역(예: 서울 강남구)을 보여 주고, 누르면 현재 위치를 다시 잡습니다. 핀 아이콘 + 지역명 + 아래 화살표(chevron)로 구성돼요.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">AI 리포트 카드 <span class="term">Hero Card</span></p><p class="ldesc">화면에서 가장 중요한 <b>주인공 카드</b>. 그림자를 진하게 줘 다른 카드보다 한 단계 떠 보이게 만든 것이 "히어로" 카드입니다.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">카드 헤더 밴드 <span class="term">Card Header</span></p><p class="ldesc">카드 위쪽 크림색 띠. 카드 제목("AI 리포트")과 <b>기준 시각 캡션</b>(작은 보조 글씨)이 들어갑니다.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">새로고침 · 공유 아이콘 버튼 <span class="term">Icon Buttons</span></p><p class="ldesc">리포트를 최신 날씨로 다시 만들거나(회전 화살표), 이미지로 저장·공유(공유 아이콘)합니다.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">훅 헤드라인 + 펼치기 토글 <span class="term">Headline · Disclosure Toggle</span></p><p class="ldesc">오늘의 결론을 한 문장으로 크게 쓴 <b>헤드라인</b>. 오른쪽 "자세히/접기"는 긴 설명을 폈다 접었다 하는 <b>토글</b>이에요.</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">현재 환경 요약 줄 <span class="term">Inline Metric Strip</span></p><p class="ldesc">현재날씨·체감·강수·미세먼지·습도를 "·"로 이어 한 줄에 담은 <b>지표 띠</b>. 값이 있는 항목만 나타납니다.</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">"오늘 챙길 것" 섹션 헤더 + 진행 카운터 <span class="term">Section Header · Counter</span></p><p class="ldesc">준비물 묶음의 제목과, 몇 개 챙겼는지 세어 주는 <b>카운터</b>(1 / 3, 다 하면 "준비 끝 ✓").</p></div></li>
+        <li class="leg"><span class="lnum">9</span><div class="ltext"><p class="lname">체크리스트 행 <span class="term">Checklist Row · Checkbox</span></p><p class="ldesc">누르면 체크되는 준비물 한 줄. <b>체크박스</b>(동그라미+체크)와 <b>아이콘 타일</b>(품목 그림), 이름, 괄호 안 보조 설명으로 이뤄져요.</p></div></li>
+        <li class="leg"><span class="lnum">10</span><div class="ltext"><p class="lname">시간대별 환경 헤더 + 오늘/내일 세그먼트 <span class="term">Section Header · Segmented Control</span></p><p class="ldesc">시간대 예보 묶음의 제목과, 오늘·내일을 전환하는 작은 세그먼트 컨트롤.</p></div></li>
+        <li class="leg"><span class="lnum">11</span><div class="ltext"><p class="lname">예보 카드 가로 스크롤 <span class="term">Horizontal Scroll · Cards</span></p><p class="ldesc">시간대별(등원·야외활동·하원…) 작은 <b>카드</b>를 옆으로 밀어 보는 영역. 주의할 지표엔 <b>상태 도트</b>(색 점)가 붙어요.</p></div></li>
+        <li class="leg"><span class="lnum">12</span><div class="ltext"><p class="lname">오늘의 케어 플랜 — 타임라인 <span class="term">Timeline</span></p><p class="ldesc">하루 일과를 시간 순 세로줄로 잇는 <b>타임라인</b>. 왼쪽 점(<b>타임라인 도트</b>)이 "지금" 시간대를 주황 링으로 강조합니다.</p></div></li>
+        <li class="leg"><span class="lnum">13</span><div class="ltext"><p class="lname">준비물 칩 <span class="term">Chips</span></p><p class="ldesc">각 시간대에 챙길 것을 담은 <b>알약형 태그</b>. 꼭 필요한 항목은 주황 테두리 <b>경고 칩</b>으로 강조돼요.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 02 ENV ===================== -->
+  <section class="blk" id="env">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 02</span><span class="route">/env · 환경정보</span></div>
+      <h2>환경정보 — 맞춤 환경 지표</h2>
+      <p>오늘의 날씨·대기질·꽃가루·자외선·주간 예보를 우리 아이 기준으로 자세히 풀어 주는 화면. 수치와 등급을 카드로 정리해 <b>훑어보게(scan)</b> 설계돼 있어요.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <div class="between" style="margin-bottom:12px">
+              <div class="row" style="font-weight:800"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div>
+              <div class="ibtn" data-n="1"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div>
+            </div>
+            <div class="between" style="margin-bottom:4px"><b style="font-size:13px;letter-spacing:-.02em">민준이를 위한 맞춤 환경 정보</b>
+              <span class="chip" data-n="2" style="flex:none"><svg class="i" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>서울 강남구</span></div>
+            <p class="mk-sub" style="margin:0 0 11px">호흡기 민감·민감 피부를 반영했어요</p>
+            <div class="mk-card" data-n="3"><div class="between"><span class="num big">28°</span><div style="text-align:right"><div class="mk-sub">체감 30° · 습도 62%</div><div class="mk-sub">바람 3m/s · 강수 20%</div></div></div></div>
+            <div class="mk-card" data-n="4"><div class="mk-sub" style="color:var(--brand-ink);font-weight:700">오늘의 야외활동 지수</div>
+              <div class="row" style="align-items:baseline;margin:2px 0 7px"><span class="num big">73</span><span class="mk-sub">&nbsp;/ 100 · 보통</span></div>
+              <div class="gauge"><i style="width:73%"></i></div>
+              <p class="mk-sub" style="margin:7px 0 0">자외선이 강하니 그늘 위주로 짧게 즐기기 좋아요.</p></div>
+            <div class="mk-card" data-n="5"><div class="row"><span class="ico warn"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 9v5"/></svg></span><div class="grow"><b style="font-size:11.5px">자외선 매우높음 (지수 9)</b><div class="mk-sub">한낮 외출은 모자·선크림 필수예요.</div></div></div></div>
+            <div class="sect-h" data-n="6">대기질 · 미세먼지</div>
+            <div class="tiletile" style="grid-template-columns:1fr 1fr 1fr">
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">PM10</div><div class="num" style="font-size:16px">42</div><div style="font-size:9.5px;color:var(--good);font-weight:700">보통</div></div>
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">PM2.5</div><div class="num" style="font-size:16px">18</div><div style="font-size:9.5px;color:var(--good);font-weight:700">좋음</div></div>
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">오존</div><div class="num" style="font-size:16px">.03</div><div style="font-size:9.5px;color:var(--good);font-weight:700">좋음</div></div>
+            </div>
+            <div class="between" style="margin:15px 2px 9px"><b style="font-size:13px">꽃가루 지수</b><span class="mk-sub" data-n="7" style="color:var(--brand-ink);font-weight:700">기상청 출처 ↗</span></div>
+            <div class="tiletile" style="grid-template-columns:1fr 1fr 1fr">
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">참나무</div><div style="font-size:10px;color:var(--warn);font-weight:700">높음</div></div>
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">소나무</div><div style="font-size:10px;color:var(--good);font-weight:700">낮음</div></div>
+              <div class="mk-card" style="margin:0;text-align:center;padding:8px"><div class="mk-sub">잡초</div><div style="font-size:10px;color:var(--good);font-weight:700">낮음</div></div>
+            </div>
+            <div class="tiletile" data-n="8" style="margin-top:11px">
+              <div class="mk-card" style="margin:0"><div class="mk-sub">자외선 지수</div><div class="num" style="font-size:18px">9 <span style="font-size:10px;color:var(--warn)">매우높음</span></div><div class="gauge" style="margin-top:5px"><i class="warn" style="width:82%"></i></div></div>
+              <div class="mk-card" style="margin:0"><div class="mk-sub">온·습도</div><div class="num" style="font-size:18px">62% <span style="font-size:10px;color:var(--good)">쾌적</span></div><div class="mk-sub" style="margin-top:5px">실내 권장 40~60%</div></div>
+            </div>
+            <div class="sect-h" data-n="9">주간 날씨</div>
+            <div class="mk-card">
+              <div class="between" style="padding:2px 0"><b style="width:26px;font-size:11px">오늘</b><span style="color:var(--faint)"><svg class="i" viewBox="0 0 24 24" style="font-size:15px"><circle cx="12" cy="12" r="4"/><path d="M12 3v1"/></svg></span><div class="gauge" style="width:70px"><i style="width:60%;margin-left:20%"></i></div><span class="num" style="font-size:10px">24°/31°</span><span class="chip" style="font-size:9px">20%</span></div>
+              <div class="mk-hair"></div>
+              <div class="between" style="padding:2px 0"><b style="width:26px;font-size:11px;color:var(--info)">토</b><span style="color:var(--faint)"><svg class="i" viewBox="0 0 24 24" style="font-size:15px"><path d="M6 15a4 4 0 011-7.9A5 5 0 0117 9a3.5 3.5 0 01.5 6.9"/></svg></span><div class="gauge" style="width:70px"><i style="width:55%;margin-left:10%"></i></div><span class="num" style="font-size:10px">22°/28°</span><span class="chip warn" style="font-size:9px">70%</span></div>
+            </div>
+            <div class="sect-h" data-n="10">이번 주말 나들이</div>
+            <div class="mk-card"><div class="between"><b style="font-size:11px">토요일 · 강수 70%</b><span class="pill" style="background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info)">실내 추천</span></div>
+              <div class="row" style="margin-top:7px"><span class="ico info"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span><div class="grow"><b style="font-size:11px">국립과천과학관</b><div class="mk-sub">과천 · 비 와도 온종일</div></div><svg class="i" viewBox="0 0 24 24" style="color:var(--faint)"><path d="M9 6l6 6-6 6"/></svg></div>
+              <div class="mk-hair"></div><div class="cta" style="font-size:11px" >✦ 더 보고 싶어요</div></div>
+            <div class="bnav" style="margin-top:14px">
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab on"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5M3 12h16a2.5 2.5 0 11-2.5 2.5M3 16h9a2.5 2.5 0 11-2.5 2.5"/></svg></span>환경정보</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">새로고침 아이콘 버튼 <span class="term">Icon Button</span></p><p class="ldesc">모든 환경 데이터를 다시 불러옵니다. 누르면 아이콘이 회전하며 완료 시 <b>토스트</b>(잠깐 뜨는 알림 띠)로 결과를 알려 줘요.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">위치 선택 칩 버튼 <span class="term">Location Pill</span></p><p class="ldesc">기준 지역을 나타내는 알약형 버튼. 누르면 실제 위치를 잡아 그 지역 데이터로 바꿉니다.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">현재 날씨 카드 <span class="term">Card</span></p><p class="ldesc">기온·체감·하늘상태·바람·습도·강수확률 등 지금 날씨를 한 장에 요약한 카드.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">야외활동 지수 카드 + 게이지 <span class="term">Gauge / Progress Bar</span></p><p class="ldesc">아이데이가 만든 종합 점수(0~100). 아래 막대가 <b>게이지</b> — 값을 색과 길이로 보여 주는 눈금 막대예요. (공인 지수 아님을 각주로 밝힘)</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">맞춤 인사이트 카드 + 아이콘 배지 <span class="term">Insight Card · Icon Badge</span></p><p class="ldesc">아이 체질에 맞춰 "주의할 점"을 짚어 주는 카드. 왼쪽 색 사각형이 <b>아이콘 배지</b>로, 색이 상태(경고/정보/양호)를 나타냅니다.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">통계 카드 그리드 <span class="term">Stat Cards · Grid</span></p><p class="ldesc">PM10·PM2.5·오존을 3칸으로 나란히 놓은 <b>수치 카드 묶음</b>. 각 카드는 이름·큰 값·단위·등급으로 구성돼요.</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">출처 링크 <span class="term">External Link</span></p><p class="ldesc">"기상청 출처 ↗"처럼 누르면 <b>외부 사이트</b>가 새 창으로 열리는 링크. 화살표(↗)가 외부로 나감을 뜻해요.</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">자외선 · 온습도 2열 카드 <span class="term">Two-Column Cards</span></p><p class="ldesc">두 지표를 한 줄에 나란히 둔 카드. 각 카드에도 값 아래 <b>게이지</b>와 권장 범위 안내가 붙습니다.</p></div></li>
+        <li class="leg"><span class="lnum">9</span><div class="ltext"><p class="lname">주간 날씨 리스트 행 <span class="term">List Rows</span></p><p class="ldesc">요일별로 한 줄씩 쌓은 <b>리스트</b>. 각 행은 요일·날씨 아이콘·<b>기온 범위 바</b>·최저/최고 온도·강수확률 칩으로 구성돼요.</p></div></li>
+        <li class="leg"><span class="lnum">10</span><div class="ltext"><p class="lname">주말 나들이 카드 <span class="term">Card · Verdict Badge</span></p><p class="ldesc">주말 날씨로 실내/실외를 판정해("<b>판정 배지</b>": 실내 추천 등) 서울 나들이 장소를 <b>리스트 행</b>으로 추천합니다. 맨 아래 "더 보고 싶어요"는 관심을 남기는 <b>CTA 버튼</b>이에요.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 03 OUTFIT ===================== -->
+  <section class="blk" id="outfit">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 03</span><span class="route">/outfit · 옷차림</span></div>
+      <h2>옷차림 — 오늘의 코디</h2>
+      <p>아이 체질과 오늘 날씨를 합쳐 <b>무엇을 입힐지</b> 알려 주는 화면. 추천 아이템, 코디 미리보기 그림, 피해야 할 옷, 필요한 준비물까지 정리해 줍니다.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <div class="between" style="margin-bottom:14px"><div class="row" style="font-weight:800"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div></div>
+            <b data-n="1" style="font-size:15px;letter-spacing:-.02em">민준이의 오늘 코디</b>
+            <p class="mk-sub" style="margin:3px 0 12px">아이의 체질과 오늘 날씨를 반영한 맞춤 옷차림이에요.</p>
+            <div data-n="2" style="position:relative"><div class="mk-hero" style="padding:11px"><div class="between"><span class="num big">28°</span><div class="mk-sub" style="text-align:right">체감 30°<br>습도 62%</div></div>
+              <div class="mk-hair"></div><b style="font-size:12px">민준이는 오늘 레이어드 코디가 좋아요.</b><p class="mk-sub" style="margin:3px 0 0">한낮엔 덥고 아침저녁은 선선해 벗기 쉬운 겉옷이 필요해요.</p></div></div>
+            <div class="sect-h" data-n="3">추천 아이템</div>
+            <div class="mk-card"><div class="between" style="margin-bottom:7px"><b style="font-size:12px">아우터</b><span class="chip">2개</span></div>
+              <div class="tiletile"><div class="itile"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span><div><b style="font-size:11px">얇은 가디건</b><div class="mk-sub">통기성 좋은 면</div></div></div>
+                <div class="itile"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span><div><b style="font-size:11px">바람막이</b></div></div></div></div>
+            <div class="between"><div class="sect-h" data-n="4" style="margin:6px 2px">오늘의 룩 : 추천 코디 미리 보기</div><span class="pill">AI코디 추천</span></div>
+            <p class="mk-sub" style="margin:0 0 8px">추천 아이템을 실제 코디로 미리 확인해보세요.</p>
+            <div class="mk-card" style="height:120px;display:grid;place-items:center;background:linear-gradient(135deg,var(--cream),var(--tint))">
+              <div style="text-align:center;color:var(--brand-ink)"><svg class="i" viewBox="0 0 24 24" style="font-size:34px"><circle cx="12" cy="7" r="3"/><path d="M8 21v-6l-2-1 3-4h6l3 4-2 1v6"/></svg><div class="mk-sub" style="color:var(--brand-ink);font-weight:700">코디 미리보기 이미지</div></div></div>
+            <div class="sect-h" data-n="5">피해주세요</div>
+            <div class="mk-card"><div class="row" style="margin-bottom:6px"><span class="ico warn"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 9v5"/></svg></span><b style="font-size:11.5px">검은색 · 진한 색 옷</b></div>
+              <div class="callbox"><svg class="i" viewBox="0 0 24 24" style="flex:none"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16v.5"/></svg><span>햇빛을 많이 흡수해 체온이 오르기 쉬워요.</span></div></div>
+            <div class="sect-h" data-n="6">오늘 필요한 아이템</div>
+            <div class="mk-card"><div class="between" style="padding:2px 0"><div><b style="font-size:11px">아동 선크림 SPF50</b><div class="mk-sub">자외선 매우높음</div></div><span class="num" style="font-size:11px">13,900원</span></div>
+              <div class="mk-hair"></div><div class="between" style="padding:2px 0"><div><b style="font-size:11px">챙 넓은 모자</b><div class="mk-sub">얼굴·목 그늘</div></div><span class="num" style="font-size:11px">19,000원</span></div>
+              <p class="mk-sub" style="margin:8px 0 0;text-align:center">가격은 참고용이에요 · 구매 연동은 준비 중</p></div>
+            <div class="bnav" style="margin-top:14px">
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5"/></svg></span>환경정보</div>
+              <div class="tab on"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">페이지 헤드라인 + 서브 캡션 <span class="term">Headline · Subcaption</span></p><p class="ldesc">화면 제목("민준이의 오늘 코디")과 그 아래 한 줄 <b>보조 설명</b>. 캡션은 본문보다 작고 옅은 글씨예요.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">날씨 + 코디 히어로 카드 <span class="term">Hero Card</span></p><p class="ldesc">현재 날씨 요약 위에 "오늘 이렇게 입히세요" 한 줄을 얹은 주인공 카드.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">추천 아이템 — 카테고리 카드 + 아이템 타일 <span class="term">Category Card · Item Tiles</span></p><p class="ldesc">아우터·이너·하의·악세사리 묶음별 카드. 오른쪽 "2개"는 <b>개수 배지</b>, 안쪽 2열 격자는 옷 하나하나를 담은 <b>아이템 타일</b>이에요.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">오늘의 룩 + "AI코디 추천" 배지 + 이미지 카드 <span class="term">Badge · Image Card</span></p><p class="ldesc">추천 옷을 조합한 모습을 그림으로 보여 주는 <b>이미지 카드</b>. 옆 "AI코디 추천"은 강조용 <b>배지</b>(알약 태그)입니다.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">피해주세요 — 경고 카드 + 이유 콜아웃 박스 <span class="term">Callout Box</span></p><p class="ldesc">피할 옷과 그 이유를 담은 카드. 옅은 색으로 감싼 안쪽 상자가 <b>콜아웃 박스</b> — 이유·주의를 눈에 띄게 담는 영역이에요.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">오늘 필요한 아이템 — 리스트 행 + 각주 <span class="term">List Rows · Footnote</span></p><p class="ldesc">준비물을 이름·이유·가격으로 한 줄씩 정리한 <b>리스트</b>. 맨 아래 작은 글씨가 <b>각주</b>(가격은 참고용) 안내입니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 04 TIPS ===================== -->
+  <section class="blk" id="tips">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 04</span><span class="route">/tips · 건강팁</span></div>
+      <h2>건강팁 — 근거 기반 가이드</h2>
+      <p>대학병원·의료학회 등 <b>의학적 근거</b>에 바탕한 육아 건강 가이드. 오늘 환경과 우리 아이 조건에 맞는 팁만 골라 카드로 보여 줍니다.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <div class="between" style="margin-bottom:12px"><div class="row" style="font-weight:800"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div>
+              <span class="chip" data-n="1"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-4 8-8 9-4-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>근거 기반</span></div>
+            <b style="font-size:15px">건강팁</b>
+            <p class="mk-sub" style="margin:3px 0 11px">대학병원·의료학회·보건복지부 등 의학적 근거 기반 가이드를 제공합니다.</p>
+            <div class="mk-card" data-n="2"><div class="row"><span class="avatar">민</span><div class="grow"><b style="font-size:12px">민준이를 위한 오늘의 가이드</b><div class="mk-sub">호흡기 민감 · 민감 피부</div></div><span class="chip">수정</span></div></div>
+            <div class="callbox" data-n="3" style="background:color-mix(in srgb,var(--warn) 10%,transparent);color:var(--warn);margin-bottom:11px"><svg class="i" viewBox="0 0 24 24" style="flex:none"><path d="M12 3l10 18H2z"/><path d="M12 9v5"/></svg><span>본 정보는 일반적 건강 정보이며 진료를 대체하지 않습니다.</span></div>
+            <div class="wrap-row" data-n="4" style="margin-bottom:11px"><span class="chip on">전체</span><span class="chip">자외선</span><span class="chip">미세먼지</span><span class="chip">꽃가루</span><span class="chip">건조</span></div>
+            <div class="mk-card" data-n="5"><div class="between" style="margin-bottom:7px"><div class="row"><span class="ico warn"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 3v1"/></svg></span><span class="chip">자외선</span></div><span class="chip warn">경고</span></div>
+              <b style="font-size:12px;letter-spacing:-.02em">자외선 높음 — 영유아 피부 보호 필수</b>
+              <div class="pill" data-n="6" style="margin:7px 0">내 아이 매칭: 민감 피부</div>
+              <p class="mk-sub" style="margin:0 0 7px">오전 10시~오후 2시 자외선이 가장 강해요. 외출 15분 전 선크림을 발라 주세요.</p>
+              <div data-n="7" style="display:grid;gap:5px">
+                <div class="row"><span class="statdot" style="background:var(--brand)"></span><span style="font-size:11px">SPF30+ 선크림 2~3시간마다 덧바르기</span></div>
+                <div class="row"><span class="statdot" style="background:var(--brand)"></span><span style="font-size:11px">챙 넓은 모자·긴팔로 물리적 차단</span></div>
+              </div>
+              <div class="mk-hair"></div>
+              <div class="row" style="margin-bottom:5px;color:var(--muted)"><svg class="i" viewBox="0 0 24 24" style="font-size:13px"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M19 3v16"/></svg><b style="font-size:11px">출처</b></div>
+              <div class="between" data-n="8"><span style="font-size:10.5px;color:var(--brand-ink)">대한피부과학회 — 자외선차단제 가이드</span><svg class="i" viewBox="0 0 24 24" style="color:var(--faint);font-size:13px"><path d="M14 4h6v6M20 4l-9 9M18 14v5H5V6h5"/></svg></div></div>
+            <div class="bnav" style="margin-top:14px">
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5"/></svg></span>환경정보</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab on"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">"근거 기반" 배지 <span class="term">Badge</span></p><p class="ldesc">헤더 오른쪽에 놓인 방패 아이콘 태그. 내용이 <b>의학적 출처</b>에 바탕함을 알리는 신뢰 표시예요.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">프로필 컨텍스트 카드 <span class="term">Context Card · Avatar</span></p><p class="ldesc">"누구를 위한 가이드인지" 알려 주는 카드. 왼쪽 동그라미가 이름 첫 글자를 담은 <b>아바타</b>, "수정"은 프로필로 가는 <b>텍스트 버튼</b>이에요.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">면책 배너 <span class="term">Disclaimer Banner / Callout</span></p><p class="ldesc">"진료를 대체하지 않는다"는 주의 안내 띠. 경고 아이콘과 함께 옅은 색 배경으로 구분한 <b>배너</b>입니다.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">카테고리 필터 칩 <span class="term">Filter Chips</span></p><p class="ldesc">옆으로 넘기며 고르는 <b>필터 칩</b> 줄(전체·자외선·미세먼지…). 고른 칩만 주황으로 강조되고 아래 카드가 걸러집니다.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">팁 카드 + 카테고리·심각도 배지 <span class="term">Tip Card · Badges</span></p><p class="ldesc">가이드 한 편이 담긴 카드. 왼쪽 위 <b>카테고리 배지</b>(자외선), 오른쪽 위 <b>심각도 배지</b>(경고/주의/정보)가 붙어요.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">프로필 매칭 배지 <span class="term">Match Badge</span></p><p class="ldesc">"이 팁이 왜 우리 아이에게 뜨는지"를 설명하는 강조 태그(예: 민감 피부 때문).</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">권장사항 리스트 <span class="term">Bulleted List</span></p><p class="ldesc">실천 항목을 점(bullet)으로 나열한 목록. 한 줄에 하나씩 구체적 행동을 담아요.</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">출처 리스트 행 <span class="term">Source Link Rows</span></p><p class="ldesc">근거가 된 기관·문서를 한 줄씩 나열한 <b>외부 링크</b>. 오른쪽 화살표 아이콘은 새 창으로 열림을 뜻합니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 05 ME ===================== -->
+  <section class="blk" id="me">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 05</span><span class="route">/me · 마이</span></div>
+      <h2>마이페이지 — 아이 정보와 계정</h2>
+      <p>온보딩에서 입력한 우리 아이 정보를 확인·수정하고, 알림·위치·약관·로그아웃 등 계정을 관리하는 화면.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <div class="between" style="margin-bottom:12px"><div class="row" style="font-weight:800"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div>
+              <div class="ibtn" data-n="1"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 003.4 0"/></svg><span class="bdot"></span></div></div>
+            <b style="font-size:15px">마이페이지</b>
+            <p class="mk-sub" style="margin:3px 0 12px">온보딩에서 입력한 우리 아이 정보를 확인할 수 있어요</p>
+            <div class="between" style="margin-bottom:8px"><b data-n="2" style="font-size:13px">아이 프로필</b><span class="mk-sub num">2명</span></div>
+            <div class="mk-card" data-n="3"><div class="row" style="margin-bottom:8px"><span class="avatar">민</span><b class="grow" style="font-size:12px">민준</b><span class="pill">선택됨</span></div>
+              <div class="mk-sub" style="margin-bottom:8px">5세 · 남아 · 호흡기 민감</div>
+              <div class="between" data-n="4" style="padding:3px 0;border-top:1px solid var(--line-soft)"><span class="mk-sub">민감도</span><span style="font-size:10.5px">추위 보통 · 더위 많이 탐</span></div>
+              <div class="between" style="padding:3px 0;border-top:1px solid var(--line-soft)"><span class="mk-sub">등원 · 하원</span><span class="num" style="font-size:10.5px">08:30 · 14:00</span></div>
+              <div class="row" data-n="5" style="margin-top:9px;gap:7px"><span class="cta ghost grow"><svg class="i" viewBox="0 0 24 24" style="font-size:12px"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg> 편집</span><span class="ibtn" style="width:30px;height:30px"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span></div></div>
+            <div class="cta dash" data-n="6"><svg class="i" viewBox="0 0 24 24" style="font-size:12px"><path d="M12 5v14M5 12h14"/></svg> 아이 추가하기</div>
+            <div class="sect-h">계정</div>
+            <div class="mk-card" data-n="7" style="padding:0">
+              <div class="between" style="padding:9px 11px"><div class="row"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9"/></svg></span>알림 설정</div><svg class="i" viewBox="0 0 24 24" style="color:var(--faint)"><path d="M9 6l6 6-6 6"/></svg></div>
+              <div class="between" style="padding:9px 11px;border-top:1px solid var(--line-soft)"><div class="row"><span class="ico"><svg class="i" viewBox="0 0 24 24"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg></span>위치 설정</div><span class="mk-sub">서울 강남구</span></div>
+              <div class="between" style="padding:9px 11px;border-top:1px solid var(--line-soft)"><div class="row"><span class="ico"><svg class="i" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/></svg></span>데이터 기준 안내</div><svg class="i" viewBox="0 0 24 24" style="color:var(--faint)"><path d="M9 6l6 6-6 6"/></svg></div>
+              <div class="between" data-n="8" style="padding:9px 11px;border-top:1px solid var(--line-soft);color:var(--bad)"><div class="row"><span class="ico" style="color:var(--bad)"><svg class="i" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg></span>로그아웃</div></div>
+            </div>
+            <div class="bnav" style="margin-top:14px">
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 10l9-7 9 7"/><path d="M5 9v11h14V9"/></svg></span>홈</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M3 8h11a2.5 2.5 0 10-2.5-2.5"/></svg></span>환경정보</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M8 3l4 3 4-3 5 4-3 3-1-1v11H7V9L6 10 3 7z"/></svg></span>옷차림</div>
+              <div class="tab"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><path d="M20.8 5.6a5 5 0 00-7.1 0L12 7.3l-1.7-1.7a5 5 0 10-7.1 7.1L12 21l8.8-8.3a5 5 0 000-7.1z"/></svg></span>건강팁</div>
+              <div class="tab on"><span class="tIc"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></span>마이</div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">알림 벨 아이콘 버튼 + 도트 배지 <span class="term">Icon Button · Dot Badge</span></p><p class="ldesc">누르면 "알림은 정식 출시 예정" <b>토스트</b>가 떠요. 벨 위 작은 점(<b>도트 배지</b>)이 곧 나올 기능을 암시합니다.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">섹션 헤더 + 인원수 <span class="term">Section Header</span></p><p class="ldesc">"아이 프로필" 묶음의 제목과, 등록된 아이 수("2명")를 오른쪽에 표시.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">프로필 카드 + 아바타 + "선택됨" 배지 <span class="term">Profile Card · Avatar · Badge</span></p><p class="ldesc">아이 한 명의 정보 카드. 지금 활성인 아이엔 "선택됨" <b>배지</b>가 붙고, 카드를 누르면 그 아이로 전환돼요.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">정보 행 <span class="term">Info Rows (Definition List)</span></p><p class="ldesc">왼쪽 항목명·오른쪽 값으로 짝지은 줄(민감도, 등·하원 시간). 구분선(divider)으로 나뉩니다.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">편집 · 삭제 버튼 <span class="term">Action Row</span></p><p class="ldesc">프로필을 고치거나 지우는 버튼 묶음. 삭제는 <b>확인 대화상자</b>(정말 삭제할까요?)를 한 번 거칩니다.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">"아이 추가하기" 버튼 <span class="term">Dashed CTA Button</span></p><p class="ldesc">점선 테두리의 <b>추가 버튼</b>. 점선은 "여기에 새로 더할 수 있다"는 관용적 신호예요. 누르면 온보딩으로 갑니다.</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">계정 설정 리스트 <span class="term">Grouped List · List Rows</span></p><p class="ldesc">설정 항목을 한 카드 안에 <b>리스트 행</b>으로 묶은 것(당근·토스식 패턴). 각 행은 아이콘·이름·오른쪽 값 또는 <b>셰브론</b>(&gt; 화살표)으로 구성돼요.</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">로그아웃 행 <span class="term">Destructive Row</span></p><p class="ldesc">되돌리기 어려운 동작이라 빨간 계열로 표시하는 행. 누르면 확인 대화상자를 거쳐 로그아웃됩니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 06 ONBOARDING ===================== -->
+  <section class="blk" id="onboarding">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 06</span><span class="route">/onboarding · 첫 등록</span></div>
+      <h2>온보딩 — 5단계 정보 입력 마법사</h2>
+      <p>처음 시작할 때 우리 아이 정보를 단계별로 받는 <b>마법사(wizard)</b> 흐름. 아래 목업은 1단계 화면이며, 오른쪽 목록엔 5단계 전체에서 쓰이는 <b>입력 요소 종류</b>를 정리했어요.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk">
+            <div class="between" style="margin-bottom:12px"><span class="ibtn"><svg class="i" viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></span><span class="chip">나중에 이어서 하기</span></div>
+            <div data-n="1" style="margin-bottom:14px"><div class="between" style="margin-bottom:5px"><span class="mk-sub num">1 / 5</span><span class="mk-sub num" style="color:var(--brand-ink)">20%</span></div><div class="gauge"><i style="width:20%"></i></div></div>
+            <div class="row" data-n="2" style="align-items:flex-start;gap:8px;margin-bottom:16px"><span class="ico tint" style="width:30px;height:30px"><svg class="i" viewBox="0 0 24 24"><path d="M6 15a4 4 0 011-7.9A5 5 0 0117 9a3.5 3.5 0 01.5 6.9"/><circle cx="17" cy="6" r="2.5"/></svg></span>
+              <div class="mk-card" style="margin:0;flex:1;background:var(--card-2)"><b style="font-size:12px">안녕하세요! 먼저 아이에 대해 알려주세요.</b><div class="mk-sub" style="margin-top:3px">월령과 성별에 따라 맞춤 정보를 준비해요</div></div></div>
+            <div style="display:grid;gap:11px">
+              <div><div class="mk-sub" style="margin-bottom:4px;font-weight:600">이름</div><div class="field" data-n="3">예) 지우 (별명도 괜찮아요)</div></div>
+              <div><div class="mk-sub" style="margin-bottom:4px;font-weight:600">태어난 연·월</div><div class="row" data-n="4"><span class="select grow">2021년 <svg class="i" viewBox="0 0 24 24" style="font-size:12px"><path d="M6 9l6 6 6-6"/></svg></span><span class="select grow">3월 <svg class="i" viewBox="0 0 24 24" style="font-size:12px"><path d="M6 9l6 6 6-6"/></svg></span></div></div>
+              <div><div class="mk-sub" style="margin-bottom:4px;font-weight:600">성별</div><div class="seg3" data-n="5"><span class="s on">남아</span><span class="s">여아</span><span class="s">선택 안 함</span></div></div>
+            </div>
+            <div class="mk-card" data-n="6" style="margin-top:13px;background:var(--card-2)"><div class="mk-sub" style="font-weight:700;margin-bottom:6px;color:var(--ink)">2단계 예시 · 다중 선택</div>
+              <div class="row" style="margin-bottom:5px"><span class="cbox on"><svg class="i" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span><span style="font-size:11px">호흡기 민감 (비염·천식)</span></div>
+              <div class="row"><span class="cbox" style="border-radius:5px"></span><span style="font-size:11px">알레르기 체질</span></div>
+              <div class="between" data-n="7" style="margin-top:9px;padding-top:8px;border-top:1px solid var(--line-soft)"><span style="font-size:11px">이용약관에 동의합니다</span><span class="cbox on" style="border-radius:5px"><svg class="i" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></span></div></div>
+            <div class="mk-card" data-n="8" style="background:var(--card-2)"><div class="mk-sub" style="font-weight:700;margin-bottom:6px;color:var(--ink)">5단계 예시 · 알림 켜기</div><div class="between"><span style="font-size:11px">전날 밤 알림</span><span class="toggle"></span></div><div class="between" style="margin-top:6px"><span style="font-size:11px">당일 아침 알림</span><span class="toggle off"></span></div></div>
+            <div class="cta" data-n="9" style="margin-top:6px">다음</div>
+            <p class="mk-sub" style="text-align:center;margin:9px 0 0">먼저 둘러볼게요</p>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">진행 바 + 단계 카운터 <span class="term">Progress Bar · Step Counter</span></p><p class="ldesc">전체 5단계 중 어디쯤인지 알려 주는 <b>진행 바</b>와 "1 / 5", "20%" 표시. 끝이 안 보이는 입력의 부담을 줄여 줍니다.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">질문 말풍선 + 아바타 <span class="term">Speech Bubble</span></p><p class="ldesc">각 단계의 질문을 대화하듯 담은 <b>말풍선</b>. 옆 구름 캐릭터가 안내자 역할을 해요.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">텍스트 입력 필드 <span class="term">Text Field</span></p><p class="ldesc">이름처럼 직접 글자를 치는 칸. 옅은 예시 글씨(<b>플레이스홀더</b>)로 무엇을 넣을지 알려 줍니다.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">드롭다운 선택 <span class="term">Dropdown / Select</span></p><p class="ldesc">누르면 목록이 펼쳐져 하나를 고르는 칸(연·월, 등·하원 시간 등). 정해진 보기 중에서만 고르게 해요.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">선택 버튼 그룹 <span class="term">Choice Chips / Segmented Control</span></p><p class="ldesc">성별처럼 <b>하나만</b> 고르는 나란한 버튼 묶음. 고른 것만 강조돼요.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">다중 선택 체크박스 리스트 <span class="term">Multi-select Checkboxes</span></p><p class="ldesc">건강 조건처럼 <b>여러 개</b>를 함께 고를 수 있는 네모 체크 목록. (하나만 고르는 5번과 구분되는 점이에요.)</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">동의 체크박스 <span class="term">Consent Checkbox</span></p><p class="ldesc">약관·민감정보 활용에 동의를 받는 체크칸. 옆 "자세히" 링크로 전문을 볼 수 있어요.</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">토글 스위치 <span class="term">Toggle Switch</span></p><p class="ldesc">알림을 켜고/끄는 <b>on–off 스위치</b>. 오른쪽(주황)이 켜짐, 왼쪽(회색)이 꺼짐이에요.</p></div></li>
+        <li class="leg"><span class="lnum">9</span><div class="ltext"><p class="lname">"다음" 버튼 <span class="term">CTA Button</span></p><p class="ldesc">다음 단계로 넘기는 <b>주요 행동 버튼</b>(CTA = Call To Action). 마지막 5단계에선 "완료"로 바뀝니다.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== 07 LOGIN ===================== -->
+  <section class="blk" id="login">
+    <div class="shead">
+      <div class="sk"><span class="snum">화면 07</span><span class="route">/login · 로그인</span></div>
+      <h2>로그인</h2>
+      <p>다시 방문한 사용자가 계정으로 들어오는 화면. 이메일·비밀번호 입력과 구글 간편 로그인을 제공합니다.</p>
+    </div>
+    <div class="screen">
+      <div class="phonewrap">
+        <div class="phone"><div class="screenw">
+          <div class="statusbar"><span class="notch"></span><span>9:41</span><span class="sig"><i></i><i></i><i></i></span></div>
+          <div class="mk" style="padding-bottom:26px">
+            <div class="between" data-n="1" style="margin-bottom:26px"><div class="row" style="font-weight:800"><span class="dot" style="width:18px;height:18px;border-radius:6px;background:var(--brand);color:#fff;display:grid;place-items:center;font-size:11px">☀</span> AiDay</div><span class="mk-sub" style="font-weight:600">홈으로</span></div>
+            <b data-n="2" style="font-size:20px;letter-spacing:-.03em">로그인</b>
+            <p class="mk-sub" style="margin:4px 0 20px">다시 만나서 반가워요. 오늘의 리포트가 기다리고 있어요</p>
+            <div style="display:grid;gap:13px">
+              <div data-n="3"><div class="mk-sub" style="margin-bottom:4px;font-weight:600">이메일</div><div class="field">parent@example.com</div></div>
+              <div data-n="4"><div class="between" style="margin-bottom:4px"><span class="mk-sub" style="font-weight:600">비밀번호</span><span class="mk-sub" style="color:var(--brand-ink)">비밀번호를 잊으셨나요?</span></div><div class="field">••••••••</div></div>
+              <div class="cta" data-n="5" style="margin-top:2px">로그인</div>
+            </div>
+            <div class="row" data-n="6" style="margin:18px 0"><span style="flex:1;height:1px;background:var(--line)"></span><span class="mk-sub">또는</span><span style="flex:1;height:1px;background:var(--line)"></span></div>
+            <div class="cta ghost" data-n="7" style="border:1.4px solid var(--line);background:var(--card)"><span style="font-weight:800;color:#4285F4">G</span> Google 계정으로 계속</div>
+            <p class="mk-sub" data-n="8" style="text-align:center;margin:20px 0 6px">계정이 없으신가요? <b style="color:var(--brand-ink)">회원가입</b></p>
+            <p class="mk-sub" style="text-align:center;margin:0;color:var(--brand-ink)">먼저 둘러볼게요 →</p>
+          </div>
+        </div></div>
+      </div>
+      <ol class="legend">
+        <li class="leg"><span class="lnum">1</span><div class="ltext"><p class="lname">헤더 로고 + "홈으로" 링크 <span class="term">Header · Text Link</span></p><p class="ldesc">브랜드 로고와, 로그인 없이 첫 화면으로 돌아가는 <b>텍스트 링크</b>.</p></div></li>
+        <li class="leg"><span class="lnum">2</span><div class="ltext"><p class="lname">페이지 타이틀 + 서브타이틀 <span class="term">Title · Subtitle</span></p><p class="ldesc">화면의 큰 제목("로그인")과 그 아래 환영 문구.</p></div></li>
+        <li class="leg"><span class="lnum">3</span><div class="ltext"><p class="lname">이메일 입력 필드 <span class="term">Labeled Text Field</span></p><p class="ldesc">위에 항목명(라벨)을 붙인 입력칸. 이메일 형식을 받는 칸이에요.</p></div></li>
+        <li class="leg"><span class="lnum">4</span><div class="ltext"><p class="lname">비밀번호 필드 + 찾기 링크 <span class="term">Password Field</span></p><p class="ldesc">입력값이 <b>●●●</b>로 가려지는 칸. 오른쪽 위 "비밀번호를 잊으셨나요?"는 재설정으로 가는 링크.</p></div></li>
+        <li class="leg"><span class="lnum">5</span><div class="ltext"><p class="lname">로그인 버튼 <span class="term">Submit / CTA Button</span></p><p class="ldesc">입력을 제출하는 <b>주요 버튼</b>. 처리 중엔 "로그인 중..."으로 바뀌어 진행을 알려 줘요.</p></div></li>
+        <li class="leg"><span class="lnum">6</span><div class="ltext"><p class="lname">구분선 <span class="term">Divider with Label</span></p><p class="ldesc">가운데 "또는" 글자를 낀 <b>구분선</b>. 두 가지 로그인 방법(직접 입력 / 구글)을 나눕니다.</p></div></li>
+        <li class="leg"><span class="lnum">7</span><div class="ltext"><p class="lname">Google 로그인 버튼 <span class="term">Social / OAuth Button</span></p><p class="ldesc">구글 계정으로 한 번에 들어오는 <b>소셜 로그인</b> 버튼(구글 공식 로고·규격 적용).</p></div></li>
+        <li class="leg"><span class="lnum">8</span><div class="ltext"><p class="lname">하단 링크 <span class="term">Footer Links</span></p><p class="ldesc">"회원가입"(계정 만들기)과 "먼저 둘러볼게요"(로그인 없이 홈 보기)로 가는 링크.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== GLOSSARY ===================== -->
+  <section class="blk" id="glossary">
+    <div class="shead">
+      <div class="sk"><span class="snum">부록</span></div>
+      <h2>UI/UX 기본 용어 사전</h2>
+      <p>화면 어디서나 반복해서 등장하는 구성 단위들의 이름입니다. 이 단어들만 익혀도 대부분의 화면을 설명할 수 있어요.</p>
+    </div>
+    <div class="gloss">
+      <div class="gcard"><h4>헤더</h4><p class="en">Header / App Bar</p><p>화면 맨 위 고정 띠. 로고와 동작 버튼을 담아요.</p></div>
+      <div class="gcard"><h4>하단 내비게이션</h4><p class="en">Bottom Navigation</p><p>화면 아래 고정된 이동 메뉴. 큰 방들 사이를 오가는 탭 묶음.</p></div>
+      <div class="gcard"><h4>탭</h4><p class="en">Tab</p><p>내비게이션 안의 개별 이동 항목. 아이콘+글자로 된 한 칸.</p></div>
+      <div class="gcard"><h4>카드</h4><p class="en">Card</p><p>흰 면·둥근 모서리·그림자로 감싼 정보 한 덩어리. 아이데이 화면의 기본 벽돌.</p></div>
+      <div class="gcard"><h4>히어로 카드</h4><p class="en">Hero Card</p><p>화면에서 가장 중요한 카드. 그림자를 진하게 줘 한 단계 떠 보이게 합니다.</p></div>
+      <div class="gcard"><h4>섹션 헤더</h4><p class="en">Section Header</p><p>내용 묶음의 소제목. 화면을 주제별로 나눠요.</p></div>
+      <div class="gcard"><h4>리스트 행</h4><p class="en">List Row</p><p>목록의 한 줄. 보통 아이콘·이름·오른쪽 값/화살표로 구성.</p></div>
+      <div class="gcard"><h4>칩 / 배지</h4><p class="en">Chip / Badge</p><p>알약 모양 작은 태그. 상태·분류·개수를 압축해 보여 줍니다.</p></div>
+      <div class="gcard"><h4>세그먼트 컨트롤</h4><p class="en">Segmented Control</p><p>여러 보기 중 하나로 전환하는 알약형 스위치(오늘/내일, 아이 전환 등).</p></div>
+      <div class="gcard"><h4>CTA 버튼</h4><p class="en">Call-To-Action</p><p>"다음·로그인·추가하기"처럼 핵심 행동을 부르는 주요 버튼.</p></div>
+      <div class="gcard"><h4>아이콘 버튼</h4><p class="en">Icon Button</p><p>글자 없이 아이콘만으로 동작하는 동그란 버튼(새로고침·공유·벨).</p></div>
+      <div class="gcard"><h4>체크박스</h4><p class="en">Checkbox</p><p>여러 항목을 켜고 끌 수 있는 네모/동그라미 표시칸.</p></div>
+      <div class="gcard"><h4>토글 스위치</h4><p class="en">Toggle Switch</p><p>한 가지를 켜짐/꺼짐 두 상태로 바꾸는 스위치.</p></div>
+      <div class="gcard"><h4>드롭다운</h4><p class="en">Dropdown / Select</p><p>누르면 목록이 펼쳐져 정해진 보기 중 하나를 고르는 칸.</p></div>
+      <div class="gcard"><h4>텍스트 필드</h4><p class="en">Text Field</p><p>직접 글자를 입력하는 칸. 옅은 예시 글씨는 플레이스홀더.</p></div>
+      <div class="gcard"><h4>게이지</h4><p class="en">Gauge / Progress Bar</p><p>값을 색과 길이로 나타내는 눈금 막대(지수·습도 등).</p></div>
+      <div class="gcard"><h4>아바타</h4><p class="en">Avatar</p><p>이름 첫 글자를 담은 동그란 상징. 사람·프로필을 나타내요.</p></div>
+      <div class="gcard"><h4>타임라인</h4><p class="en">Timeline</p><p>일과를 시간 순 세로줄로 잇는 표현(케어 플랜).</p></div>
+      <div class="gcard"><h4>셰브론</h4><p class="en">Chevron</p><p>더 볼 게 있음을 알리는 &gt; 화살표. 리스트 행 끝에 자주 붙어요.</p></div>
+      <div class="gcard"><h4>토스트</h4><p class="en">Toast</p><p>화면에 잠깐 떴다 사라지는 알림 띠(예: "새로고침했어요").</p></div>
+      <div class="gcard"><h4>모달 / 다이얼로그</h4><p class="en">Modal / Dialog</p><p>화면 위에 덮여 뜨는 확인·입력 창(삭제 확인 등).</p></div>
+      <div class="gcard"><h4>스켈레톤</h4><p class="en">Skeleton Loader</p><p>내용이 오기 전 회색 뼈대로 자리를 잡아 두는 로딩 표시.</p></div>
+      <div class="gcard"><h4>콜아웃 박스</h4><p class="en">Callout Box</p><p>이유·주의를 옅은 색으로 감싸 강조하는 안쪽 상자.</p></div>
+      <div class="gcard"><h4>캡션 / 각주</h4><p class="en">Caption / Footnote</p><p>본문보다 작고 옅은 보조 글씨. 출처·단위·안내에 써요.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>아이데이(AiDay) 화면 구성 설명서 · 2026-07-21 기준 실제 코드에서 정리<br>
+    <b>화면 5개(홈·환경정보·옷차림·건강팁·마이) + 온보딩·로그인 + 공통 요소 + 용어 사전.</b> 목업은 구조 이해를 돕기 위한 재현이며, 실제 값·문구는 날씨와 아이 프로필에 따라 달라집니다.</p>
+  </footer>
+
+</div>
