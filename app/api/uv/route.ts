@@ -1,37 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveKmaArea } from "@/lib/kma-area";
 
 // 기상청_생활기상지수 조회서비스(3.0) — 자외선지수(UV)
-// areaNo는 표준 법정동코드(시/도 단위, 10자리, 뒷자리 0 패딩)다.
-// 2자리 코드(11/21/22...)는 이 계열 API에서 통하지 않는다 — areaNo=11로 질의하면
-// resultCode 99 "검색결과가 없습니다. [11]"로 떨어진다(2026-07-22 실측).
-//
-// 2026-07-01 행정구역 개편으로 광주광역시(2900000000)·전라남도(4600000000)가
-// 폐지되고 전남광주통합특별시(1200000000)로 통합됐다. 구 코드로 질의하면 자외선이
-// 상시 결측이 되므로 두 지역명 모두 통합 코드로 보낸다(지역명 키는 기존 UI·저장값
-// 호환을 위해 유지). 근거: 공공데이터포털 15085289 첨부 행정구역코드 파일
-// (dfs-zone-tree_excel_20260701) 및 실 API 응답 대조 — 17개 시/도 전수 확인 결과
-// 이 2개만 실패했고 나머지 15개는 정상.
-const GWANGJU_JEONNAM = "1200000000"; // 전남광주통합특별시 (2026-07-01 통합)
-
-const AREA_CODE_MAP: Record<string, string> = {
-  서울: "1100000000",
-  부산: "2600000000",
-  대구: "2700000000",
-  인천: "2800000000",
-  광주: GWANGJU_JEONNAM,
-  대전: "3000000000",
-  울산: "3100000000",
-  세종: "3600000000",
-  경기: "4100000000",
-  강원: "5100000000", // 강원특별자치도 (전환 후 51로 재부여)
-  충북: "4300000000",
-  충남: "4400000000",
-  전북: "5200000000", // 전북특별자치도 (전환 후 52로 재부여)
-  전남: GWANGJU_JEONNAM,
-  경북: "4700000000",
-  경남: "4800000000",
-  제주: "5000000000",
-};
+// areaNo는 꽃가루 API와 공유하는 10자리 법정동코드 (lib/kma-area.ts 참조).
+// 단기예보의 격자 좌표(nx/ny)와는 다른 체계다.
 
 function getDateHourKST(offsetHours = 0): { dateStr: string; hour: number } {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 + offsetHours * 60 * 60 * 1000);
@@ -44,9 +16,7 @@ function getDateHourKST(offsetHours = 0): { dateStr: string; hour: number } {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const regionParam = searchParams.get("region") ?? "서울";
-  const region = regionParam in AREA_CODE_MAP ? regionParam : "서울";
-  const areaNo = AREA_CODE_MAP[region];
+  const { region, areaNo } = resolveKmaArea(searchParams.get("region"));
 
   const apiKey = process.env.KMA_API_KEY;
   if (!apiKey || apiKey === "YOUR_DATA_GO_KR_API_KEY") {

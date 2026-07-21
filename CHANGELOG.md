@@ -6,7 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **꽃가루 잡초류 연동** (`app/api/pollen/route.ts`) — "기상청 V3에 잡초 오퍼레이션 없음"이라는 종전 주석·문서 서술은 사실이 아니었다. 공식 명세(공공데이터포털 15085289 첨부 설명서)와 실호출 모두 `getWeedsPollenRiskndxV3`의 존재를 확인해(철자 주의 — 잡초류만 `Riskndx`, 참나무·소나무는 `RiskIdx`) 참나무·소나무와 함께 3종을 병렬 조회하도록 변경. 잡초류 자료제공 기간이 8~10월이라 8월부터 실제 값이 들어온다. 응답 스키마(`oak/pine/weed`)는 그대로라 홈 칩·env 행·야외활동 지수·AI 리포트는 변경 없이 값을 받는다.
+
 ### Fixed
+- **꽃가루 API 지점코드·발표시각 형식을 공식 명세에 맞춤** (`app/api/pollen/route.ts`, `lib/kma-area.ts`) — 기상청 자체 2자리 지역코드(서울 `11`)와 `YYYYMMDD`를 보내던 것을 명세의 10자리 법정동코드(서울 `1100000000`)·`YYYYMMDDHH`로 교체. 자외선 API와 같은 코드 체계임을 `lib/kma-area.ts` 공용 모듈로 명시하고 자외선 라우트의 중복 상수를 제거(자외선 라우트 주석의 "꽃가루와는 다른 체계" 서술도 정정). 자료제공 기간 밖에서는 기간 검사(resultCode 99)가 파라미터 검증보다 먼저 걸려 어느 체계가 유효한지 실측할 수 없어, 값이 비면 구 체계로 한 번 더 시도하는 폴백을 두고 구 체계로 값을 받으면 서버 로그로 알린다 — 8월 잡초류 제공 시작 시 확정 후 폴백 제거 예정.
+- **꽃가루 자료제공 기간 표기 정정** (`app/(main)/env/page.tsx`, `SPEC.md`) — 환경정보 "제공 기간 아님" 안내를 "참나무·소나무 4~6월" → "참나무·소나무 3~6월 · 잡초류 8~10월"로 수정(3월 시작은 API 응답 메시지로 확인).
 - **홈 하이드레이션 불일치(React #418) 해결 — 화면 깜빡임·모바일 로딩 실패의 근본 원인** (`lib/useLocation.ts`, `lib/profile.ts`, `app/(main)/home/page.tsx`) — 위치·프로필 상태를 `useState` 초기값에서 localStorage로 읽어(위치 `loadLocation`, 프로필 `loadProfiles`, 활성 아이 `localStorage.getItem`), 서버(SSR엔 localStorage 없음 → 기본값 '중구'·`defaultProfiles`)와 클라이언트 첫 렌더(저장값, 예: '송파구'·저장 프로필)의 헤더 위치 라벨·프로필 세그먼트가 어긋나 하이드레이션이 실패(React #418)하고 루트 전체가 클라이언트 재렌더되던 문제. 초기값을 SSR 안전한 상수(`DEFAULT_LOCATION`·`defaultProfiles`)로 두고 실제 저장값은 마운트 후 effect에서 주입하도록 변경(`defaultProfiles` export 추가). 같은 클래스의 `prepVariant`(초기값에서 `window`·localStorage 접근) A/B 잠복 버그도 effect 주입으로 수정. `useLocation`을 공유하는 env·outfit·me 화면의 위치 하이드레이션 리스크까지 함께 제거.
 - **느린 공공 API에서 홈이 '데이터 지연' 폴백에 갇히던 회복력 결함** (`app/api/weather/route.ts`, `app/(main)/home/page.tsx`) — 실황(T1H) 결측 시 순차 재시도 타임아웃을 8s→3s로 줄여 라우트 최악 지연이 클라이언트 abort(9s)를 넘기지 않게 하고(실패해도 예보 최근접값 폴백 존재), 클라이언트 weather·air 요청에 실패 시 1회 무음 재시도(1.2s 후, 그땐 서버 캐시가 데워져 대개 즉시 성공)를 추가. 콜드 캐시 첫 로드가 한 번 끊기면 수동 새로고침 전까지 폴백에 갇히던 문제(자동 재시도 없음) 해소.
 - **환경정보·옷차림·건강팁·마이 탭의 동일 하이드레이션 불일치(React #418) 해결** (`app/(main)/env·outfit·tips·me/page.tsx`) — 네 탭 모두 `profiles`(프로필 목록)·활성 아이(`activeId`/`active`)를 `useState` 초기값 또는 렌더 중 localStorage로 읽어, 홈과 동일하게 서버(기본 프로필)와 클라 첫 렌더(저장 프로필)가 어긋나 #418을 내던 문제. 초기값을 SSR 안전한 `defaultProfiles`로 두고 저장값은 마운트 effect에서 주입하도록 통일(env·outfit·tips는 렌더 계산값이던 activeId를 상태로 전환).
