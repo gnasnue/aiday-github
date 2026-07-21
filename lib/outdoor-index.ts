@@ -6,7 +6,7 @@ export type OutdoorIndexInput = {
   pm10Grade?: number | null;
   pm25Grade?: number | null;
   uvi?: number | null;
-  pollenMax?: number | null; // 참나무·소나무·잡초 중 최고 등급(1~4)
+  pollenMax?: number | null; // 참나무·소나무·잡초 중 최고 지수(0~3, 기상청 꽃가루농도위험지수)
   pop?: number | null; // 강수확률(%)
   humidity?: number | null; // 상대습도(%)
   temp?: number | null; // 기온(°C)
@@ -29,8 +29,10 @@ const airGradeLabel = (g: number): string =>
 const uvBandLabel = (v: number): string =>
   v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
 const uviLabelValue = (v: number): string => `${v}(${uvBandLabel(v)})`;
+// 꽃가루농도위험지수(0~3) → 라벨. 낮음=0 · 보통=1 · 높음=2 · 매우높음=3
+// (공공데이터포털 "기상청_꽃가루농도위험지수 조회서비스(3.0)" 설명서 기준, lib/timeline.ts와 동일)
 const pollenBandLabel = (g: number): string =>
-  g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+  g >= 3 ? "매우높음" : g >= 2 ? "높음" : g >= 1 ? "보통" : "낮음";
 
 export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResult {
   let score = 100;
@@ -62,9 +64,9 @@ export function computeOutdoorIndex(input: OutdoorIndexInput): OutdoorIndexResul
   // 꽃가루
   const pollen = input.pollenMax ?? null;
   if (pollen != null) {
-    if (pollen >= 4) push(25, "꽃가루가 매우 높아요");
-    else if (pollen >= 3) push(15, "꽃가루가 높은 편이에요");
-    else if (pollen >= 2) push(5, "꽃가루가 다소 있어요");
+    if (pollen >= 3) push(25, "꽃가루가 매우 높아요");
+    else if (pollen >= 2) push(15, "꽃가루가 높은 편이에요");
+    else if (pollen >= 1) push(5, "꽃가루가 다소 있어요");
   }
 
   // 강수확률 — 앱 전체가 ≥60%를 확정 강수(우산·실내권장) 경계로, 40~59%를

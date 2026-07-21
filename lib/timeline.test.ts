@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildTimeline, buildTomorrowTimeline } from "./timeline";
+import { buildTimeline, buildTomorrowTimeline, pollenLabel, pollenLevelOf } from "./timeline";
 import { feelsLikeC } from "./feels-like";
 
 // 강수 노출 창(popWindow·rainWindow) 집계 검증 — 슬롯 정시값만 보면 놓치는
@@ -98,7 +98,7 @@ describe("buildTomorrowTimeline — 내일 미리보기", () => {
     },
     air: { pm10Grade: 3, hourly: { "9": 3 } }, // 오늘 실측 — 내일 슬롯에 새면 안 됨
     uv: { uvi: 2, hourly: { "12": 3 }, hourlyTomorrow: { "9": 7, "12": 9 } },
-    pollen: { oak: 4, pine: null, weed: null }, // 오늘 지수 — 내일 슬롯에 새면 안 됨
+    pollen: { oak: 3, pine: null, weed: null }, // 오늘 지수(매우높음) — 내일 슬롯에 새면 안 됨
   };
 
   it("내일분 예보·자외선으로 4슬롯을 만들고, 오늘 실측(미세먼지·꽃가루)은 쓰지 않는다", () => {
@@ -108,12 +108,78 @@ describe("buildTomorrowTimeline — 내일 미리보기", () => {
     const [go] = slots!;
     expect(go.temp).toBe(30);
     expect(go.uv).toBe("강함"); // 내일 9시 UVI 7 → 강함 (hourlyTomorrow 사용 확인)
-    // 오늘의 미세먼지 나쁨(3)·꽃가루 매우높음(4)이 내일 카드로 새지 않는다 — 중립 폴백
+    // 오늘의 미세먼지 나쁨(3)·꽃가루 매우높음(3)이 내일 카드로 새지 않는다 — 중립 폴백
     expect(go.dust).toBe("보통");
     expect(go.pollen).toBe("낮음");
   });
 
   it("내일분 예보가 없으면 null (호출부가 빈 상태 안내로 렌더)", () => {
     expect(buildTomorrowTimeline(undefined, { ...env, weather: { hourlyForecast: [t("09:00")] } })).toBeNull();
+  });
+});
+
+// 기상청 꽃가루농도위험지수는 0~3(낮음·보통·높음·매우높음)이다. 상한을 4로 잘못 잡으면
+// "매우높음"이 영원히 안 나오고 전 단계가 한 칸씩 낮게 표시돼, 알레르기 체질 아이에게
+// 위험을 과소 표기하는 방향으로 틀린다. 경계값을 값별로 고정해 회귀를 막는다.
+// 근거: 공공데이터포털 "기상청_꽃가루농도위험지수 조회서비스(3.0)" 첨부 설명서 "단계 및 범위".
+describe("pollenLevelOf — 꽃가루농도위험지수(0~3) 단계 매핑", () => {
+  it.each([
+    [0, "낮음"],
+    [1, "보통"],
+    [2, "높음"],
+    [3, "매우높음"],
+  ] as const)("지수 %i → %s", (g, expected) => {
+    expect(pollenLevelOf(g)).toBe(expected);
+  });
+
+  it("지수 3에서 '매우높음'이 실제로 도달 가능하다 (상한 4 가정 회귀 방지)", () => {
+    expect(pollenLevelOf(3)).toBe("매우높음");
+  });
+
+  it("범위를 벗어난 값(4 이상)이 와도 최고 단계로 떨어진다", () => {
+    expect(pollenLevelOf(4)).toBe("매우높음");
+    expect(pollenLevelOf(9)).toBe("매우높음");
+  });
+});
+
+describe("pollenLabel — null 폴백", () => {
+  it("null(미측정·제공 기간 외)은 '낮음'으로 폴백한다", () => {
+    expect(pollenLabel(null)).toBe("낮음");
+  });
+
+  it("숫자 지수는 pollenLevelOf와 같은 단계를 낸다", () => {
+    for (const g of [0, 1, 2, 3]) expect(pollenLabel(g)).toBe(pollenLevelOf(g));
+  });
+});
+
+describe("buildTimeline — 꽃가루 지수가 슬롯 라벨로 이어진다", () => {
+  const slotsWithPollen = (pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null) =>
+    buildTimeline(undefined, {
+      weather: {
+        hourlyForecast: [
+          hour("06:00", 0),
+          hour("09:00", 0),
+          hour("12:00", 0),
+          hour("15:00", 0),
+          hour("18:00", 0),
+          hour("21:00", 0),
+        ],
+      },
+      air: null,
+      uv: null,
+      pollen,
+    });
+
+  it("참나무·소나무·잡초 중 최댓값이 라벨 기준이 된다", () => {
+    const slots = slotsWithPollen({ oak: 1, pine: 3, weed: 0 });
+    expect(slots![0].pollen).toBe("매우높음");
+  });
+
+  it("지수 2는 '높음'으로 — 한 칸 낮은 '보통'이 되면 안 된다", () => {
+    expect(slotsWithPollen({ oak: 2 })![0].pollen).toBe("높음");
+  });
+
+  it("전 항목 결측이면 '낮음' 중립 폴백", () => {
+    expect(slotsWithPollen({ oak: null, pine: null, weed: null })![0].pollen).toBe("낮음");
   });
 });

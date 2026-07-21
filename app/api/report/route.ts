@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildReportPrompt, buildSystemPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
 import { sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
 import { kstNow } from "@/lib/kma-time";
+import { pollenLevelOf } from "@/lib/timeline";
 
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
@@ -202,15 +203,14 @@ export async function POST(req: NextRequest) {
     return best.value;
   };
 
-  // 꽃가루 위험지수(0~4) → 라벨. 참나무·소나무·잡초 중 최댓값 기준.
-  const pollenLabel = (g: number | null) =>
-    g == null ? null : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+  // 꽃가루농도위험지수(0~3) → 라벨. 참나무·소나무·잡초 중 최댓값 기준.
+  // 단계 매핑은 lib/timeline.ts pollenLevelOf 단일 출처를 쓴다(홈 칩·env 행과 표기 일치).
   const pollenVals = pollen
     ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
     : [];
   const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
   const pollenSummary =
-    pollenMax != null ? `꽃가루 오늘 최고 ${pollenLabel(pollenMax)}` : "꽃가루 데이터 없음";
+    pollenMax != null ? `꽃가루 오늘 최고 ${pollenLevelOf(pollenMax)}` : "꽃가루 데이터 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
