@@ -60,6 +60,12 @@ export type SelectTipsResult = {
    * 자주 발동하는지 모르면 데이터 구멍이 흔한지 판단할 수 없다.
    */
   suppressedSignals: Exclude<TipSignal, null>[];
+  /**
+   * 확인했지만 기준에 못 미친 신호. 화면이 "오늘은 괜찮다"고 말하기 위한 재료다.
+   * 조용한 이유를 밝히지 않으면 정상 동작이 고장으로 읽힌다 — 실제로 팁이 하나만
+   * 보이자 "왜 이것뿐이냐"는 질문이 나왔다.
+   */
+  calmSignals: Exclude<TipSignal, null>[];
 };
 
 /* ----------------------------- 공인 등급 → 레벨(0~3) ----------------------------- */
@@ -75,6 +81,27 @@ const indexOf = <T extends readonly string[]>(levels: T, label: string): number 
 
 type SignalReading = { level: number; label: string; value?: number };
 
+/** 시간대별 값 맵에서 유효한 숫자만 뽑는다. */
+const hourValues = (hourly?: Record<string, number | null>): number[] =>
+  hourly ? Object.values(hourly).filter((v): v is number => v != null) : [];
+
+/**
+ * 판단은 **오늘 하루의 피크**로 한다. "지금 이 순간" 값만 보면 새벽·저녁에 화면을 연
+ * 부모에게 자외선 팁이 구조적으로 뜨지 않는다 — 새벽 2시 자외선은 언제나 0이기 때문이다.
+ * 아이데이는 하루의 첫 판단을 돕는 앱이므로, "오늘 조심할 것"은 오늘 가장 나쁜 순간을
+ * 기준으로 말해야 한다.
+ */
+const peak = (current: number | null, hours: number[]): number | null => {
+  const all = [...(current != null ? [current] : []), ...hours];
+  return all.length ? Math.max(...all) : null;
+};
+
+/** 건조는 습도가 **낮을수록** 위험하므로 하루 최저값이 피크다. */
+const trough = (current: number | null, hours: number[]): number | null => {
+  const all = [...(current != null ? [current] : []), ...hours];
+  return all.length ? Math.min(...all) : null;
+};
+
 /**
  * 신호별 현재 레벨. 신호를 쓸 수 없으면 null을 돌려주고, 호출부는 해당 팁을 침묵시킨다.
  * `env.missing`이 이미 "응답은 왔지만 핵심 값이 결측"인 경우까지 잡아내므로 그걸 신뢰한다.
@@ -84,17 +111,22 @@ const readSignal = (env: EnvData, signal: Exclude<TipSignal, null>): SignalReadi
   switch (signal) {
     case "uv": {
       if (missing.has("uv") || env.uv?.uvi == null) return null;
-      const label = uvLabel(env.uv.uvi);
-      return { level: indexOf(UV_LEVELS, label), label, value: env.uv.uvi };
+      // 오늘 시간대별 예보의 최대값 — 밤에 열어도 낮의 위험을 놓치지 않는다
+      const dayPeak = peak(env.uv.uvi, hourValues(env.uv.hourly));
+      if (dayPeak == null) return null;
+      const label = uvLabel(dayPeak);
+      return { level: indexOf(UV_LEVELS, label), label, value: dayPeak };
     }
     case "air": {
       if (missing.has("air")) return null;
       // PM10·PM2.5 중 나쁜 쪽이 판단을 이끈다. 등급이 하나만 있으면 그것으로 판단한다.
+      // hourly는 PM10 시각별 등급이라, 현재 등급과 함께 하루 최악 등급을 만든다.
       const grades = [env.air?.pm10Grade, env.air?.pm25Grade].filter(
         (g): g is number => g != null
       );
       if (grades.length === 0) return null;
-      const worst = Math.max(...grades);
+      const worst = peak(Math.max(...grades), hourValues(env.air?.hourly));
+      if (worst == null) return null;
       const label = dustLabel(worst);
       return { level: indexOf(DUST_LEVELS, label), label };
     }
@@ -109,7 +141,14 @@ const readSignal = (env: EnvData, signal: Exclude<TipSignal, null>): SignalReadi
     }
     case "humidity": {
       if (missing.has("weather") || env.weather?.humidity == null) return null;
-      const h = env.weather.humidity;
+      // 건조는 낮을수록 위험 — 오늘 최저 습도로 판단한다
+      const h = trough(
+        env.weather.humidity,
+        (env.weather.hourlyForecast ?? [])
+          .map((s) => s.humidity)
+          .filter((v): v is number => v != null)
+      );
+      if (h == null) return null;
       // 표시 계층과 같은 기준(습도 30% 이하 = 건조)으로만 발동한다
       return { level: humidityLabel(h) === "건조" ? 1 : 0, label: "건조", value: h };
     }
@@ -201,6 +240,7 @@ export function selectTips(
 ): SelectTipsResult {
   const tips: SelectedTip[] = [];
   const suppressed: Exclude<TipSignal, null>[] = [];
+  const calm: Exclude<TipSignal, null>[] = [];
 
   for (const entry of TIP_ENTRIES) {
     if (entry.requires == null) {
@@ -219,10 +259,14 @@ export function selectTips(
       }
       continue;
     }
-    if (entry.minLevel != null && reading.level < entry.minLevel) continue;
+    if (entry.minLevel != null && reading.level < entry.minLevel) {
+      // 확인했고, 오늘은 주의 수준이 아니다 — 이것도 부모에게는 정보다
+      if (!calm.includes(entry.requires)) calm.push(entry.requires);
+      continue;
+    }
 
     tips.push(buildTip(entry, reading, profile, now));
   }
 
-  return { tips, suppressedSignals: suppressed };
+  return { tips, suppressedSignals: suppressed, calmSignals: calm };
 }

@@ -17,7 +17,7 @@ import LineIcon from "@/components/LineIcon";
 import PageHeader from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
-import { withSubjectSuffix } from "@/lib/korean";
+import { withSubjectSuffix, withTopicParticle } from "@/lib/korean";
 import { useLocation } from "@/lib/useLocation";
 import { fetchEnvData, type EnvData } from "@/lib/env-data";
 import { selectTips, type SelectedTip } from "@/lib/tips/select";
@@ -99,7 +99,7 @@ const Tips = () => {
     return () => ac.abort();
   }, [gu, lat, lon, station]);
 
-  const { tips, suppressedSignals } = useMemo(
+  const { tips, suppressedSignals, calmSignals } = useMemo(
     () =>
       selectTips(env, cur ? { name: cur.name, conditions: cur.conditions, age: cur.age, birth: cur.birth } : null),
     [env, cur]
@@ -270,6 +270,21 @@ const Tips = () => {
               ))
             )}
           </section>
+
+          {/* 안심 안내 — 조용한 이유를 밝히지 않으면 정상 동작이 고장으로 읽힌다.
+              무엇을 확인했는지까지 말해야 "확인해봤는데 괜찮다"가 된다. */}
+          {!loading && calmSignals.length > 0 && (
+            <div className="mt-4 flex items-start gap-2 rounded-xl bg-status-good-bg p-3 text-xs text-status-good">
+              <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+              <p className="leading-relaxed">
+                오늘{" "}
+                {withTopicParticle(
+                  calmSignals.map((s) => SIGNAL_LABEL[s] ?? s).join(" · ")
+                )}{" "}
+                주의 수준이 아니에요.
+              </p>
+            </div>
+          )}
 
           {/* 결측 안내 — 모르는 것에 대해서는 팁을 만들지 않는다는 사실을 감춘 채
               카드 수만 줄이면, 사용자는 "오늘은 주의할 게 없구나"로 잘못 읽는다. */}

@@ -176,6 +176,72 @@ describe("selectTips — 공인 등급 기반 발동·심각도", () => {
   });
 });
 
+describe("selectTips — 오늘 하루 피크 기준 판단", () => {
+  it("새벽에 열어도 낮의 자외선 피크로 판단한다 — '지금' 값만 보면 밤엔 절대 안 뜬다", () => {
+    const 새벽 = baseEnv({
+      uv: { uvi: 0, hourly: { "0": 0, "9": 4, "12": 9, "15": 5, "21": 0 } },
+    });
+    const tip = find(selectTips(새벽, 건강한아이, NOW), "uv-high");
+    expect(tip.severity).toBe("경고"); // 낮 피크 9 → 매우강함
+    expect(tip.title).toContain("매우강함");
+  });
+
+  it("하루 종일 낮으면 발동하지 않는다 (오늘처럼 흐린 날)", () => {
+    const 흐림 = baseEnv({
+      uv: { uvi: 0, hourly: { "0": 0, "9": 4, "12": 2, "15": 1, "21": 0 } },
+    });
+    expect(ids(selectTips(흐림, 건강한아이, NOW))).not.toContain("uv-high");
+  });
+
+  it("대기질도 시각별 등급의 최악값으로 판단한다", () => {
+    const env = baseEnv({
+      air: { ...baseEnv().air!, pm10Grade: 1, pm25Grade: 1, hourly: { "9": 1, "14": 3 } },
+    });
+    expect(find(selectTips(env, 건강한아이, NOW), "pm-high").title).toContain("나쁨");
+  });
+
+  it("건조는 하루 '최저' 습도로 판단한다 — 낮을수록 위험하므로", () => {
+    const env = baseEnv({
+      weather: {
+        ...baseEnv().weather!,
+        humidity: 70,
+        hourlyForecast: [
+          { hour: "09:00", temp: 20, sky: 1, pty: 0, humidity: 70, windSpeed: 1, pop: 0 },
+          { hour: "15:00", temp: 26, sky: 1, pty: 0, humidity: 25, windSpeed: 1, pop: 0 },
+        ],
+      },
+    });
+    const tip = find(selectTips(env, 건강한아이, NOW), "dry-skin");
+    expect(tip.title).toContain("25");
+  });
+
+  it("시간대별 데이터가 없으면 현재값으로 판단한다 (하위 호환)", () => {
+    expect(ids(selectTips(baseEnv({ uv: { uvi: 9 } }), 건강한아이, NOW))).toContain("uv-high");
+  });
+});
+
+describe("selectTips — 안심 신호 (조용한 이유 설명)", () => {
+  it("확인했지만 기준 미달인 신호를 calmSignals로 알린다", () => {
+    const r = selectTips(baseEnv(), 건강한아이, NOW);
+    expect(r.tips.map((t) => t.category)).toEqual(["일반"]);
+    // 픽스처는 꽃가루 지수도 실측(0)이라 안심 목록에 든다. 제공 기간 밖이면 값 자체가
+    // 없어 결측으로 빠지므로(위 fail-closed 스위트), 7월 실데이터에서는 3개만 남는다.
+    expect(r.calmSignals).toEqual(["uv", "air", "pollen", "humidity"]);
+  });
+
+  it("발동한 신호는 안심 목록에 넣지 않는다", () => {
+    const r = selectTips(baseEnv({ uv: { uvi: 9 } }), 건강한아이, NOW);
+    expect(r.calmSignals).not.toContain("uv");
+    expect(r.calmSignals).toContain("air");
+  });
+
+  it("결측 신호는 안심도 경고도 아니다 — 확인 자체를 못 했으므로", () => {
+    const r = selectTips(baseEnv({ uv: { uvi: null }, missing: ["uv"] }), 건강한아이, NOW);
+    expect(r.calmSignals).not.toContain("uv");
+    expect(r.suppressedSignals).toContain("uv");
+  });
+});
+
 describe("selectTips — 프로필 매칭 (child-conditions 공유)", () => {
   it("호흡기 민감이면 미세먼지 팁의 심각도가 올라가고 이유가 붙는다", () => {
     const env = baseEnv({ air: { ...baseEnv().air!, pm10Grade: 3, pm25Grade: 3 } });
