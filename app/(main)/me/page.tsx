@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   ChildProfile,
+  defaultProfiles,
   loadProfiles,
   removeProfile,
   removeProfileFromDb,
@@ -135,23 +136,23 @@ const ProfileCard = ({
 const My = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
+  // 초기값은 SSR 안전한 defaultProfiles로. useState 초기값에서 loadProfiles()·localStorage를
+  // 읽으면 서버(기본 프로필)와 클라 첫 렌더(저장 프로필)가 어긋나 하이드레이션 불일치(React #418)가
+  // 난다. 저장된 프로필·활성 아이는 아래 마운트 effect에서 주입한다.
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const { location, requestLocation } = useLocation();
-  const [active, setActive] = useState<string>(() => {
-    try {
-      return (
-        localStorage.getItem("aiweather:activeProfileId") ||
-        loadProfiles()[0]?.id ||
-        ""
-      );
-    } catch {
-      return loadProfiles()[0]?.id || "";
-    }
-  });
+  const [active, setActive] = useState<string>(defaultProfiles[0]?.id ?? "");
 
   useEffect(() => {
-    setProfiles(loadProfiles());
+    const list = loadProfiles();
+    setProfiles(list);
+    try {
+      const saved = localStorage.getItem("aiweather:activeProfileId");
+      setActive(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id ?? "");
+    } catch {
+      setActive(list[0]?.id ?? "");
+    }
   }, [pathname]);
 
   // 로그인 상태면 DB 프로필을 localStorage로 복원 (다른 기기·재로그인 대응)
