@@ -177,12 +177,15 @@ export async function GET(request: NextRequest) {
     await parseObs(ncstRes);
     // 발표 지연으로 이번 시각 실황이 비어 있으면(빈 200 응답이 30분 캐시에 고정될 수 있음)
     // 직전 시각 발표본으로 한 번 더 시도한다 — URL이 달라 별도 캐시 엔트리라 안전하다.
+    // 타임아웃은 3s로 짧게 잡는다: 이 재시도는 순차라 임계경로를 늘려, 8s면 앞단(최대 8s)과 합쳐
+    // 라우트가 클라이언트 abort(9s)를 넘긴다. 실패해도 예보 최근접값 폴백(usingNcst=false)이 있어
+    // 정확도 보정용일 뿐이라 빠르게 포기하는 편이 홈 로딩 성공률에 유리하다.
     let obsBase = ncst;
     if (obs["T1H"] == null) {
       const prev = getNcstBaseDateTime(new Date(Date.now() + 9 * 60 * 60 * 1000 - 60 * 60 * 1000));
       const prevRes = await fetch(ncstUrl(prev.base_date, prev.base_time), {
         next: { revalidate: 1800 },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(3000),
       }).catch(() => null);
       await parseObs(prevRes);
       obsBase = prev;

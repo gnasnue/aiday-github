@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { nearestSeoulGu } from "@/lib/locations";
 import {
   AppLocation,
+  DEFAULT_LOCATION,
   LOCATION_CHANGE_EVENT,
   loadLocation,
   saveLocation,
@@ -16,7 +17,10 @@ import {
  * 같은 탭의 다른 마운트 화면과 다른 탭 모두에 동기화된다.
  */
 export function useLocation() {
-  const [location, setLocation] = useState<AppLocation>(loadLocation);
+  // SSR 안전 기본값으로 시작한다. localStorage(저장 위치)는 서버에 없어, 초기값에서 바로 읽으면
+  // 서버(중구 기본)와 클라이언트(저장값, 예: 송파구) 첫 렌더가 어긋나 하이드레이션 불일치(React #418)가
+  // 난다 — 라벨 텍스트가 서로 달라지기 때문. 실제 저장값은 마운트 후 아래 sync effect에서 주입한다.
+  const [location, setLocation] = useState<AppLocation>(DEFAULT_LOCATION);
   const [locating, setLocating] = useState(false);
 
   // 다른 화면/탭에서의 위치 변경을 반영 (마운트 시 최신 저장값 재확인 포함)

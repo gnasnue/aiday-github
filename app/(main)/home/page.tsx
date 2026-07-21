@@ -15,6 +15,7 @@ import {
   ChildProfile,
   PROFILES_KEY,
   allowBrowseHome,
+  defaultProfiles,
   fetchProfilesFromDb,
   loadProfiles,
   realLocalProfiles,
@@ -227,14 +228,22 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 const Home = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const [active, setActive] = useState<string>(() => {
+  // 초기값은 SSR 안전한 defaultProfiles로 둔다. loadProfiles()·localStorage를 useState 초기값에서
+  // 읽으면 서버(기본 프로필)와 클라이언트 첫 렌더(저장된 프로필/활성 아이)가 어긋나 하이드레이션
+  // 불일치(React #418)가 난다 — 프로필 이름·활성 아이 기준 콘텐츠가 통째로 달라지기 때문.
+  // 실제 저장값은 아래 마운트 effect에서 주입한다(로그인 사용자는 이후 DB 조회가 다시 덮어씀).
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [active, setActive] = useState<string>(defaultProfiles[0].id);
+  useEffect(() => {
+    const list = loadProfiles();
+    setProfiles(list);
     try {
-      return localStorage.getItem("aiweather:activeProfileId") || loadProfiles()[0].id;
+      const saved = localStorage.getItem("aiweather:activeProfileId");
+      setActive(saved && list.some((p) => p.id === saved) ? saved : list[0].id);
     } catch {
-      return loadProfiles()[0].id;
+      setActive(list[0].id);
     }
-  });
+  }, []);
   // 체크 상태는 항목 key 기준 — 인덱스 기준이면 목록이 교체될 때(폴백→AI 도착,
   // 급변 재생성) 체크가 엉뚱한 항목으로 옮겨간다. 같은 key(같은 준비물)는 목록이
   // 바뀌어도 체크가 유지되고, 사라진 항목의 체크는 자연히 무시된다.
@@ -258,19 +267,22 @@ const Home = () => {
   // 날짜·프로필별로 고정 저장해, 지난 카드의 준비물이 오후에 바뀌지 않게 한다.
   // (rule 변형은 입력이 같으면 출력이 같아 프리즈가 필요 없다)
   const [frozenPrep, setFrozenPrep] = useState<Record<string, string[]>>({});
-  // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지
-  const [prepVariant] = useState<"rule" | "ai">(() => {
+  // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지.
+  // SSR 안전: 초기값은 항상 "rule"(서버·클라 첫 렌더 동일)로 두고, 실제 변형은 마운트 후 effect에서
+  // 확정한다. window.location.search·localStorage를 초기값에서 읽으면 서버엔 없어, A/B "ai" 사용자의
+  // 첫 렌더가 서버(rule)와 어긋나 하이드레이션 불일치(React #418)가 난다.
+  const [prepVariant, setPrepVariant] = useState<"rule" | "ai">("rule");
+  useEffect(() => {
     try {
       const q = new URLSearchParams(window.location.search).get("prep");
       if (q === "ai" || q === "rule") {
         localStorage.setItem("aiday:prepVariant", q);
-        return q;
+        setPrepVariant(q);
+        return;
       }
-      return localStorage.getItem("aiday:prepVariant") === "ai" ? "ai" : "rule";
-    } catch {
-      return "rule";
-    }
-  });
+      if (localStorage.getItem("aiday:prepVariant") === "ai") setPrepVariant("ai");
+    } catch {}
+  }, []);
   const [aiLoading, setAiLoading] = useState(false);
   // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
   const [aiStreaming, setAiStreaming] = useState(false);
@@ -379,27 +391,45 @@ const Home = () => {
       // 위험이 있어 쓰지 않는다 (AbortController·setTimeout만으로 광범위 호환).
       // 개별 완료 마커로 API별 결과를 남긴다: <api>_ok / _timeout / _err. Σ(누적)가 각 API의
       // 응답시간 근사값이다(4개가 env_start 직후 동시 착수하므로). 취소된 흐름은 마킹하지 않는다.
-      const getJson = (url: string, timeoutMs: number, mark: string) => {
-        const ac = new AbortController();
-        let timedOut = false;
-        const timer = setTimeout(() => {
-          timedOut = true;
-          ac.abort();
-        }, timeoutMs);
-        const onParentAbort = () => ac.abort();
-        controller.signal.addEventListener("abort", onParentAbort, { once: true });
-        return fetch(url, { signal: ac.signal })
-          .then((r) => r.json())
-          .catch(() => null)
-          .then((r) => {
-            clearTimeout(timer);
-            controller.signal.removeEventListener("abort", onParentAbort);
-            if (!controller.signal.aborted) {
+      // retries: 실패(널·에러) 시 재시도 횟수. 첫 시도가 콜드 캐시·발표지연으로 늦거나 타임아웃돼도,
+      // 재시도 땐 서버 캐시(revalidate)가 데워져 즉시 성공하는 경우가 많아, 한 번 끊기면 폴백에
+      // 갇히던 문제(자동 재시도 없음)를 없앤다. 마킹은 종료 시도의 최종 결과로 한 번만 남겨 Σ를 보존한다.
+      const getJson = (
+        url: string,
+        timeoutMs: number,
+        mark: string,
+        retries = 0,
+        retryDelayMs = 1200
+      ): Promise<any> => {
+        const attempt = (n: number): Promise<any> => {
+          const ac = new AbortController();
+          let timedOut = false;
+          const timer = setTimeout(() => {
+            timedOut = true;
+            ac.abort();
+          }, timeoutMs);
+          const onParentAbort = () => ac.abort();
+          controller.signal.addEventListener("abort", onParentAbort, { once: true });
+          return fetch(url, { signal: ac.signal })
+            .then((r) => r.json())
+            .catch(() => null)
+            .then((r) => {
+              clearTimeout(timer);
+              controller.signal.removeEventListener("abort", onParentAbort);
               const ok = r && !r.error;
-              perfMark(perf, ok ? `${mark}_ok` : timedOut ? `${mark}_timeout` : `${mark}_err`);
-            }
-            return r;
-          });
+              const willRetry = !ok && n > 0 && !controller.signal.aborted;
+              if (!controller.signal.aborted && !willRetry) {
+                perfMark(perf, ok ? `${mark}_ok` : timedOut ? `${mark}_timeout` : `${mark}_err`);
+              }
+              if (willRetry) {
+                return new Promise<void>((res) => setTimeout(res, retryDelayMs)).then(() =>
+                  controller.signal.aborted ? r : attempt(n - 1)
+                );
+              }
+              return r;
+            });
+        };
+        return attempt(retries);
       };
 
       // 요청 시작·await·상태 갱신을 모두 try로 감싸 예기치 못한 throw에도 setLoading(false)에
@@ -408,8 +438,10 @@ const Home = () => {
         // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
         // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
         // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게 짧게(5s).
-        const weatherP = getJson(`/api/weather?lat=${location.lat}&lon=${location.lon}`, 9000, "weather");
-        const airP = getJson(`/api/air?station=${encodeURIComponent(location.station)}`, 9000, "air");
+        // weather·air는 화면 셸의 근거라 실패 시 1회 재시도(콜드 캐시 첫 로드가 폴백에 갇히지 않게).
+        // uv·꽃가루는 리포트 착수를 늦추지 않도록 재시도 없이 종전대로 둔다.
+        const weatherP = getJson(`/api/weather?lat=${location.lat}&lon=${location.lon}`, 9000, "weather", 1);
+        const airP = getJson(`/api/air?station=${encodeURIComponent(location.station)}`, 9000, "air", 1);
         const uvP = getJson("/api/uv?region=서울", 5000, "uv");
         const pollenP = getJson("/api/pollen?region=서울", 5000, "pollen");
 
