@@ -43,7 +43,9 @@ export type ChildProfile = {
 
 export const PROFILES_KEY = "aiweather:profiles";
 
-const defaultProfiles: ChildProfile[] = [
+// SSR 안전 기본 프로필. loadProfiles()가 서버(localStorage 없음)에서 반환하는 값과 동일해,
+// useState 초기값으로 쓰면 서버·클라 첫 렌더가 일치한다(하이드레이션 불일치 방지).
+export const defaultProfiles: ChildProfile[] = [
   {
     id: "demo-1",
     name: "지우",

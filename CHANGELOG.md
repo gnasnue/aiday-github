@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
-- **홈 하이드레이션 불일치(React #418) 해결 — 화면 깜빡임·모바일 로딩 실패의 근본 원인** (`lib/useLocation.ts`, `app/(main)/home/page.tsx`) — 위치 상태를 `useState(loadLocation)`로 초기화해 서버(SSR엔 localStorage 없음 → 기본값 '중구')와 클라이언트(저장값, 예: '송파구') 첫 렌더의 라벨 텍스트가 어긋나 하이드레이션이 실패(React #418)하고 루트 전체가 클라이언트 재렌더되던 문제. 초기값을 SSR 안전한 `DEFAULT_LOCATION`으로 두고 실제 저장값은 마운트 후 sync effect에서 주입하도록 변경. 같은 클래스의 `prepVariant`(초기값에서 `window`·localStorage 접근) A/B 잠복 버그도 effect 주입으로 수정. `useLocation`을 공유하는 env·outfit·me 화면의 동일 리스크까지 함께 제거.
+- **홈 하이드레이션 불일치(React #418) 해결 — 화면 깜빡임·모바일 로딩 실패의 근본 원인** (`lib/useLocation.ts`, `lib/profile.ts`, `app/(main)/home/page.tsx`) — 위치·프로필 상태를 `useState` 초기값에서 localStorage로 읽어(위치 `loadLocation`, 프로필 `loadProfiles`, 활성 아이 `localStorage.getItem`), 서버(SSR엔 localStorage 없음 → 기본값 '중구'·`defaultProfiles`)와 클라이언트 첫 렌더(저장값, 예: '송파구'·저장 프로필)의 헤더 위치 라벨·프로필 세그먼트가 어긋나 하이드레이션이 실패(React #418)하고 루트 전체가 클라이언트 재렌더되던 문제. 초기값을 SSR 안전한 상수(`DEFAULT_LOCATION`·`defaultProfiles`)로 두고 실제 저장값은 마운트 후 effect에서 주입하도록 변경(`defaultProfiles` export 추가). 같은 클래스의 `prepVariant`(초기값에서 `window`·localStorage 접근) A/B 잠복 버그도 effect 주입으로 수정. `useLocation`을 공유하는 env·outfit·me 화면의 위치 하이드레이션 리스크까지 함께 제거.
 - **느린 공공 API에서 홈이 '데이터 지연' 폴백에 갇히던 회복력 결함** (`app/api/weather/route.ts`, `app/(main)/home/page.tsx`) — 실황(T1H) 결측 시 순차 재시도 타임아웃을 8s→3s로 줄여 라우트 최악 지연이 클라이언트 abort(9s)를 넘기지 않게 하고(실패해도 예보 최근접값 폴백 존재), 클라이언트 weather·air 요청에 실패 시 1회 무음 재시도(1.2s 후, 그땐 서버 캐시가 데워져 대개 즉시 성공)를 추가. 콜드 캐시 첫 로드가 한 번 끊기면 수동 새로고침 전까지 폴백에 갇히던 문제(자동 재시도 없음) 해소.
 
 ## [0.3.19.1] - 2026-07-19

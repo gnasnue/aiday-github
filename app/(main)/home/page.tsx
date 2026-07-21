@@ -15,6 +15,7 @@ import {
   ChildProfile,
   PROFILES_KEY,
   allowBrowseHome,
+  defaultProfiles,
   fetchProfilesFromDb,
   loadProfiles,
   realLocalProfiles,
@@ -227,14 +228,22 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 const Home = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [profiles, setProfiles] = useState<ChildProfile[]>(() => loadProfiles());
-  const [active, setActive] = useState<string>(() => {
+  // 초기값은 SSR 안전한 defaultProfiles로 둔다. loadProfiles()·localStorage를 useState 초기값에서
+  // 읽으면 서버(기본 프로필)와 클라이언트 첫 렌더(저장된 프로필/활성 아이)가 어긋나 하이드레이션
+  // 불일치(React #418)가 난다 — 프로필 이름·활성 아이 기준 콘텐츠가 통째로 달라지기 때문.
+  // 실제 저장값은 아래 마운트 effect에서 주입한다(로그인 사용자는 이후 DB 조회가 다시 덮어씀).
+  const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
+  const [active, setActive] = useState<string>(defaultProfiles[0].id);
+  useEffect(() => {
+    const list = loadProfiles();
+    setProfiles(list);
     try {
-      return localStorage.getItem("aiweather:activeProfileId") || loadProfiles()[0].id;
+      const saved = localStorage.getItem("aiweather:activeProfileId");
+      setActive(saved && list.some((p) => p.id === saved) ? saved : list[0].id);
     } catch {
-      return loadProfiles()[0].id;
+      setActive(list[0].id);
     }
-  });
+  }, []);
   // 체크 상태는 항목 key 기준 — 인덱스 기준이면 목록이 교체될 때(폴백→AI 도착,
   // 급변 재생성) 체크가 엉뚱한 항목으로 옮겨간다. 같은 key(같은 준비물)는 목록이
   // 바뀌어도 체크가 유지되고, 사라진 항목의 체크는 자연히 무시된다.
