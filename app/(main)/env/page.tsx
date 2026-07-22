@@ -38,7 +38,16 @@ import {
   canRecommendMask,
 } from "@/lib/domain/child-conditions";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
-import { pollenLevelOf } from "@/lib/timeline";
+import { humidityLabel, pollenLevelOf } from "@/lib/timeline";
+import {
+  fetchEnvData,
+  envRegion,
+  type EnvWeather,
+  type EnvAir,
+  type EnvPollen,
+  type EnvUv,
+  type EnvWeekDay,
+} from "@/lib/env-data";
 import {
   judgeWeekendDay,
   pickOutingPlaces,
@@ -47,8 +56,8 @@ import {
   type WeekendVerdict,
 } from "@/lib/weekend-outing";
 
-// 주간 API를 서울 좌표로 호출하므로 나들이 시드도 서울 기준 (위치 기능 도입 시 확장)
-const WEEKEND_REGION = "서울";
+// 나들이 장소 시드 지역은 환경 데이터 조회 지역과 같아야 한다(lib/env-data의 envRegion).
+// 여기서 따로 하드코딩하면 지방 확장 시 데이터는 옮겨가고 장소만 서울에 남는다.
 
 // verdict → 배지 표시 (v3: 순백 카드 위 상태색 텍스트, 브랜드 오렌지는 데이터에 안 씀)
 const VERDICT_META: Record<WeekendVerdict, { label: string; tone: string; Icon: typeof Home }> = {
@@ -82,9 +91,6 @@ const uvLabel = (v: number) =>
 
 // 꽃가루농도위험지수(0~3) → 라벨. 단계 매핑은 lib/timeline.ts 단일 출처.
 const pollenGradeLabel = (g: number | null) => (g === null ? "--" : pollenLevelOf(g));
-
-const humidityLabel = (h: number) =>
-  h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
 
 // 환경부 오존 1시간 기준 등급 (ppm): ≤0.03 좋음 / ≤0.09 보통 / ≤0.15 나쁨 / 초과 매우나쁨
 const o3Grade = (ppm: number | null): number | null =>
@@ -163,31 +169,12 @@ const Environment = () => {
   const { location, locating, requestLocation } = useLocation();
   const [loading, setLoading] = useState(true);
 
-  // 실제 API 데이터
-  type HourlyForecast = {
-    hour: string; temp: number; sky: number | null; pty: number | null;
-    humidity: number | null; windSpeed: number | null; pop: number | null;
-  };
-  const [weather, setWeather] = useState<{
-    temperature: number | null; feelsLike: number | null; sky: number | null; pty: number | null;
-    humidity: number | null; windSpeed: number | null; pop: number | null;
-    hourlyForecast?: HourlyForecast[];
-  } | null>(null);
-  const [air, setAir] = useState<{
-    pm10: number | null; pm25: number | null;
-    pm10Grade: number | null; pm25Grade: number | null;
-    o3: number | null; stationName: string | null;
-    hourly?: Record<string, number | null>;
-  } | null>(null);
-  const [pollen, setPollen] = useState<{
-    oak: number | null; pine: number | null; weed: number | null;
-  } | null>(null);
-  const [uv, setUv] = useState<{ uvi: number | null; hourly?: Record<string, number | null> } | null>(null);
-  type WeekDay = {
-    day: string; date: string; icon: string;
-    high: number | null; low: number | null; rain: number; weekend: boolean;
-  };
-  const [weekly, setWeekly] = useState<WeekDay[] | null>(null);
+  // 실제 API 데이터 — 타입·조회는 lib/env-data가 단일 출처(홈·팁과 같은 입력을 쓰기 위함)
+  const [weather, setWeather] = useState<EnvWeather | null>(null);
+  const [air, setAir] = useState<EnvAir | null>(null);
+  const [pollen, setPollen] = useState<EnvPollen | null>(null);
+  const [uv, setUv] = useState<EnvUv | null>(null);
+  const [weekly, setWeekly] = useState<EnvWeekDay[] | null>(null);
 
   // 인앱 수요 프로브 — "주말 추천 더 보고 싶어요" 클릭 여부(로컬 dedup)
   const [outingProbed, setOutingProbed] = useState(false);
@@ -197,25 +184,32 @@ const Environment = () => {
     } catch {}
   }, []);
 
-  const fetchAll = useCallback(async () => {
-    const [wRes, aRes, pRes, uRes, weekRes] = await Promise.allSettled([
-      fetch(`/api/weather?lat=${location.lat}&lon=${location.lon}`).then((r) => r.json()),
-      fetch(`/api/air?station=${encodeURIComponent(location.station)}`).then((r) => r.json()),
-      fetch(`/api/pollen?region=${WEEKEND_REGION}`).then((r) => r.json()),
-      fetch(`/api/uv?region=${WEEKEND_REGION}`).then((r) => r.json()),
-      fetch(`/api/weather/weekly?region=${WEEKEND_REGION}&lat=${location.lat}&lon=${location.lon}`).then((r) => r.json()),
-    ]);
-    if (wRes.status === "fulfilled" && !wRes.value.error) setWeather(wRes.value);
-    if (aRes.status === "fulfilled" && !aRes.value.error) setAir(aRes.value);
-    if (pRes.status === "fulfilled" && !pRes.value.error) setPollen(pRes.value);
-    if (uRes.status === "fulfilled" && !uRes.value.error) setUv(uRes.value);
-    if (weekRes.status === "fulfilled" && !weekRes.value.error && Array.isArray(weekRes.value.week))
-      setWeekly(weekRes.value.week);
-    setLoading(false);
-  }, [location.lat, location.lon, location.station]);
+  // 위치는 원시값으로 분해해 의존성에 넣는다 — useLocation이 동기화마다 새 객체를 만들어
+  // 객체 그대로 의존하면 값이 같아도 재조회가 돈다.
+  const { gu, lat, lon, station } = location;
+  const region = envRegion(location);
+  const fetchAll = useCallback(
+    async (signal?: AbortSignal) => {
+      const data = await fetchEnvData({ gu, lat, lon, station }, { includeWeekly: true, signal });
+      if (signal?.aborted) return;
+      // 실패한 소스는 이전 값을 유지한다 — 새로고침 한 번 실패했다고 이미 보여준
+      // 실측을 지우면, 사용자에겐 앱이 아는 것을 잊어버린 것처럼 보인다.
+      if (data.weather) setWeather(data.weather);
+      if (data.air) setAir(data.air);
+      if (data.pollen) setPollen(data.pollen);
+      if (data.uv) setUv(data.uv);
+      if (data.weekly) setWeekly(data.weekly);
+      setLoading(false);
+    },
+    [gu, lat, lon, station]
+  );
 
   useEffect(() => {
-    fetchAll();
+    // 화면 이탈·기준지 변경 시 진행 중 요청을 끊는다 — 늦게 도착한 이전 위치의 응답이
+    // 새 기준지 화면에 섞이지 않게.
+    const ac = new AbortController();
+    fetchAll(ac.signal);
+    return () => ac.abort();
   }, [fetchAll]);
 
   /* 지금 환경 지표 — 단일 카드 리스트 행. 실측만 표시하고 결측은 정직하되 압축한다.
@@ -376,11 +370,11 @@ const Environment = () => {
       const j = judgeWeekendDay(d);
       return {
         ...j,
-        places: pickOutingPlaces(j.verdict, WEEKEND_REGION),
+        places: pickOutingPlaces(j.verdict, region),
         note: weekendConstitutionNote(j.verdict, cur?.conditions),
       };
     });
-  }, [weekly, cur]);
+  }, [weekly, cur, region]);
 
   const sendOutingProbe = async () => {
     if (outingProbed) return;
