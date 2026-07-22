@@ -1330,10 +1330,10 @@ const Home = () => {
             </section>
           ) : (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
-              {/* 카드 헤더 — 크림(secondary) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
-                  구분하고 "AI 리포트"임을 앵커링. 라벨(15px/bold 블랙)이 주인공이 되도록
-                  날짜·시간 메타는 caption(13px·muted-foreground)으로 톤다운. */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-secondary px-5 py-3">
+              {/* 카드 헤더 — 피치(primary-tint) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
+                  구분하고 "AI 리포트"임을 앵커링. 아이콘 타일과 같은 브랜드 웜톤으로 통일(크림 미사용).
+                  라벨(14px/bold)이 주인공이 되도록 날짜·시간 메타는 caption(muted-foreground)으로 톤다운. */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-primary-tint px-5 py-3">
                 <span className="shrink-0 text-[14px] font-bold text-foreground">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
                   {aiError && "기본 추천 · "}
