@@ -1,5 +1,5 @@
 import { createHash } from "crypto";
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { kstNow } from "./kma-time";
 
 /**
@@ -70,6 +70,17 @@ export type RateLimitResult = {
 
 const ALLOW = (skipped: RateLimitResult["skipped"]): RateLimitResult => ({ allowed: true, skipped });
 
+// 클라이언트를 요청마다 새로 만들면 매번 TLS 핸드셰이크를 다시 한다 — 실측에서 콜드 1092ms →
+// 웜 236ms로 줄어드는 패턴이 그 비용이었다. 모듈 스코프에 두어 같은 람다 인스턴스가 커넥션을
+// 재사용하게 한다.
+let adminClient: SupabaseClient | null = null;
+function getAdminClient(url: string, serviceKey: string): SupabaseClient {
+  if (!adminClient) {
+    adminClient = createClient(url, serviceKey, { auth: { persistSession: false } });
+  }
+  return adminClient;
+}
+
 /**
  * 호출 1회를 기록하고 한도 초과 여부를 판정한다.
  *
@@ -96,7 +107,7 @@ export async function checkReportRateLimit(
   if (!identity) return ALLOW("no_identity");
 
   try {
-    const admin = createClient(url, serviceKey, { auth: { persistSession: false } });
+    const admin = getAdminClient(url, serviceKey);
     const { data, error } = await admin.rpc("bump_report_usage", {
       p_bucket: identity.bucket,
       p_day: kstDay(),
