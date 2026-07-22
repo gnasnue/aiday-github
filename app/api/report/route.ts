@@ -190,7 +190,9 @@ export async function POST(req: NextRequest) {
   // 입력 검증 뒤에 두는 이유: 비용은 이 지점 이후에만 발생하고, 잘못된 요청(400)으로
   // 정상 사용자의 하루 한도가 깎이지 않는다. 형식만 맞춘 스크립트 남용은 그대로 막힌다.
   const tRateStart = Date.now();
-  const rate = await checkReportRateLimit(req.headers, await currentUserId());
+  const userId = await currentUserId();
+  const tAuthDone = Date.now();
+  const rate = await checkReportRateLimit(req.headers, userId);
   if (!rate.allowed) {
     perfLog("rate_limited", ` · ${rate.used}/${rate.limit}회`);
     return NextResponse.json(
@@ -205,7 +207,7 @@ export async function POST(req: NextRequest) {
   // 홈 지연 조사(docs/perf-home-latency.md) 때 이 구간을 분리해서 볼 수 있어야 한다.
   perfLog(
     "rate_ok",
-    ` · rate ${Date.now() - tRateStart}ms${rate.skipped ? ` · skipped=${rate.skipped}` : ` · ${rate.used}/${rate.limit}회`}`
+    ` · rate ${Date.now() - tRateStart}ms (auth ${tAuthDone - tRateStart} · store ${Date.now() - tAuthDone})${rate.skipped ? ` · skipped=${rate.skipped}` : ` · ${rate.used}/${rate.limit}회`}`
   );
 
   // 프롬프트 구성 전체를 감싼다 — 잘못된 shape(예: hourlyForecast 항목에 hour 누락)으로
