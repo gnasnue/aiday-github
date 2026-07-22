@@ -268,7 +268,7 @@ const Environment = () => {
       rows.push(airRow("o3", "오존", CircleDashed, o3Grade(air.o3), air.o3, "ppm"));
     }
 
-    // 꽃가루 — 실패 / 제공 기간 외(참나무·소나무 4~6월, 잡초 8~10월) / 정상
+    // 꽃가루 — 실패 / 제공 기간 외(참나무·소나무 3~6월, 잡초류 8~10월) / 정상
     const pollenVals = pollen
       ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
       : [];
@@ -281,7 +281,7 @@ const Environment = () => {
         Icon: Flower2,
         grade: "제공 기간 아님",
         tone: "off",
-        value: "참나무·소나무 4~6월",
+        value: "참나무·소나무 3~6월 · 잡초류 8~10월",
       });
     } else {
       const max = Math.max(...pollenVals);
