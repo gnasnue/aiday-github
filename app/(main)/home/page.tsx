@@ -1690,12 +1690,12 @@ const Home = () => {
                             표시하고(중복·거짓정밀도 제거), 현재 슬롯임은 aria-current + sr-only로 전달. */}
                         <div
                           aria-current={isNow ? "true" : undefined}
-                          className={`mb-2.5 flex-1 rounded-2xl border bg-card p-4 shadow-soft ${
+                          className={`mb-2.5 flex-1 rounded-2xl border-[1.5px] bg-card p-4 shadow-soft ${
                             isNow
-                              ? "border-[1.5px] border-primary"
+                              ? "border-primary"
                               : kind
                                 ? "border-primary/40"
-                                : "border-border/60"
+                                : "border-transparent"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
