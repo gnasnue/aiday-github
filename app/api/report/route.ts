@@ -3,10 +3,11 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { buildReportPrompt, buildSystemPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
-import { conditionsForPrompt, sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
+import { ageInMonths, canRecommendMask, conditionsForPrompt, sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
 import { kstNow } from "@/lib/kma-time";
 import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
+import { isMaskJustified, sanitizeReportPayload, type ReportPayload } from "@/lib/report-sanitize";
 
 // 이 라우트는 Claude 생성을 SSE로 스트리밍한다. 콜드 스타트 + 게이트웨이 연결 +
 // 생성 완료까지 걸리는 시간이 Vercel 함수 기본 타임아웃에 근접하면, done 이벤트가
@@ -144,6 +145,9 @@ export async function POST(req: NextRequest) {
     child: {
       name: string;
       age: string;
+      // 마스크 연령 게이트(만 2세 미만 금지)를 서버가 정확히 판정하려면 birth(연·월)가 필요하다.
+      // age 문자열만으로도 폴백 판정되지만(ageInMonths), birth가 오면 우선한다.
+      birth?: { year?: string; month?: string };
       gender: "male" | "female" | "unknown";
       conditions?: string[];
       conditionEtc?: string;
@@ -192,6 +196,19 @@ export async function POST(req: NextRequest) {
     perfLog("input_error", " · child/weather 누락");
     return NextResponse.json({ error: "필수 입력(child, weather)이 없습니다." }, { status: 400 });
   }
+
+  // 마스크 안전망 — 준비물의 마스크는 두 게이트를 모두 통과해야 한다(lib/report-sanitize.ts).
+  // 프롬프트·규칙 엔진(lib/prep.ts)이 같은 규칙을 두지만 프롬프트는 확률적이라 모델이 어길 수
+  // 있고, 그 검증은 오프라인 eval에만 있었다. 실사용 출력의 결정적 최후 방어선을 여기 둔다.
+  //  ① 근거: 미세먼지 나쁨(등급≥3) 또는 꽃가루 높음(지수≥2) — 습도·더위는 마스크 사유가 아니다.
+  //  ② 연령: 만 2세(24개월) 이상 — 영아는 질식 위험으로 마스크 대신 "실내놀이"로 대체한다.
+  const maskJustified = isMaskJustified({
+    pm10Grade: air?.pm10Grade ?? null,
+    pm25Grade: air?.pm25Grade ?? null,
+    khaiGrade: air?.khaiGrade ?? null,
+    pollenGrades: pollen ? [pollen.oak, pollen.pine, pollen.weed] : [],
+  });
+  const maskAllowedForAge = canRecommendMask(ageInMonths(child.age, child.birth));
 
   // 레이트리밋 — 인증 없이 열린 엔드포인트라 호출당 Claude 비용이 그대로 노출된다.
   // 입력 검증 뒤에 두는 이유: 비용은 이 지점 이후에만 발생하고, 잘못된 요청(400)으로
@@ -375,12 +392,29 @@ export async function POST(req: NextRequest) {
 
   // 파싱 결과 → 응답 페이로드 (prep: 시간대별 준비물 키워드, 슬롯명 → 키워드[])
   type Parsed = { hook?: string; message?: string; checklist?: string[]; prep?: Record<string, string[]> };
-  const toPayload = (parsed: Parsed) => ({
-    hook: parsed.hook ?? "",
-    message: parsed.message ?? "",
-    checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
-    prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
-  });
+  const toPayload = (parsed: Parsed): ReportPayload => {
+    const base: ReportPayload = {
+      hook: parsed.hook ?? "",
+      message: parsed.message ?? "",
+      checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
+      prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
+    };
+    // 구조 필드(checklist·prep) 정합성을 결정적으로 강제한다(lib/report-sanitize.ts):
+    // 마스크 정책(근거·연령) + prep⊆checklist. 프롬프트 강화 후에도 모델이 규칙을 어기는지
+    // 추적하도록 사유별 관측 로그를 남긴다.
+    const { payload, maskAction, droppedPrep } = sanitizeReportPayload(base, {
+      maskJustified,
+      maskAllowedForAge,
+    });
+    if (maskAction === "removed") perfLog("mask_stripped", " · 미세먼지·꽃가루 정상인데 AI가 마스크 권함 → 제거");
+    else if (maskAction === "downgraded") perfLog("mask_to_indoor", " · 만 2세 미만인데 AI가 마스크 권함 → 실내놀이 대체");
+    if (droppedPrep.length > 0) perfLog("prep_dropped", ` · checklist에 없는 준비물 칩 제거: ${droppedPrep.join(", ")}`);
+    // 본문(hook)에 마스크가 남았는데 checklist엔 없으면 프롬프트가 샌 것 — 관측만(문장은 프롬프트 담당).
+    if (/마스크/.test(payload.hook) && !payload.checklist.some((c) => /마스크/.test(c))) {
+      perfLog("hook_mask_orphan", " · hook에 마스크가 있으나 checklist엔 없음(프롬프트 규칙 누수)");
+    }
+    return payload;
+  };
 
   // 모델 원문(전체) → 최종 페이로드. 코드블록 제거 → 직접 파싱 → { } 블록 추출 순으로 시도.
   const parseFinal = (raw: string) => {
