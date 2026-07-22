@@ -19,6 +19,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **느린 공공 API에서 홈이 '데이터 지연' 폴백에 갇히던 회복력 결함** (`app/api/weather/route.ts`, `app/(main)/home/page.tsx`) — 실황(T1H) 결측 시 순차 재시도 타임아웃을 8s→3s로 줄여 라우트 최악 지연이 클라이언트 abort(9s)를 넘기지 않게 하고(실패해도 예보 최근접값 폴백 존재), 클라이언트 weather·air 요청에 실패 시 1회 무음 재시도(1.2s 후, 그땐 서버 캐시가 데워져 대개 즉시 성공)를 추가. 콜드 캐시 첫 로드가 한 번 끊기면 수동 새로고침 전까지 폴백에 갇히던 문제(자동 재시도 없음) 해소.
 - **환경정보·옷차림·건강팁·마이 탭의 동일 하이드레이션 불일치(React #418) 해결** (`app/(main)/env·outfit·tips·me/page.tsx`) — 네 탭 모두 `profiles`(프로필 목록)·활성 아이(`activeId`/`active`)를 `useState` 초기값 또는 렌더 중 localStorage로 읽어, 홈과 동일하게 서버(기본 프로필)와 클라 첫 렌더(저장 프로필)가 어긋나 #418을 내던 문제. 초기값을 SSR 안전한 `defaultProfiles`로 두고 저장값은 마운트 effect에서 주입하도록 통일(env·outfit·tips는 렌더 계산값이던 activeId를 상태로 전환).
 
+### Security
+- **DB 함수 노출면 축소 — 보안 어드바이저 경고 2건 해소** (`supabase/migrations/20260722022535_security_advisor_hardening.sql`) — `public.rls_auto_enable()`의 PUBLIC 기본 EXECUTE 권한을 `public`·`anon`·`authenticated`에서 회수(lint `0028`). 조사 결과 이 함수는 `returns event_trigger`로 이벤트 트리거 `ensure_rls`에 연결되어 public 스키마 CREATE TABLE 시 RLS를 자동 적용하는 안전장치였고, 반환 타입상 PostgREST RPC로는 호출되지 않아 경고는 린터의 보수적 휴리스틱에 가까웠다. 다만 이벤트 트리거는 EXECUTE 권한과 무관하게 소유자 권한으로 발화하므로 회수해도 자동 RLS 기능은 유지된다(적용 후 `evtenabled=O` 확인). 함께 `public.set_updated_at()`의 search_path를 `''`로 고정(lint `0011`) — 본문이 `now()`와 NEW 필드만 쓰므로 pg_catalog 암묵 해석으로 동작에 영향이 없다. `report_usage`의 RLS Enabled No Policy(INFO)는 service_role 전용 접근이라 의도된 상태로 유지.
+
 ## [0.3.19.1] - 2026-07-19
 
 ### Changed
