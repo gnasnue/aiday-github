@@ -33,23 +33,28 @@ function getNowKST(): { date: string; hour: string } {
 }
 
 // 응답 item의 지수 필드명은 공식 설명서에 없다(설명서는 호출 예제만 수록). 오퍼레이션별
-// 이름(oak/pine/weed)을 먼저 보고, 없으면 메타 필드를 뺀 나머지에서 단계 범위(0~3)의
-// 정수를 취한다. `-`는 기상청 결측 표기.
+// 이름(oak/pine/weed)을 먼저 보고, 없으면 메타 필드를 뺀 나머지에서 찾는다.
+// `-`는 기상청 결측 표기.
 const META_FIELDS = new Set(["code", "areano", "areaname", "date", "sido", "gugun"]);
 
+// 단계는 0~3(낮음·보통·높음·매우높음)이지만 상한을 넘는 값이 와도 여기서 버리지 않는다 —
+// 버리면 결측이 되고 렌더 폴백에서 "낮음"으로 표시돼, 알레르기 체질 아이에게 위험을 과소
+// 표기하는 방향이 된다. 상한 clamp는 라벨 매핑(lib/timeline.ts `pollenLevelOf`) 담당.
 function toGrade(raw: unknown): number | null {
   if (raw == null || raw === "" || raw === "-") return null;
   const n = Number(raw);
-  return Number.isInteger(n) && n >= 0 && n <= 3 ? n : null;
+  return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
 function readIndex(item: Record<string, string>, key: PollenKey): number | null {
   const named = toGrade(item[key] ?? item.today ?? item.value);
   if (named != null) return named;
+  // 필드명을 못 찾았을 때의 최후 수단. 여기서는 날짜(20260722)·코드 같은 큰 정수를 지수로
+  // 오인하면 안 되므로, 이 경로에 한해 단계 범위(0~3) 안의 값만 후보로 본다.
   for (const [field, raw] of Object.entries(item)) {
     if (META_FIELDS.has(field.toLowerCase())) continue;
     const n = toGrade(raw);
-    if (n != null) return n;
+    if (n != null && n <= 3) return n;
   }
   return null;
 }
