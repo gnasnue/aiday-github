@@ -1541,7 +1541,7 @@ const Home = () => {
           )}
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
-          <section className="mt-8">
+          <section className="mt-12">
             <div className="flex items-center justify-between">
               <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
               {/* 오늘|내일 세그먼트 — DESIGN.md 세그먼트 문법(프로필 전환과 동일).
