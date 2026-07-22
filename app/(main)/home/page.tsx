@@ -673,13 +673,19 @@ const Home = () => {
           perfMark(perf, `report_http_${res.status}`);
           outcome = `http_${res.status}`;
           // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
+          let detail: string | undefined;
           try {
-            const detail = (await res.json())?.error;
+            detail = (await res.json())?.error;
             if (detail) console.error("[AI report] 서버 오류 상세:", detail);
           } catch {}
           if (isCurrent()) {
             setAiError(true);
-            toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+            // 하루 한도 소진(429)은 "잠시 후 다시"가 거짓말이 된다 — 서버 문구를 그대로 쓴다.
+            toast(
+              res.status === 429 && detail
+                ? detail
+                : "AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+            );
             setAiLoading(false);
           }
           return;
