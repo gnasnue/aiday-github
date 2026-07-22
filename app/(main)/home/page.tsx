@@ -1371,8 +1371,8 @@ const Home = () => {
                 </p>
               )}
 
-              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 라벨은 옅게(faint),
-                  값은 진하게(foreground/bold, 숫자는 .num)로 대비를 줘 가독성을 높인다. */}
+              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 결론(hook)이 주인공이 되도록
+                  라벨(faint)·값(muted, 숫자는 .num) 모두 조용한 그레이로 물러난다. WCAG AA 유지. */}
               {nowWeatherItems.length > 0 && (
                 <p className="text-[12px] leading-[1.5] break-keep">
                   {nowWeatherItems.map((it, i) => (
@@ -1380,7 +1380,7 @@ const Home = () => {
                       {i > 0 && <span className="text-faint"> · </span>}
                       <span className="text-faint">{it.label} </span>
                       <span
-                        className={`font-semibold text-foreground ${/\d/.test(it.value) ? "num" : ""}`}
+                        className={`font-medium text-muted-foreground ${/\d/.test(it.value) ? "num" : ""}`}
                       >
                         {it.value}
                       </span>
