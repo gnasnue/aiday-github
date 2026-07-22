@@ -38,6 +38,7 @@ import {
   canRecommendMask,
 } from "@/lib/domain/child-conditions";
 import { computeOutdoorIndex } from "@/lib/outdoor-index";
+import { pollenLevelOf } from "@/lib/timeline";
 import {
   judgeWeekendDay,
   pickOutingPlaces,
@@ -79,8 +80,8 @@ const weekIcon = (code: string, size = 24) => {
 const uvLabel = (v: number) =>
   v >= 11 ? "위험" : v >= 8 ? "매우높음" : v >= 6 ? "높음" : v >= 3 ? "보통" : "낮음";
 
-const pollenGradeLabel = (g: number | null) =>
-  g === null ? "--" : g >= 4 ? "매우높음" : g >= 3 ? "높음" : g >= 2 ? "보통" : "낮음";
+// 꽃가루농도위험지수(0~3) → 라벨. 단계 매핑은 lib/timeline.ts 단일 출처.
+const pollenGradeLabel = (g: number | null) => (g === null ? "--" : pollenLevelOf(g));
 
 const humidityLabel = (h: number) =>
   h <= 30 ? "건조" : h <= 60 ? "쾌적" : h <= 75 ? "다습" : "매우습함";
@@ -405,9 +406,12 @@ const Environment = () => {
      이 화면의 유일한 판단(히어로). 상세 판단·준비물은 홈 담당. */
   const outdoor = useMemo(() => {
     if (!weather && !air && !uv && !pollen) return null;
-    const pollenMax = pollen
-      ? Math.max(pollen.oak ?? 0, pollen.pine ?? 0, pollen.weed ?? 0) || null
-      : null;
+    // 지수 0은 "낮음"이라는 실측값이라 결측(null)과 구분해야 한다 —
+    // null을 0으로 메우거나 `|| null`로 걷어내면 위 리스트 행과 근거 표기가 어긋난다.
+    const pollenNums = pollen
+      ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
+      : [];
+    const pollenMax = pollenNums.length ? Math.max(...pollenNums) : null;
     return computeOutdoorIndex({
       pm10Grade: air?.pm10Grade ?? null,
       pm25Grade: air?.pm25Grade ?? null,
