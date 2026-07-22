@@ -1330,11 +1330,11 @@ const Home = () => {
             </section>
           ) : (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
-              {/* 카드 헤더 — 크림(secondary) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
-                  구분하고 "AI 리포트"임을 앵커링. 라벨(15px/bold 블랙)이 주인공이 되도록
-                  날짜·시간 메타는 caption(13px·muted-foreground)으로 톤다운. */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-secondary px-5 py-3">
-                <span className="shrink-0 text-[15px] font-bold text-foreground">AI 리포트</span>
+              {/* 카드 헤더 — 피치(primary-tint) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
+                  구분하고 "AI 리포트"임을 앵커링. 아이콘 타일과 같은 브랜드 웜톤으로 통일(크림 미사용).
+                  라벨(14px/bold)이 주인공이 되도록 날짜·시간 메타는 caption(muted-foreground)으로 톤다운. */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-primary-tint px-5 py-3">
+                <span className="shrink-0 text-[14px] font-bold text-foreground">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
@@ -1371,8 +1371,8 @@ const Home = () => {
                 </p>
               )}
 
-              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 라벨은 옅게(faint),
-                  값은 진하게(foreground/bold, 숫자는 .num)로 대비를 줘 가독성을 높인다. */}
+              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 결론(hook)이 주인공이 되도록
+                  라벨(faint)·값(muted, 숫자는 .num) 모두 조용한 그레이로 물러난다. WCAG AA 유지. */}
               {nowWeatherItems.length > 0 && (
                 <p className="text-[12px] leading-[1.5] break-keep">
                   {nowWeatherItems.map((it, i) => (
@@ -1380,7 +1380,7 @@ const Home = () => {
                       {i > 0 && <span className="text-faint"> · </span>}
                       <span className="text-faint">{it.label} </span>
                       <span
-                        className={`font-semibold text-foreground ${/\d/.test(it.value) ? "num" : ""}`}
+                        className={`font-medium text-muted-foreground ${/\d/.test(it.value) ? "num" : ""}`}
                       >
                         {it.value}
                       </span>
@@ -1475,9 +1475,9 @@ const Home = () => {
               {(aiLoading || aiStreaming || refreshing) && !reportPrimed ? (
                 <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
               ) : (
-              <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
-                <div className="flex items-center justify-between px-0.5">
-                  <p className="text-[15px] font-bold">오늘 챙길 것</p>
+              <div className="mt-5 border-t border-border pt-4 pb-0">
+                <div className="flex items-center justify-between">
+                  <p className="text-[14px] font-bold">오늘 챙길 것</p>
                   {allDone ? (
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
@@ -1513,7 +1513,7 @@ const Home = () => {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span
-                              className={`block text-[14.5px] font-bold tracking-[-0.01em] ${
+                              className={`block text-[16px] font-medium tracking-[-0.01em] ${
                                 on ? "text-muted-foreground" : "text-foreground"
                               }`}
                             >
@@ -1541,7 +1541,7 @@ const Home = () => {
           )}
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
-          <section className="mt-8">
+          <section className="mt-12">
             <div className="flex items-center justify-between">
               <h2 className="scroll-mt-14 text-[17px] font-bold tracking-[-0.01em]">시간대별 환경</h2>
               {/* 오늘|내일 세그먼트 — DESIGN.md 세그먼트 문법(프로필 전환과 동일).
@@ -1690,12 +1690,12 @@ const Home = () => {
                             표시하고(중복·거짓정밀도 제거), 현재 슬롯임은 aria-current + sr-only로 전달. */}
                         <div
                           aria-current={isNow ? "true" : undefined}
-                          className={`mb-2.5 flex-1 rounded-2xl border bg-card p-4 shadow-soft ${
+                          className={`mb-2.5 flex-1 rounded-2xl border-[1.5px] bg-card p-4 shadow-soft ${
                             isNow
-                              ? "border-[1.5px] border-primary"
+                              ? "border-primary"
                               : kind
                                 ? "border-primary/40"
-                                : "border-border/60"
+                                : "border-transparent"
                           }`}
                         >
                           <div className="flex items-start justify-between gap-2">
