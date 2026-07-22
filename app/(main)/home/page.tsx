@@ -640,122 +640,155 @@ const Home = () => {
           morningRegen = morningRefresh && !envChanged(cached.env, sig);
         }
 
-        perfMark(perf, "report_fetch_start"); // 캐시 미스 → 서버 요청 착수
-        const res = await fetch("/api/report", {
-          method: "POST",
-          signal: ctrl.signal, // 새 요청·언마운트 시 취소 → 서버 Anthropic 스트림까지 abort
-          headers: {
-            "Content-Type": "application/json",
-            // 계측 요청만 서버 로그를 남기도록 게이팅 + 클라이언트/서버 로그 correlation
-            ...(perfEnabled() ? { "x-perf-id": perf.id } : {}),
-          },
-          body: JSON.stringify({
-            child: {
-              name: cur.name,
-              age: cur.age,
-              gender: cur.gender,
-              conditions: cur.conditions,
-              conditionEtc: cur.conditionEtc,
-              cold: cur.cold,
-              hot: cur.hot,
-              sweat: cur.sweat,
-              schedule: cur.schedule,
-            },
-            weather: w,
-            air: a?.error ? null : a,
-            uv: uvClean,
-            pollen: pollenClean,
-          }),
-        });
-
-        // 사전 검증 실패(apiKey·baseURL 등)는 여전히 non-2xx JSON으로 온다
-        if (!res.ok || !res.body) {
-          perfMark(perf, `report_http_${res.status}`);
-          outcome = `http_${res.status}`;
-          // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
-          let detail: string | undefined;
-          try {
-            detail = (await res.json())?.error;
-            if (detail) console.error("[AI report] 서버 오류 상세:", detail);
-          } catch {}
-          if (isCurrent()) {
-            setAiError(true);
-            // 하루 한도 소진(429)은 "잠시 후 다시"가 거짓말이 된다 — 서버 문구를 그대로 쓴다.
-            toast(
-              res.status === 429 && detail
-                ? detail
-                : "AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
-            );
-            setAiLoading(false);
-          }
-          return;
-        }
-
         // SSE 스트림 소비 — hook·message가 도착하는 즉시 히어로를 노출하고,
         // done 이벤트의 전체 페이로드로 체크리스트·준비물·캐시를 채운다.
         type ReportPayload = { hook: string; message: string; checklist: string[]; prep: Record<string, string[]> };
-        if (isCurrent()) setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        let streamErr: boolean = false;
-        let final: ReportPayload | null = null;
 
-        const handleEvent = (event: string, dataStr: string) => {
-          let data: unknown;
+        // 한 번의 시도 결과. retry=일시 실패(재시도 대상), fatal=영구 실패(즉시 폴백),
+        // stale=취소·낡은 요청(실패 아님).
+        type AttemptResult =
+          | { kind: "done"; payload: ReportPayload }
+          | { kind: "retry"; reason: "exception" | "stream_error" | "empty" }
+          | { kind: "fatal"; httpStatus: number; detail?: string }
+          | { kind: "stale" };
+
+        // 리포트 요청 1회: fetch → SSE 소비. 콜드 스타트/게이트웨이 순간 오류/네트워크 끊김은
+        // retry로, 한도(429)·입력(4xx)·설정(503) 오류는 fatal로 구분해 돌려준다.
+        const runReportAttempt = async (attempt: number): Promise<AttemptResult> => {
+          perfMark(perf, attempt === 1 ? "report_fetch_start" : "report_retry"); // 캐시 미스 → 서버 요청 착수
+          let res: Response;
           try {
-            data = JSON.parse(dataStr);
-          } catch {
-            return;
+            res = await fetch("/api/report", {
+              method: "POST",
+              signal: ctrl.signal, // 새 요청·언마운트 시 취소 → 서버 Anthropic 스트림까지 abort
+              headers: {
+                "Content-Type": "application/json",
+                // 계측 요청만 서버 로그를 남기도록 게이팅 + 클라이언트/서버 로그 correlation
+                ...(perfEnabled() ? { "x-perf-id": perf.id } : {}),
+              },
+              body: JSON.stringify({
+                child: {
+                  name: cur.name,
+                  age: cur.age,
+                  gender: cur.gender,
+                  conditions: cur.conditions,
+                  conditionEtc: cur.conditionEtc,
+                  cold: cur.cold,
+                  hot: cur.hot,
+                  sweat: cur.sweat,
+                  schedule: cur.schedule,
+                },
+                weather: w,
+                air: a?.error ? null : a,
+                uv: uvClean,
+                pollen: pollenClean,
+              }),
+            });
+          } catch (err) {
+            // 취소(새 요청·언마운트)는 실패가 아니다. 그 외 네트워크 예외는 재시도 대상.
+            if (ctrl.signal.aborted || !isCurrent()) return { kind: "stale" };
+            console.error("[AI report] fetch 예외:", err);
+            return { kind: "retry", reason: "exception" };
           }
-          if (event === "hook") {
-            perfMark(perf, "report_hook"); // 첫 가시 콘텐츠 (스켈레톤 해제)
-            if (isCurrent()) {
-              setAiHook(typeof data === "string" ? data : "");
-              setAiLoading(false); // 헤드라인(아침의 결론) 즉시 노출 — 본문은 message까지 스켈레톤
+
+          // 사전 검증 실패(apiKey·baseURL 등)는 여전히 non-2xx JSON으로 온다.
+          // 429(한도)·4xx(입력)·503(설정)은 재시도해도 결과가 같으므로 즉시 폴백(fatal).
+          if (!res.ok || !res.body) {
+            let detail: string | undefined;
+            try {
+              detail = (await res.json())?.error;
+              if (detail) console.error("[AI report] 서버 오류 상세:", detail);
+            } catch {}
+            return { kind: "fatal", httpStatus: res.status, detail };
+          }
+
+          if (isCurrent()) setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buf = "";
+          let streamErr = false;
+          let final: ReportPayload | null = null;
+
+          const handleEvent = (event: string, dataStr: string) => {
+            let data: unknown;
+            try {
+              data = JSON.parse(dataStr);
+            } catch {
+              return;
             }
-          } else if (event === "message") {
-            if (isCurrent()) setAiMessage(typeof data === "string" ? data : "");
-          } else if (event === "done") {
-            final = data as ReportPayload;
-          } else if (event === "error") {
-            streamErr = true;
+            if (event === "hook") {
+              perfMark(perf, "report_hook"); // 첫 가시 콘텐츠 (스켈레톤 해제)
+              if (isCurrent()) {
+                setAiHook(typeof data === "string" ? data : "");
+                setAiLoading(false); // 헤드라인(아침의 결론) 즉시 노출 — 본문은 message까지 스켈레톤
+              }
+            } else if (event === "message") {
+              if (isCurrent()) setAiMessage(typeof data === "string" ? data : "");
+            } else if (event === "done") {
+              final = data as ReportPayload;
+            } else if (event === "error") {
+              streamErr = true;
+            }
+          };
+
+          while (true) {
+            let readResult: ReadableStreamReadResult<Uint8Array>;
+            try {
+              readResult = await reader.read();
+            } catch (err) {
+              // 스트림 도중 연결 끊김(콜드 타임아웃·네트워크) — 취소가 아니면 재시도 대상.
+              if (ctrl.signal.aborted || !isCurrent()) return { kind: "stale" };
+              console.error("[AI report] 스트림 read 예외:", err);
+              return { kind: "retry", reason: "exception" };
+            }
+            if (readResult.done) break;
+            // 새 요청(프로필 전환 등)이 시작됐으면 이 스트림은 낡음 — 취소하고 중단(불필요한 생성 소비 방지)
+            if (!isCurrent()) {
+              try { await reader.cancel(); } catch {}
+              return { kind: "stale" };
+            }
+            buf += decoder.decode(readResult.value, { stream: true });
+            const chunks = buf.split("\n\n");
+            buf = chunks.pop() ?? "";
+            for (const chunk of chunks) {
+              const ev = chunk.match(/^event: (.+)$/m)?.[1]?.trim();
+              const dt = chunk.match(/^data: (.+)$/m)?.[1];
+              if (ev && dt != null) handleEvent(ev, dt);
+            }
           }
+
+          if (!isCurrent()) return { kind: "stale" };
+          if (streamErr) return { kind: "retry", reason: "stream_error" };
+          const payload = final as ReportPayload | null;
+          if (payload && payload.message) return { kind: "done", payload };
+          // done은 왔지만 message 없음 = 서버가 모델 응답 파싱에 실패 → 재시도로 회복 시도.
+          return { kind: "retry", reason: "empty" };
         };
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          // 새 요청(프로필 전환 등)이 시작됐으면 이 스트림은 낡음 — 취소하고 중단(불필요한 생성 소비 방지)
-          if (!isCurrent()) {
-            outcome = "superseded";
-            try { await reader.cancel(); } catch {}
-            break;
-          }
-          buf += decoder.decode(value, { stream: true });
-          const chunks = buf.split("\n\n");
-          buf = chunks.pop() ?? "";
-          for (const chunk of chunks) {
-            const ev = chunk.match(/^event: (.+)$/m)?.[1]?.trim();
-            const dt = chunk.match(/^data: (.+)$/m)?.[1];
-            if (ev && dt != null) handleEvent(ev, dt);
+        // 시도 루프 — 일시 실패면 잠깐 쉬고 한 번 더(콜드·게이트웨이·네트워크 순간 오류가
+        // 곧장 "기본 추천"에 갇히지 않게). 각 시도는 Claude 생성 1회라 비용을 고려해 최대 2회.
+        // 429·4xx·503(fatal)·취소(stale)는 재시도하지 않는다.
+        const MAX_REPORT_ATTEMPTS = 2;
+        const RETRY_DELAY_MS = 900;
+        let attemptRes: AttemptResult = { kind: "stale" };
+        for (let attempt = 1; attempt <= MAX_REPORT_ATTEMPTS; attempt++) {
+          attemptRes = await runReportAttempt(attempt);
+          if (attemptRes.kind !== "retry") break;
+          if (attempt < MAX_REPORT_ATTEMPTS && isCurrent() && !ctrl.signal.aborted) {
+            perfMark(perf, `report_retry_wait_${attemptRes.reason}`);
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+            if (!isCurrent() || ctrl.signal.aborted) { attemptRes = { kind: "stale" }; break; }
           }
         }
 
-        // 낡은(superseded) 요청은 done 처리·상태 갱신을 건너뛰고 finally로 (계측만 남긴다)
-        if (!isCurrent()) return;
-
-        if (streamErr) {
-          perfMark(perf, "report_stream_error");
-          outcome = "stream_error";
-          setAiError(true);
-          toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
-          setAiLoading(false);
+        // 취소·낡은 요청은 done 처리·상태 갱신을 건너뛰고 finally로 (계측만 남긴다)
+        if (attemptRes.kind === "stale" || !isCurrent()) {
+          outcome = ctrl.signal.aborted ? "aborted" : "superseded";
           return;
         }
 
-        const done = final as ReportPayload | null;
-        if (done && done.message) {
+        if (attemptRes.kind === "done") {
+          const done = attemptRes.payload;
           setAiHook(done.hook ?? "");
           setAiMessage(done.message);
           if (Array.isArray(done.checklist) && done.checklist.length > 0) {
@@ -771,13 +804,30 @@ const Home = () => {
           else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
           outcome = "done";
-        } else {
-          // done은 왔지만 message 없음 = 서버가 모델 응답 파싱에 실패한 경우 — 조용히 넘기지 않고 표시
-          console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
+        } else if (attemptRes.kind === "fatal") {
+          // 영구 실패(429 한도·4xx 입력·503 설정) — 재시도 무의미, 즉시 폴백.
+          perfMark(perf, `report_http_${attemptRes.httpStatus}`);
+          outcome = `http_${attemptRes.httpStatus}`;
           setAiError(true);
-          perfMark(perf, "report_empty");
-          outcome = "empty";
-          toast("AI 리포트 생성에 실패해 기본 추천을 보여드려요.");
+          // 하루 한도 소진(429)은 "잠시 후 다시"가 거짓말이 된다 — 서버 문구를 그대로 쓴다.
+          toast(
+            attemptRes.httpStatus === 429 && attemptRes.detail
+              ? attemptRes.detail
+              : "AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+          );
+          setAiLoading(false);
+        } else {
+          // 재시도까지 소진된 일시 실패(exception/stream_error/empty) — 규칙 기반 "기본 추천" 폴백.
+          if (attemptRes.reason === "empty") console.warn("[AI report] 빈 응답 수신 — 기본 추천으로 대체합니다.");
+          perfMark(perf, `report_${attemptRes.reason}`);
+          outcome = attemptRes.reason;
+          setAiError(true);
+          toast(
+            attemptRes.reason === "empty"
+              ? "AI 리포트 생성에 실패해 기본 추천을 보여드려요."
+              : "AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+          );
+          setAiLoading(false);
         }
       } catch (err) {
         // 취소(새 요청·언마운트)·낡은 요청은 오류가 아니다 — 화면·계측을 오류로 집계하지 않는다.
