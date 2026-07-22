@@ -7,7 +7,7 @@ describe("computeOutdoorIndex — 기본 동작", () => {
       pm10Grade: 1,
       pm25Grade: 1,
       uvi: 1,
-      pollenMax: 1,
+      pollenMax: 0, // 꽃가루농도위험지수 0 = 낮음 (0~3 스케일)
       pop: 0,
       humidity: 50,
       temp: 22,
@@ -21,6 +21,27 @@ describe("computeOutdoorIndex — 기본 동작", () => {
     const r = computeOutdoorIndex({});
     expect(r.score).toBe(100);
     expect(r.label).toBe("좋음");
+  });
+});
+
+// 꽃가루농도위험지수는 0~3(낮음·보통·높음·매우높음). 상한을 4로 잡으면 최고 감점이
+// 영원히 적용되지 않고 근거 표기도 한 칸씩 낮게 나간다 — 값별로 감점·표기를 고정한다.
+describe("computeOutdoorIndex — 꽃가루 지수(0~3) 감점·근거 표기", () => {
+  it.each([
+    [0, 0, "꽃가루 낮음"],
+    [1, 5, "꽃가루 보통"],
+    [2, 15, "꽃가루 높음"],
+    [3, 25, "꽃가루 매우높음"],
+  ] as const)("지수 %i → 감점 %i, 근거 '%s'", (pollenMax, penalty, basis) => {
+    const r = computeOutdoorIndex({ pollenMax });
+    expect(r.score).toBe(100 - penalty);
+    expect(r.basis).toContain(basis);
+  });
+
+  it("지수 미제공(null)이면 감점도 근거 표기도 없다", () => {
+    const r = computeOutdoorIndex({ pollenMax: null });
+    expect(r.score).toBe(100);
+    expect(r.basis.some((b) => b.startsWith("꽃가루"))).toBe(false);
   });
 });
 

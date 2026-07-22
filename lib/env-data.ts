@@ -104,15 +104,16 @@ export type EnvData = {
 export const envRegion = (_location: AppLocation): string => "서울";
 
 /**
- * 꽃가루 지수 제공 기간인가. 기상청은 참나무·소나무를 4~6월에만 발표한다
- * (잡초류는 8~10월이지만 조회서비스 V3에 오퍼레이션이 없어 우리는 받지 못한다).
+ * 꽃가루 지수 제공 기간인가. 기상청 자료제공 기간은 종류별로 다르다 —
+ * 참나무·소나무 3~6월, 잡초류 8~10월 (2026-07-22 실호출로 확인한 API 응답 메시지 기준).
+ * 세 종류 모두 `/api/pollen`이 실연동돼 있으므로 어느 한쪽이라도 열려 있으면 제공 기간이다.
  *
  * 제공 기간 밖의 결측은 **고장이 아니라 정상**이다. 이걸 구분하지 않으면 7월에
  * "꽃가루 정보를 불러오지 못했어요"라고 말하게 되는데, 사실이 아니다.
  */
 export const isPollenSeason = (now: Date = new Date()): boolean => {
   const m = now.getMonth() + 1;
-  return m >= 4 && m <= 6;
+  return (m >= 3 && m <= 6) || (m >= 8 && m <= 10);
 };
 
 /* ----------------------------- 값 검증 ----------------------------- */
@@ -185,14 +186,14 @@ const sanitizeAir = (raw: RawJson): EnvAir | null => {
 
 const sanitizePollen = (raw: RawJson): EnvPollen | null => {
   if (!raw) return null;
-  // 꽃가루 위험지수 범위. 기상청 공식 안내는 "낮음/보통/높음/매우높음 4단계"라고만 밝히고
-  // 숫자 매핑을 공개하지 않는다(권위 있는 값은 조회서비스 3.0 명세 문서 안). 2차 출처는
-  // 0~3이라 하는데, 확정 전까지는 넉넉한 0~4로 두어 유효값을 잘못 버리지 않게 한다 —
-  // 상한이 실제로 3이면 lib/timeline의 pollenLabel과 함께 바로잡아야 한다(별도 조사 중).
+  // 꽃가루 위험지수는 0~3(낮음·보통·높음·매우높음) — 조회서비스 3.0 명세의 "단계 및 범위"
+  // 표로 확정됐고 `lib/timeline.ts pollenLevelOf`가 단일 출처다. 상한을 넘는 값이 와도 여기서
+  // 버리지 않는다: 버리면 결측이 돼 "낮음"으로 표시되고, 알레르기 체질 아이에게 위험을 과소
+  // 표기하는 방향이 된다. clamp는 라벨 매핑이 맡는다.
   return {
     oak: num(raw.oak, 0, 4),
     pine: num(raw.pine, 0, 4),
-    // 잡초는 기상청 V3가 제공하지 않아 항상 null — 소비처에서 자연 제외된다
+    // 잡초류도 실연동돼 있다(`getWeedsPollenRiskndxV3`). 제공 기간이 8~10월이라 그 밖에서만 null.
     weed: num(raw.weed, 0, 4),
   };
 };

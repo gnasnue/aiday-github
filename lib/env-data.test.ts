@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { fetchEnvData, envRegion } from "./env-data";
+import { fetchEnvData, envRegion, isPollenSeason } from "./env-data";
 import type { AppLocation } from "./location";
 
 const LOC: AppLocation = { gu: "송파구", lat: 37.5145, lon: 127.1059, station: "송파구" };
@@ -221,5 +221,24 @@ describe("fetchEnvData — 취소", () => {
     const data = await p;
     expect(calls.length).toBe(4); // 재시도 없이 최초 4건뿐
     expect(data.missing).toContain("weather");
+  });
+});
+
+// 기상청 자료제공 기간은 종류별로 다르다 — 참나무·소나무 3~6월, 잡초류 8~10월.
+// 잡초류를 빠뜨리면 8~10월에 실제 값이 오는데도 "제공 기간 아님"으로 안내하게 되고,
+// 3월을 빠뜨리면 시즌 시작 한 달을 통째로 놓친다. 경계값을 고정한다.
+describe("isPollenSeason — 종류별 자료제공 기간", () => {
+  const at = (month: number) => new Date(2026, month - 1, 15);
+
+  it.each([3, 4, 5, 6])("수목(참나무·소나무) 시즌: %i월", (m) => {
+    expect(isPollenSeason(at(m))).toBe(true);
+  });
+
+  it.each([8, 9, 10])("잡초류 시즌: %i월", (m) => {
+    expect(isPollenSeason(at(m))).toBe(true);
+  });
+
+  it.each([1, 2, 7, 11, 12])("두 시즌 사이·밖: %i월은 제공 기간 아님", (m) => {
+    expect(isPollenSeason(at(m))).toBe(false);
   });
 });

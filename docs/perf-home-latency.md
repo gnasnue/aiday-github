@@ -42,7 +42,8 @@
 
 예: `[perf/report] [f012920c] done · streamStart 7 · firstDelta 1055 · hook 1434 · done 4338ms · (firstDelta→hook 379ms) · endpoint=https://gw.letsur.ai`
 
-- `received→streamStart` : 핸들러 진입~SDK 스트림 생성(≈0, SDK 초기화)
+- `rate` : 레이트리밋 판정. `auth`(세션 조회 — 게스트는 네트워크 미발생이라 ≈0)와 `store`(카운터 RPC 왕복)로 분해된다. `skipped=no_config`면 `SUPABASE_SERVICE_ROLE_KEY` 미설정이라 리밋이 꺼진 상태다
+- `received→streamStart` : 핸들러 진입~SDK 스트림 생성(레이트리밋 판정 포함)
 - `received→firstDelta` : 모델 첫 토큰까지 — **콜드스타트 이후 prefill + 게이트웨이 연결 + TTFT**
 - `firstDelta→hook` : hook 문자열 생성 시간(모델 생성)
 - `received→done` : 전체 생성
@@ -65,3 +66,19 @@
 - **직렬 워터폴**: `환경 API 4개 → (uv+pollen 게이트) → 캐시 확인/AI 착수 → SSE hook`. 당일 캐시가 있어도 uv+pollen 완료 뒤에야 읽혀, 재방문자도 콜드미스 API만큼 기다린다. AI 착수도 같은 게이트 뒤.
 - **게이트웨이**: 리포트는 `ANTHROPIC_BASE_URL`(gw.letsur.ai) 경유. TTFB의 상당 부분이 `received→firstDelta`.
 - 이번 변경은 **계측 + 견고성 수정**(Safari 호환·stale 방어·중복 생성 취소)까지다. **워터폴 자체의 최적화**(캐시를 마운트 즉시 읽기, uv/pollen stale-while-revalidate 등)는 운영 실측으로 우선순위를 정한 뒤 진행하는 후속 과제.
+
+## 함수 리전 (2026-07-22)
+
+`vercel.json`이 없어 Vercel 기본값 **`iad1`(미국 동부)** 에서 돌고 있었다. 이 앱의 의존성은 전부 한국에 있다 — Supabase(`ap-northeast-2`)·AI 게이트웨이(`gw.letsur.ai`)·기상청·에어코리아. 매 호출이 태평양을 왕복하던 구조라 `vercel.json`에 `regions: ["icn1"]`을 고정했다.
+
+프리뷰 배포에서 같은 요청을 리전만 바꿔 실측한 결과(웜 기준, 콜드 첫 요청 제외):
+
+| 구간 | `iad1` | `icn1` |
+|---|---|---|
+| `rate`(카운터 RPC 왕복) | 227~893ms | **39~55ms** |
+| `firstDelta`(모델 첫 토큰) | 2559~3298ms | **1645~1862ms** |
+| `hook`(사용자에게 보이는 첫 콘텐츠) | 3297~4262ms | **2036~2977ms** |
+
+즉 **DB 왕복이 약 5배, 홈 hook이 약 1.2초** 빨라진다. 리전을 되돌리면 이 값들이 그대로 복귀하므로, 지연 조사 시 배포의 `regions`를 먼저 확인할 것.
+
+> 콜드스타트 첫 요청은 여전히 `rate` 700ms대가 나온다(람다 신규 인스턴스의 TLS 핸드셰이크). Supabase 클라이언트는 모듈 스코프 싱글턴이라 같은 인스턴스의 두 번째 요청부터 커넥션을 재사용한다.

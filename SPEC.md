@@ -44,7 +44,7 @@
 현재 동작 (코드 기준, `lib/profile.ts: loadProfiles`):
 - 로그인·가입 없이 `/home` 진입 가능. 저장된 프로필이 없으면 **데모 프로필 2개**(지우 4세 여아 · 아토피/비염, 도윤 2세 남아 · 피부 민감)가 자동 표시됨
 - 게스트도 온보딩 진입·프로필 저장 가능 (localStorage에만 — 로그인 상태가 아니면 DB 저장은 조용히 스킵됨)
-- ⚠️ 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 **실제로 호출됨** — 인증 게이트 없음, 토큰 비용 발생
+- 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 실제로 호출됨 (결정 3-1 — 둘러보기가 곧 핵심 가치 시연). 인증 게이트 대신 **IP 기준 일 10회 레이트리밋**으로 비용 어뷰즈를 막는다
 
 결정 확정됨 (2026-07-04, [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3):
 - [x] 게스트 → 가입 전환 시 localStorage 프로필을 DB로 이전한다 (가입·로그인 성공 직후 1회 업로드) — ✅ 구현됨 (2026-07-13, `/auth/landing`에서 DB가 비어 있을 때 `uploadLocalProfilesToDb()`)
@@ -458,10 +458,11 @@ components/CharacterReport.tsx와 /images/character-*.png는 보존 — 베타 �
   (만 2세 미만은 canRecommendMask로 "외출 줄이기" 대체 — 홈과 안전 규칙 공유),
   피부 민감 → 자외선 선크림·모자 / 건조 보습제
 · 결측 처리(정직하되 압축): 대기질 3종 동시 결측 → "대기질" 1행 압축("측정소 응답 지연 — 잠시 후 자동 갱신"),
-  개별 결측 → "--", 꽃가루 제공 기간 외(참나무·소나무 4~6월, 잡초 8~10월) → "제공 기간 아님",
+  개별 결측 → "--", 꽃가루 제공 기간 외(참나무·소나무 3~6월, 잡초류 8~10월) → "제공 기간 아님",
   꽃가루 fetch 실패 → "불러오지 못했어요", 전 지표 결측 → 안내 카드 1장
 · 출처 캡션: "기상청 · 에어코리아 실측 — {측정소명} 측정소 기준"
-· 잡초는 API가 항상 null을 반환해 최고 등급 계산에서 자연 제외 (버그 현황 참고)
+· 꽃가루는 참나무·소나무·잡초류 3종 중 최고 등급 기준. 제공 기간이 서로 달라 기간 밖 종류는
+  null로 빠지고, 7월·11~2월은 3종 모두 없어 "제공 기간 아님"이 된다
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ③ 주간 날씨  ✅ 실데이터 (/api/weather/weekly)
@@ -680,16 +681,16 @@ Today's OOTD
 
 | 라우트 | 메서드 | 파라미터 (기본값) | 응답 필드 | 캐시 |
 |--------|--------|------------------|-----------|------|
-| `/api/weather` | GET | `lat`(37.5665), `lon`(126.9780) | `temperature, feelsLike, sky, pty, humidity, windSpeed, pop, hourlyForecast[]`(06~21시 3시간 간격 6슬롯: `hour, temp, sky, pty, humidity, windSpeed, pop`) | 30분 |
+| `/api/weather` | GET | `lat`(37.5665), `lon`(126.9780) | `temperature, feelsLike, sky, pty, humidity, windSpeed, pop, hourlyForecast[]`(06~21시 3시간 간격 6슬롯: `hour, temp, sky, pty, humidity, windSpeed, pop`), `hourlyForecastTomorrow[]`(내일분, 같은 발표본에서 추출 — 홈 "내일" 세그먼트용) | 30분 |
 | `/api/air` | GET | `station`(종로구) | `pm10, pm25, pm10Grade, pm25Grade, khai, khaiGrade, o3, no2, stationName, dataTime` (등급: 1좋음~4매우나쁨) | 1시간 |
-| `/api/pollen` | GET | `region`(서울, 시/도명) | `oak, pine, weed, region, date` — ⚠️ `weed`는 **항상 null** (기상청 V3에 잡초 오퍼레이션 없음) | 6시간 |
-| `/api/uv` | GET | `region`(서울) | `uvi, hourly{0..21}, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산, 당일 자료 없으면 24시간 전 fallback | 1시간 |
+| `/api/pollen` | GET | `region`(서울, 시/도명) | `oak, pine, weed, region, date` — 3종 모두 실연동(`getOakPollenRiskIdxV3`·`getPinePollenRiskIdxV3`·`getWeedsPollenRiskndxV3`). 자료제공 기간이 종류별로 달라(참나무·소나무 3~6월, 잡초류 8~10월) 기간 밖 종류는 null | 6시간 |
+| `/api/uv` | GET | `region`(서울) | `uvi, hourly{0..21}, hourlyTomorrow{0..21}, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산(내일분도 같은 발표본에서), 당일 자료 없으면 24시간 전 fallback | 1시간 |
 | `/api/weather/weekly` | GET | `region`(서울), `lat`(37.5665), `lon`(126.9780) | `week[7]`(`day, date, icon, high, low, rain, weekend, source`) — D0~D2 단기예보(getVilageFcst) + D+3~ 중기예보(getMidLandFcst+getMidTa) 병합. `source`는 short/mid | 단기 30분·중기 3시간 |
-| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
+| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback). **레이트리밋**: 로그인 사용자 `user_id` 기준 일 20회 / 게스트 IP 기준 일 10회, 초과 시 `429` + 안내 문구(`lib/rate-limit.ts`, `report_usage` 테이블) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
 
 - 공통 에러: API 키 미설정 503 / 업스트림 오류 502 / 파싱·기타 500 (+ air는 측정 데이터 없음 404). 클라이언트는 `error` 필드 유무로 판별
 - 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), `ANTHROPIC_BASE_URL`(report, 선택 — AI 게이트웨이/프록시 엔드포인트, 미설정 시 기본 주소), Supabase 키
-- **필드 활용 현황:** `/api/weather`의 `hourlyForecast`는 홈 "시간대별 환경"(`buildTimeline`)·환경정보 "시간대별 날씨"·`/api/report` 일정 매핑에서 모두 사용 중. `feelsLike`는 홈 timeline에서 자체 계산(`temp - 0.7*wind`)해 표시하나 API 필드 자체는 UI 직접 참조 안 함
+- **필드 활용 현황:** `/api/weather`의 `hourlyForecast`는 홈 "시간대별 환경"(`buildTimeline`)·환경정보 "시간대별 날씨"·`/api/report` 일정 매핑에서 모두 사용 중. `hourlyForecastTomorrow`·`uv.hourlyTomorrow`는 홈 "오늘\|내일" 세그먼트(`buildTomorrowTimeline`) 전용. `feelsLike`는 홈 timeline에서 자체 계산(`temp - 0.7*wind`)해 표시하나 API 필드 자체는 UI 직접 참조 안 함
 - ⚠️ **인증 없음:** 5개 라우트 모두 인증·레이트리밋 없이 공개. 특히 `/api/report`는 호출당 Claude 비용이 발생하므로 공개 배포 전 보호 필요 (게스트 정책과 함께 결정)
 
 ### 클라이언트 저장소 (localStorage)
@@ -765,10 +766,11 @@ Today's OOTD
 | 위치 텍스트·좌표 불일치 | 🟡 중간 | 홈 라벨은 v0.3.13.0에서 실제 좌표 기준 "서울 중구"로 교정(환경정보는 측정소명 표시). 다만 미세먼지는 종로구 측정소라 라벨과 1개 지표는 여전히 인접 불일치. 날씨 API 호출 좌표(37.5665, 126.9780)는 중구·시청 부근으로 4곳(home/env/outfit/api 기본값)에 하드코딩. 위치 기반 자동 조회 미구현 |
 | 추천 아이템 가격·이미지 더미 | 🟢 낮음 | 홈/옷차림의 쇼핑 추천 카드는 여전히 이모지+고정 가격, 실제 쇼핑 연동 없음 |
 | 옷차림 캐릭터 착장 미리보기 정적 | 🟢 낮음 | `/ootd-look.jpg` 고정 이미지, 날씨·프로필과 무관 |
-| 꽃가루 잡초 카드 상시 "--" | 🟢 낮음 | `/api/pollen`의 `weed`가 항상 null(기상청 V3에 잡초 오퍼레이션 없음)인데 환경정보 UI에 카드가 노출됨 — 카드 제거 또는 "제공 안 함" 표기 필요 |
 | Google OAuth 활성화 여부 미확인 | 🟢 낮음 | 코드상 `signInWithOAuth` 호출은 구현됨. Supabase 대시보드의 Google Provider 설정·클라이언트 ID는 코드로 확인 불가 — 별도로 직접 테스트 필요 |
 
 **이전에 기록됐던 아래 항목들은 해결된 상태입니다:**
+- ~~꽃가루 잡초 카드 상시 "--" (기상청 V3에 잡초 오퍼레이션 없음)~~ — 사실이 아니었음. 공식 명세와 실호출 모두 `getWeedsPollenRiskndxV3` 존재를 확인(철자 주의: 잡초류만 `Riskndx`)해 `/api/pollen`에 연동 (2026-07-22)
+- ~~꽃가루 `areaNo`에 기상청 자체 2자리 지역코드 사용~~ — 이 계열 API는 10자리 법정동코드만 받는다(`areaNo=11` → `99 검색결과가 없습니다. [11]`, 2026-07-22 실측). 자외선과 공유하는 `lib/kma-area.ts` 단일 출처로 통일 (2026-07-22)
 - ~~구글 로그인 시 데모 프로필(지우) 표시·온보딩 건너뜀~~ — 인증 후 공통 판단 지점 `/auth/landing` 신설, 상태 기반 분기 + 홈 진입 가드 (2026-07-13)
 - ~~온보딩 프로필 DB 저장 uuid 오류~~ — `profileToRow`가 UUID 형식 id만 전달하도록 수정 (2026-07-13)
 - ~~이메일 재로그인 불가~~ — `/login` 페이지 신설, `signInWithPassword` + 비밀번호 재설정(`/reset-password`) 구현 (2026-07-03)

@@ -1,29 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { resolveKmaArea } from "@/lib/kma-area";
 
 // 기상청_생활기상지수 조회서비스(3.0) — 자외선지수(UV)
-// areaNo는 표준 법정동코드(시/도 단위, 10자리, 뒷자리 0 패딩)로, 단기예보/꽃가루
-// API가 쓰는 기상청 자체 지역코드(11/21/22...)와는 완전히 다른 체계.
-// 실제 API에 빈 areaNo(전체지점조회)로 질의해 응답에 포함된 시/도 코드로 검증함
-// (2026-07 기준). 강원/전북은 특별자치도 전환 이후 51/52로 재부여됨.
-const AREA_CODE_MAP: Record<string, string> = {
-  서울: "1100000000",
-  부산: "2600000000",
-  대구: "2700000000",
-  인천: "2800000000",
-  광주: "2900000000",
-  대전: "3000000000",
-  울산: "3100000000",
-  세종: "3600000000",
-  경기: "4100000000",
-  강원: "5100000000",
-  충북: "4300000000",
-  충남: "4400000000",
-  전북: "5200000000",
-  전남: "4600000000",
-  경북: "4700000000",
-  경남: "4800000000",
-  제주: "5000000000",
-};
+// areaNo는 꽃가루 API와 공유하는 10자리 법정동코드 (lib/kma-area.ts 참조).
+// 단기예보의 격자 좌표(nx/ny)와는 다른 체계다.
 
 function getDateHourKST(offsetHours = 0): { dateStr: string; hour: number } {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000 + offsetHours * 60 * 60 * 1000);
@@ -36,9 +16,7 @@ function getDateHourKST(offsetHours = 0): { dateStr: string; hour: number } {
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const regionParam = searchParams.get("region") ?? "서울";
-  const region = regionParam in AREA_CODE_MAP ? regionParam : "서울";
-  const areaNo = AREA_CODE_MAP[region];
+  const { region, areaNo } = resolveKmaArea(searchParams.get("region"));
 
   const apiKey = process.env.KMA_API_KEY;
   if (!apiKey || apiKey === "YOUR_DATA_GO_KR_API_KEY") {
@@ -130,14 +108,24 @@ export async function GET(request: NextRequest) {
       Number(todayStr.slice(6, 8)),
       0
     );
+    const SLOT_HOURS = [0, 3, 6, 9, 12, 15, 18, 21];
     const hourly: Record<string, number | null> = {};
-    for (const h of [0, 3, 6, 9, 12, 15, 18, 21]) {
+    for (const h of SLOT_HOURS) {
       hourly[String(h)] = uviAt(todayMidnightMs + h * 60 * 60 * 1000);
+    }
+
+    // 내일 미리보기(홈 "오늘|내일" 세그먼트)용 — 오프셋 필드가 h75(약 3일치)까지라
+    // 같은 발표본에서 내일분이 그대로 나온다. 추가 호출 없음.
+    const tomorrowMidnightMs = todayMidnightMs + 24 * 60 * 60 * 1000;
+    const hourlyTomorrow: Record<string, number | null> = {};
+    for (const h of SLOT_HOURS) {
+      hourlyTomorrow[String(h)] = uviAt(tomorrowMidnightMs + h * 60 * 60 * 1000);
     }
 
     return NextResponse.json({
       uvi: uvValue,
       hourly,
+      hourlyTomorrow,
       region,
       date: announcedDateStr || todayStr,
     });

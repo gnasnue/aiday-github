@@ -47,7 +47,7 @@ type EnvSignature = {
   maxPop: number; // 하루 최대 강수확률
   dustBad: boolean; // 미세먼지 나쁨(3) 이상 여부
   uvHigh: boolean; // 자외선 강함(지수 6) 이상 여부
-  pollenHigh: boolean; // 꽃가루 높음(지수 3) 이상 여부
+  pollenHigh: boolean; // 꽃가루 높음(지수 2) 이상 여부
   temps: Record<string, number>; // 시각별 기온
 };
 
@@ -69,7 +69,7 @@ const envSignature = (
     maxPop: hours.reduce((m, h) => Math.max(m, h.pop ?? 0), 0),
     dustBad: (a?.pm10Grade ?? 1) >= 3,
     uvHigh: (uvPeak ?? 0) >= 6,
-    pollenHigh: (pollenMax ?? 0) >= 3,
+    pollenHigh: (pollenMax ?? 0) >= 2, // 기상청 꽃가루농도위험지수 0~3에서 '높음'은 2
     temps: Object.fromEntries(hours.map((h) => [h.hour, h.temp])),
   };
 };
@@ -673,13 +673,19 @@ const Home = () => {
           perfMark(perf, `report_http_${res.status}`);
           outcome = `http_${res.status}`;
           // 서버가 보낸 상세 원인(게이트웨이 설정 오류 등)은 콘솔에 남긴다 — 토스트는 부모용 문구 유지
+          let detail: string | undefined;
           try {
-            const detail = (await res.json())?.error;
+            detail = (await res.json())?.error;
             if (detail) console.error("[AI report] 서버 오류 상세:", detail);
           } catch {}
           if (isCurrent()) {
             setAiError(true);
-            toast("AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요.");
+            // 하루 한도 소진(429)은 "잠시 후 다시"가 거짓말이 된다 — 서버 문구를 그대로 쓴다.
+            toast(
+              res.status === 429 && detail
+                ? detail
+                : "AI 리포트를 불러오지 못했어요. 잠시 후 다시 시도해주세요."
+            );
             setAiLoading(false);
           }
           return;

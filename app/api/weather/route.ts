@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { feelsLikeC } from "@/lib/feels-like";
 import { getNcstBaseDateTime } from "@/lib/kma-time";
+import {
+  buildHourlyForecast,
+  kmaNum,
+  KMA_RANGE,
+  type FcstItem,
+} from "@/lib/kma-forecast";
 
 // 위경도 → 기상청 격자 좌표 변환 (Lambert Conformal Conic Projection)
 function latLonToGrid(lat: number, lon: number): { nx: number; ny: number } {
@@ -150,7 +156,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    type FcstItem = { category: string; fcstValue: string; fcstDate: string; fcstTime: string };
     const data = await res.json();
     const items: FcstItem[] = data?.response?.body?.items?.item ?? [];
 
@@ -233,75 +238,55 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // 오늘 3시간 간격 시간대별 예보 (06~21시)
-    const hourSlots = ["0600", "0900", "1200", "1500", "1800", "2100"];
-    const hourlyForecast = hourSlots
-      .map((slot) => {
-        const d: Record<string, string> = {};
-        for (const item of items) {
-          if (item.fcstDate === todayStr && item.fcstTime === slot) {
-            d[item.category] = item.fcstValue;
-          }
-        }
-        // 최신 발표본에 없는 지나간 시각은 당일 0200 발표본 값으로 채운다
-        if (!d["TMP"]) {
-          for (const item of fillItems) {
-            if (item.fcstDate === todayStr && item.fcstTime === slot) {
-              d[item.category] = item.fcstValue;
-            }
-          }
-        }
-        if (!d["TMP"]) return null;
-        return {
-          hour: slot.slice(0, 2) + ":" + slot.slice(2),
-          temp: Number(d["TMP"]),
-          sky: d["SKY"] ? Number(d["SKY"]) : null,
-          pty: d["PTY"] ? Number(d["PTY"]) : null,
-          humidity: d["REH"] ? Number(d["REH"]) : null,
-          windSpeed: d["WSD"] ? Number(d["WSD"]) : null,
-          pop: d["POP"] ? Number(d["POP"]) : null,
-        };
-      })
-      .filter(Boolean);
+    // 오늘 3시간 간격 시간대별 예보 (06~21시).
+    // 스칼라와 동일한 값 검증(kmaNum)을 거친다 — 센티널(-999 등)이 섞인 슬롯이
+    // 그대로 나가면 홈 시간대 카드·리포트 프롬프트에 "-999°C"가 실린다.
+    const hourlyForecast = buildHourlyForecast(items, fillItems, todayStr);
+
+    // 내일 미리보기(홈 "오늘|내일" 세그먼트, buildTomorrowTimeline)용.
+    // 단기예보 발표본은 +3일치를 담고 있어 이미 받아 온 응답에서 그대로 뽑는다 — 추가 호출 없음.
+    const tomorrow = new Date(kst.getTime() + 24 * 60 * 60 * 1000);
+    const tomorrowStr =
+      String(tomorrow.getUTCFullYear()) +
+      String(tomorrow.getUTCMonth() + 1).padStart(2, "0") +
+      String(tomorrow.getUTCDate()).padStart(2, "0");
+    const hourlyForecastTomorrow = buildHourlyForecast(items, fillItems, tomorrowStr);
 
     // SKY: 1=맑음, 3=구름많음, 4=흐림
     // PTY: 0=없음, 1=비, 2=비/눈, 3=눈, 4=소나기
     // 현재 스칼라: 실황(T1H·REH·WSD·PTY) 우선, 없으면 예보 최근접값.
     // SKY·POP은 실황에 없는 예보 전용 항목이라 예보값 유지.
-    // 값 검증: KMA는 결측을 ±900대 센티널(-998/-999 등)로 표기한다 — 범위 밖은 결측 처리해
-    // 센티널이 실측인 척 화면과 검증 스크립트에 흘러가지 않게 한다.
-    const num = (v: string | undefined, min: number, max: number): number | null => {
-      if (v == null || v === "") return null;
-      const n = Number(v);
-      return Number.isNaN(n) || n < min || n > max ? null : n;
-    };
     // 실황 PTY는 0~7(5=빗방울 6=빗방울눈날림 7=눈날림) — 소비처가 가정하는 예보 코드(0~4)로 정규화
     const normPty = (p: number | null): number | null =>
       p == null ? null : p === 5 ? 1 : p === 6 ? 2 : p === 7 ? 3 : p;
-    const obsTemp = num(obs["T1H"], -50, 50);
+    const obsTemp = kmaNum(obs["T1H"], KMA_RANGE.TMP);
     // 부분 관측 방지: 기온이 유효할 때만 실황 세트를 쓴다 (출처 표기가 거짓이 되지 않게)
     const usingNcst = obsTemp != null;
-    const rawTemp = usingNcst ? obsTemp : num(forecast["TMP"], -50, 50);
+    const rawTemp = usingNcst ? obsTemp : kmaNum(forecast["TMP"], KMA_RANGE.TMP);
     // 실황 T1H는 소수 1자리("27.3") — 예보와 동일하게 정수로 반올림해 표시 회귀를 막는다
     const temperature = rawTemp != null ? Math.round(rawTemp) : null;
-    const humidity = (usingNcst ? num(obs["REH"], 0, 100) : null) ?? num(forecast["REH"], 0, 100);
-    const windSpeed = (usingNcst ? num(obs["WSD"], 0, 70) : null) ?? num(forecast["WSD"], 0, 70);
+    const humidity =
+      (usingNcst ? kmaNum(obs["REH"], KMA_RANGE.REH) : null) ?? kmaNum(forecast["REH"], KMA_RANGE.REH);
+    const windSpeed =
+      (usingNcst ? kmaNum(obs["WSD"], KMA_RANGE.WSD) : null) ?? kmaNum(forecast["WSD"], KMA_RANGE.WSD);
     const pty =
-      (usingNcst ? normPty(num(obs["PTY"], 0, 7)) : null) ?? num(forecast["PTY"], 0, 4);
+      (usingNcst ? normPty(kmaNum(obs["PTY"], KMA_RANGE.PTY_OBS)) : null) ??
+      kmaNum(forecast["PTY"], KMA_RANGE.PTY);
     return NextResponse.json({
       temperature,
       feelsLike: temperature != null ? feelsLikeC(temperature, humidity, windSpeed) : null,
-      sky: num(forecast["SKY"], 1, 4),
+      sky: kmaNum(forecast["SKY"], KMA_RANGE.SKY),
       pty,
       humidity,
       windSpeed,
-      pop: num(forecast["POP"], 0, 100),
+      pop: kmaNum(forecast["POP"], KMA_RANGE.POP),
       // 현재 스칼라 출처 — 정합성 검증 스크립트·디버깅용 (ncst=실황 관측, fcst=예보 폴백)
       currentSource: usingNcst ? "ncst" : "fcst",
       currentBaseTime: usingNcst
         ? `${obsBase.base_date} ${obsBase.base_time}`
         : `${base_date} ${base_time}`,
       hourlyForecast,
+      hourlyForecastTomorrow,
     });
   } catch (err) {
     console.error("[weather API]", err);
