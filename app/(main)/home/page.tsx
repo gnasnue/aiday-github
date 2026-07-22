@@ -1475,8 +1475,8 @@ const Home = () => {
               {(aiLoading || aiStreaming || refreshing) && !reportPrimed ? (
                 <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
               ) : (
-              <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
-                <div className="flex items-center justify-between px-0.5">
+              <div className="mt-5 border-t border-border pt-4 pb-0">
+                <div className="flex items-center justify-between">
                   <p className="text-[14px] font-bold">오늘 챙길 것</p>
                   {allDone ? (
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
