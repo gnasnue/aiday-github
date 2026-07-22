@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { buildReportPrompt, buildSystemPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
-import { sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
+import { conditionsForPrompt, sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
 import { kstNow } from "@/lib/kma-time";
 import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
@@ -266,9 +266,9 @@ export async function POST(req: NextRequest) {
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";
-  const conditions = child.conditions?.length
-    ? child.conditions.join(", ") + (child.conditionEtc ? `, ${child.conditionEtc}` : "")
-    : child.conditionEtc || "없음";
+  // 온보딩 라벨·구형 키워드의 질병명(비염·천식·아토피)이 출력에 진단 단정("비염 있는 ○○")으로
+  // 복사되지 않도록 민감 체질 표현으로 변환해 넣는다(conditionsForPrompt 주석 참조).
+  const conditions = conditionsForPrompt(child.conditions, child.conditionEtc);
   // cold/hot/sweat는 온보딩에서 코드값("normal" 등)으로 저장되므로 한국어 문구로
   // 변환해 프롬프트에 넣는다(버그 B). 데모/구형 한국어 문자열은 그대로 통과한다.
   const tempSensitivity = [

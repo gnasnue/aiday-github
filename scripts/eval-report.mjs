@@ -98,7 +98,7 @@ export const SCENARIOS = [
     id: "S01",
     title: "이슈 경합 — 천식 5세 (폭염+미세먼지 나쁨+자외선 강함)",
     focus: "우선순위: 호흡기 아이는 미세먼지가 1순위여야",
-    expects: ["미세먼지×천식 연결이 중심", "야외활동 조정 또는 마스크", "폭염·자외선은 부차적"],
+    expects: ["미세먼지×호흡기 민감 연결이 중심 (질병명 없이)", "야외활동 조정 또는 마스크", "폭염·자외선은 부차적"],
     payload: {
       evalDate: WEEKDAY,
       child: { name: "준호", age: "5세", gender: "male", conditions: ["천식"], cold: "normal", hot: "normal", sweat: "normal", schedule: SCHEDULE_FULL },
@@ -182,7 +182,7 @@ export const SCENARIOS = [
     id: "S07",
     title: "아토피+땀 많음+더위 탐 × 폭염·고습",
     focus: "개인화: 체질(땀→피부 자극) 연결 판단",
-    expects: ["땀·습도→아토피 자극 연결", "여벌 옷·씻기 등 구체 행동", "민감도(더위 탐)가 반영된 강도"],
+    expects: ["땀·습도→피부 자극 연결 (질병명 없이)", "여벌 옷·씻기 등 구체 행동", "민감도(더위 탐)가 반영된 강도"],
     payload: {
       evalDate: WEEKDAY,
       child: { name: "민준", age: "3세", gender: "male", conditions: ["아토피"], cold: "normal", hot: "very-much", sweat: "very-much", schedule: SCHEDULE_FULL },
@@ -210,7 +210,7 @@ export const SCENARIOS = [
     id: "S09",
     title: "꽃가루 매우높음 × 비염 8세",
     focus: "체질×환경 직결 케이스의 완성도",
-    expects: ["꽃가루×비염 중심", "마스크·코 세척 등 구체 행동", "등원 전 타이밍"],
+    expects: ["꽃가루×호흡기 민감 중심 (질병명 없이)", "마스크·코 세척 등 구체 행동", "등원 전 타이밍"],
     payload: {
       evalDate: WEEKDAY,
       child: { name: "지호", age: "8세", gender: "male", conditions: ["비염"], cold: "normal", hot: "normal", sweat: "normal", schedule: SCHEDULE_FULL },
@@ -224,7 +224,7 @@ export const SCENARIOS = [
     id: "S10",
     title: "꽃가루 매우높음 × 무특이 8세 (S09 쌍)",
     focus: "개인화 쌍: 무특이 아이에게 꽃가루를 어느 강도로 다루나",
-    expects: ["S09보다 낮은 강도(비염 전제 행동 없음)", "그래도 매우높음은 무시하지 않음"],
+    expects: ["S09보다 낮은 강도(호흡기 민감 전제 행동 없음)", "그래도 매우높음은 무시하지 않음"],
     payload: {
       evalDate: WEEKDAY,
       child: { name: "수아", age: "8세", gender: "female", conditions: [], cold: "normal", hot: "normal", sweat: "normal", schedule: SCHEDULE_FULL },
@@ -299,6 +299,11 @@ export const runChecks = (s, r) => {
     ""
   );
   add("checklist 3~4개", (r.checklist?.length ?? 0) >= 3 && (r.checklist?.length ?? 0) <= 4, `${r.checklist?.length ?? 0}개`);
+  // 질병명 미노출 — 부모는 민감 체질을 고르는 것이지 진단명을 등록하는 게 아니다.
+  // 시나리오의 구형 키워드 입력("천식" 등)은 라우트의 conditionsForPrompt가 민감 표현으로
+  // 변환하므로, 출력에 질병명이 남으면 회귀다 (2026-07-21).
+  const disease = `${body}\n${(r.checklist ?? []).join(" ")}`.match(/비염|천식|아토피/);
+  add("질병명 미노출", !disease, disease ? disease[0] : "");
   // 문제없는 등급(보통·좋음·낮음)을 지표와 함께 언급하는 것 금지 — "자외선은 보통이라 신경 안 써도" 류
   const gradeMention = body.match(/(자외선|미세먼지|초미세먼지|꽃가루|통합대기)[^\n.!?]{0,12}(보통|좋음|낮음|적정)/);
   add("좋음·보통 등급 미언급", !gradeMention, gradeMention ? gradeMention[0] : "");
