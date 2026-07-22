@@ -44,7 +44,7 @@
 현재 동작 (코드 기준, `lib/profile.ts: loadProfiles`):
 - 로그인·가입 없이 `/home` 진입 가능. 저장된 프로필이 없으면 **데모 프로필 2개**(지우 4세 여아 · 아토피/비염, 도윤 2세 남아 · 피부 민감)가 자동 표시됨
 - 게스트도 온보딩 진입·프로필 저장 가능 (localStorage에만 — 로그인 상태가 아니면 DB 저장은 조용히 스킵됨)
-- ⚠️ 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 **실제로 호출됨** — 인증 게이트 없음, 토큰 비용 발생
+- 게스트 상태에서도 홈 진입 시 `/api/report`(Claude API)가 실제로 호출됨 (결정 3-1 — 둘러보기가 곧 핵심 가치 시연). 인증 게이트 대신 **IP 기준 일 10회 레이트리밋**으로 비용 어뷰즈를 막는다
 
 결정 확정됨 (2026-07-04, [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3):
 - [x] 게스트 → 가입 전환 시 localStorage 프로필을 DB로 이전한다 (가입·로그인 성공 직후 1회 업로드) — ✅ 구현됨 (2026-07-13, `/auth/landing`에서 DB가 비어 있을 때 `uploadLocalProfilesToDb()`)
@@ -686,7 +686,7 @@ Today's OOTD
 | `/api/pollen` | GET | `region`(서울, 시/도명) | `oak, pine, weed, region, date` — 3종 모두 실연동(`getOakPollenRiskIdxV3`·`getPinePollenRiskIdxV3`·`getWeedsPollenRiskndxV3`). 자료제공 기간이 종류별로 달라(참나무·소나무 3~6월, 잡초류 8~10월) 기간 밖 종류는 null | 6시간 |
 | `/api/uv` | GET | `region`(서울) | `uvi, hourly{0..21}, hourlyTomorrow{0..21}, region, date` — 발표시각 기준 h0~h75 3시간 오프셋 계산(내일분도 같은 발표본에서), 당일 자료 없으면 24시간 전 fallback | 1시간 |
 | `/api/weather/weekly` | GET | `region`(서울), `lat`(37.5665), `lon`(126.9780) | `week[7]`(`day, date, icon, high, low, rain, weekend, source`) — D0~D2 단기예보(getVilageFcst) + D+3~ 중기예보(getMidLandFcst+getMidTa) 병합. `source`는 short/mid | 단기 30분·중기 3시간 |
-| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
+| `/api/report` | POST | body: `{child, weather, air}` | `{hook, message, checklist[]}` — 파싱 실패 시 빈 값 반환(클라이언트가 규칙 기반 fallback). **레이트리밋**: 로그인 사용자 `user_id` 기준 일 20회 / 게스트 IP 기준 일 10회, 초과 시 `429` + 안내 문구(`lib/rate-limit.ts`, `report_usage` 테이블) | 없음 (클라이언트 localStorage 당일 고정 + 급변 시 재생성) |
 
 - 공통 에러: API 키 미설정 503 / 업스트림 오류 502 / 파싱·기타 500 (+ air는 측정 데이터 없음 404). 클라이언트는 `error` 필드 유무로 판별
 - 환경변수: `KMA_API_KEY`(weather·uv), `AIRKOREA_API_KEY`(air), `POLLEN_API_KEY`(pollen), `ANTHROPIC_API_KEY`(report), `ANTHROPIC_BASE_URL`(report, 선택 — AI 게이트웨이/프록시 엔드포인트, 미설정 시 기본 주소), Supabase 키

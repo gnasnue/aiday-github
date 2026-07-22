@@ -1,9 +1,37 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { buildReportPrompt, buildSystemPrompt, REPORT_SYSTEM_PROMPT } from "@/lib/prompts/report";
 import { sensitivityPhrase, sweatPhrase } from "@/lib/domain/child-conditions";
 import { kstNow } from "@/lib/kma-time";
+import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
+
+/**
+ * 요청 쿠키의 Supabase 세션에서 user_id를 읽는다. 게스트면 null.
+ * 레이트리밋 버킷을 가르는 용도라, 실패 시 게스트로 취급(더 낮은 한도)해도 안전하다.
+ */
+async function currentUserId(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll: () => cookieStore.getAll(),
+          // 이 라우트는 세션을 갱신하지 않는다(읽기 전용) — 쓰기는 무시한다.
+          setAll: () => {},
+        },
+      }
+    );
+    const { data } = await supabase.auth.getUser();
+    return data.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // SKY 코드 → 텍스트
 const skyLabel = (sky: number | null) => {
@@ -157,6 +185,28 @@ export async function POST(req: NextRequest) {
     perfLog("input_error", " · child/weather 누락");
     return NextResponse.json({ error: "필수 입력(child, weather)이 없습니다." }, { status: 400 });
   }
+
+  // 레이트리밋 — 인증 없이 열린 엔드포인트라 호출당 Claude 비용이 그대로 노출된다.
+  // 입력 검증 뒤에 두는 이유: 비용은 이 지점 이후에만 발생하고, 잘못된 요청(400)으로
+  // 정상 사용자의 하루 한도가 깎이지 않는다. 형식만 맞춘 스크립트 남용은 그대로 막힌다.
+  const tRateStart = Date.now();
+  const rate = await checkReportRateLimit(req.headers, await currentUserId());
+  if (!rate.allowed) {
+    perfLog("rate_limited", ` · ${rate.used}/${rate.limit}회`);
+    return NextResponse.json(
+      {
+        error: "오늘 사용할 수 있는 AI 리포트 생성 횟수를 모두 썼어요. 내일 다시 만들어드릴게요.",
+        limit: rate.limit,
+      },
+      { status: 429, headers: { "Retry-After": "3600" } }
+    );
+  }
+  // 레이트리밋이 홈 지연에 얹는 몫(인증 쿠키 조회 + DB 왕복)을 따로 남긴다 —
+  // 홈 지연 조사(docs/perf-home-latency.md) 때 이 구간을 분리해서 볼 수 있어야 한다.
+  perfLog(
+    "rate_ok",
+    ` · rate ${Date.now() - tRateStart}ms${rate.skipped ? ` · skipped=${rate.skipped}` : ` · ${rate.used}/${rate.limit}회`}`
+  );
 
   // 프롬프트 구성 전체를 감싼다 — 잘못된 shape(예: hourlyForecast 항목에 hour 누락)으로
   // 필드 접근·파싱이 던지면, 로그 없이 500으로 끝나지 않고 outcome을 기록하고 400으로 끝낸다.

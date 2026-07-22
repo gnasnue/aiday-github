@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **`/api/report` 레이트리밋 — 출시 차단 항목 해소** (`lib/rate-limit.ts`, `app/api/report/route.ts`, `supabase/migrations/20260722021500_report_rate_limit.sql`) — 인증 없이 열려 있어 호출당 Claude 비용이 그대로 노출되던 공개 엔드포인트에 하루 상한을 적용. 결정 3-1대로 게스트 호출은 계속 허용하되(둘러보기 = 핵심 가치 시연) **게스트는 IP 기준 일 10회, 로그인 사용자는 `user_id` 기준 일 20회**로 나눈다 — 사무실·공용 와이파이(CGNAT)에서 여러 가구가 같은 IP를 쓸 때 서로의 한도를 잡아먹는 오탐 방지. 카운터는 Supabase `report_usage`에 두어 서버리스 인스턴스가 늘어나도 한도가 정확히 지켜지고, 증가·판정을 단일 RPC(`bump_report_usage`)로 묶어 왕복 1회만 든다. IP 원문은 저장하지 않고 솔트 해시만 버킷 키로 쓴다. 판정 불가 상황(설정 누락·DB 오류)에서는 통과시키되 프로덕션 설정 누락은 매 호출 error 로그를 남긴다. 한도 소진 시 429 + 전용 안내 문구(홈 토스트가 "잠시 후 다시"라는 거짓 안내를 하지 않도록 서버 문구를 그대로 노출).
+
 - **꽃가루 잡초류 연동** (`app/api/pollen/route.ts`) — "기상청 V3에 잡초 오퍼레이션 없음"이라는 종전 주석·문서 서술은 사실이 아니었다. 공식 명세(공공데이터포털 15085289 첨부 설명서)와 실호출 모두 `getWeedsPollenRiskndxV3`의 존재를 확인해(철자 주의 — 잡초류만 `Riskndx`, 참나무·소나무는 `RiskIdx`) 참나무·소나무와 함께 3종을 병렬 조회하도록 변경. 잡초류 자료제공 기간이 8~10월이라 8월부터 실제 값이 들어온다. 응답 스키마(`oak/pine/weed`)는 그대로라 홈 칩·env 행·야외활동 지수·AI 리포트는 변경 없이 값을 받는다.
 
 ### Fixed
