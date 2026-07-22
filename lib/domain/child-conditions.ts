@@ -17,6 +17,25 @@ export const hasAllergy = (conditions: string[] = []): boolean =>
 export const hasSkin = (conditions: string[] = []): boolean =>
   conditions.some((c) => SKIN.test(c));
 
+// AI 프롬프트 입력용 건강 특이사항 문구 — 부모가 온보딩에서 고르는 것은 민감 "체질"이지
+// 진단명이 아니다. 선택지 라벨("호흡기 민감 (비염, 천식·기관지)")이나 구형 키워드("비염")를
+// 원문 그대로 프롬프트에 넣으면 출력에 "비염 있는 ○○"처럼 진단 단정으로 복사된다
+// (2026-07-21 확인). v21 원칙(지시로 안 잡히는 위반은 입력에서 제거)대로 입력 단계에서
+// 질병명 없는 민감 체질 표현으로 변환한다. 기타(etc)는 부모가 직접 쓴 문장이므로 원문 유지.
+// "해당없음"·"기타" 같은 비체질 라벨은 프롬프트 노이즈라 버린다.
+export const conditionsForPrompt = (
+  conditions: string[] = [],
+  etc?: string
+): string => {
+  const phrases: string[] = [];
+  if (hasRespiratory(conditions)) phrases.push("호흡기·기관지가 민감한 편");
+  if (hasAllergy(conditions)) phrases.push("알레르기(꽃가루·먼지)에 민감한 편");
+  if (hasSkin(conditions)) phrases.push("피부가 민감하고 예민한 편");
+  const extra = etc?.trim();
+  if (extra) phrases.push(extra);
+  return phrases.length ? phrases.join(", ") : "없음";
+};
+
 // 나이(개월) 판정 — birth(연·월)가 있으면 정확히, 없으면 age 문자열("만 4세"·"16개월")
 // 파싱으로 폴백. 생월 미상은 연말 출생으로 간주해 나이를 낮게 잡는다(케어 가이드는
 // 낮게 잡는 쪽이 안전 — calcAge와 동일 원칙). 판정 불가 시 null.

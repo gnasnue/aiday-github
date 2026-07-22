@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ageInMonths,
   canRecommendMask,
+  conditionsForPrompt,
   hasRespiratory,
   hasAllergy,
   hasSkin,
@@ -64,6 +65,41 @@ describe("데모-1 복합 프로필 (아토피 + 비염)", () => {
   it("호흡기·피부 신호가 둘 다 켜진다", () => {
     expect(hasRespiratory(demo1)).toBe(true);
     expect(hasSkin(demo1)).toBe(true);
+  });
+});
+
+// 프롬프트 입력 변환 — 질병명이 출력에 진단 단정("비염 있는 ○○")으로 복사되는 것을
+// 입력 단계에서 차단한다 (2026-07-21).
+describe("conditionsForPrompt", () => {
+  it("온보딩 라벨을 질병명 없는 민감 체질 표현으로 변환한다", () => {
+    const out = conditionsForPrompt([ONBOARDING.resp, ONBOARDING.skin]);
+    expect(out).toBe("호흡기·기관지가 민감한 편, 피부가 민감하고 예민한 편");
+    expect(out).not.toMatch(/비염|천식|아토피/);
+  });
+
+  it("구형/데모 키워드('비염'·'아토피')도 같은 표현으로 수렴한다", () => {
+    expect(conditionsForPrompt([DEMO.rhinitis])).toBe("호흡기·기관지가 민감한 편");
+    expect(conditionsForPrompt([DEMO.atopy])).toBe("피부가 민감하고 예민한 편");
+  });
+
+  it("알레르기 체질을 변환한다", () => {
+    expect(conditionsForPrompt([ONBOARDING.allergy])).toBe(
+      "알레르기(꽃가루·먼지)에 민감한 편"
+    );
+  });
+
+  it("'해당없음'·'기타'·빈 입력은 '없음'", () => {
+    expect(conditionsForPrompt([ONBOARDING.none])).toBe("없음");
+    expect(conditionsForPrompt(["기타"])).toBe("없음");
+    expect(conditionsForPrompt([])).toBe("없음");
+    expect(conditionsForPrompt()).toBe("없음");
+  });
+
+  it("기타(etc)는 부모가 직접 쓴 문장이므로 원문 그대로 덧붙인다", () => {
+    expect(conditionsForPrompt([ONBOARDING.resp], "달걀 알레르기")).toBe(
+      "호흡기·기관지가 민감한 편, 달걀 알레르기"
+    );
+    expect(conditionsForPrompt([], "  땀띠가 잘 나요  ")).toBe("땀띠가 잘 나요");
   });
 });
 
