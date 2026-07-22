@@ -8,6 +8,13 @@ import { kstNow } from "@/lib/kma-time";
 import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
 
+// 이 라우트는 Claude 생성을 SSE로 스트리밍한다. 콜드 스타트 + 게이트웨이 연결 +
+// 생성 완료까지 걸리는 시간이 Vercel 함수 기본 타임아웃에 근접하면, done 이벤트가
+// 나가기 전에 함수가 종료돼 스트림이 잘린다 → 클라이언트가 빈 응답으로 받아 규칙 기반
+// "기본 추천" 폴백에 갇힌다(특히 하루 첫 진입=콜드인 아침). 스트리밍 생성에 넉넉한
+// 상한을 명시해 정상 생성이 중간에 절단되지 않게 한다. (Hobby 상한 60s 이내)
+export const maxDuration = 60;
+
 /**
  * 요청 쿠키의 Supabase 세션에서 user_id를 읽는다. 게스트면 null.
  * 레이트리밋 버킷을 가르는 용도라, 실패 시 게스트로 취급(더 낮은 한도)해도 안전하다.
