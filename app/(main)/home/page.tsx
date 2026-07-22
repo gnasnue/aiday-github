@@ -1334,7 +1334,7 @@ const Home = () => {
                   구분하고 "AI 리포트"임을 앵커링. 라벨(15px/bold 블랙)이 주인공이 되도록
                   날짜·시간 메타는 caption(13px·muted-foreground)으로 톤다운. */}
               <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-secondary px-5 py-3">
-                <span className="shrink-0 text-[15px] font-bold text-foreground">AI 리포트</span>
+                <span className="shrink-0 text-[14px] font-bold text-foreground">AI 리포트</span>
                 <span className="num min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
@@ -1477,7 +1477,7 @@ const Home = () => {
               ) : (
               <div className="mt-5 border-t border-border px-0.5 pt-4 pb-0">
                 <div className="flex items-center justify-between px-0.5">
-                  <p className="text-[15px] font-bold">오늘 챙길 것</p>
+                  <p className="text-[14px] font-bold">오늘 챙길 것</p>
                   {allDone ? (
                     <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
                   ) : (
@@ -1513,7 +1513,7 @@ const Home = () => {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span
-                              className={`block text-[14.5px] font-bold tracking-[-0.01em] ${
+                              className={`block text-[16px] font-medium tracking-[-0.01em] ${
                                 on ? "text-muted-foreground" : "text-foreground"
                               }`}
                             >
