@@ -40,7 +40,8 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // (예전에 두 곳에 하드코딩해 버전이 어긋나며 프라임이 캐시를 못 찾던 회귀가 있었다).
 // v21: 판단 순서·개인화 프롬프트 개편 + 자외선 강함 미만 입력 제외 (2026-07-20, docs/report-eval/)
 // v22: 질병명(비염·천식·아토피) 진단 단정 제거 — 민감 체질 표현으로 전환 (2026-07-21)
-const reportCacheKey = (childId: string) => `aiday:report:v22:${childId}:${localDateStr()}`;
+// v23: 준비물 정합성 런타임 강제 — 근거 없는 마스크 제거·prep⊆checklist (2026-07-22)
+const reportCacheKey = (childId: string) => `aiday:report:v23:${childId}:${localDateStr()}`;
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
@@ -538,7 +539,8 @@ const Home = () => {
   activeIdRef.current = cur?.id ?? null;
 
   // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
-  const prepFrozenKey = cur ? `aiday:prepFrozen:v1:${cur.id}:${localDateStr()}` : null;
+  // v2: 지나간 슬롯에 마스크가 동결돼 있던 구값을 무효화 (리포트 v23 준비물 안전망과 정렬)
+  const prepFrozenKey = cur ? `aiday:prepFrozen:v2:${cur.id}:${localDateStr()}` : null;
   useEffect(() => {
     if (!prepFrozenKey) return;
     try {
@@ -671,6 +673,8 @@ const Home = () => {
                 child: {
                   name: cur.name,
                   age: cur.age,
+                  // birth(연·월)를 함께 보내 서버가 마스크 연령 게이트(만 2세 미만)를 정확히 판정.
+                  birth: cur.birth,
                   gender: cur.gender,
                   conditions: cur.conditions,
                   conditionEtc: cur.conditionEtc,
