@@ -21,31 +21,6 @@ const OPERATIONS = [
 
 type PollenKey = (typeof OPERATIONS)[number]["key"];
 
-// 2026-06 이전 구현이 쓰던 기상청 자체 2자리 지역코드 + YYYYMMDD. 명세와 어긋나지만,
-// 제공 기간 밖에서는 기간 검사가 파라미터 검증보다 먼저 걸려 어느 쪽이 유효한지 실측할 수
-// 없었다(2026-07-22 조사). 명세대로 10자리·YYYYMMDDHH를 먼저 쓰고, 값이 비면 구 체계로
-// 한 번 더 시도해 어느 쪽이든 결측이 생기지 않게 한다. 구 체계로 값을 받으면 로그를 남겨
-// 잡초류 제공이 시작되는 8월에 실제 코드 체계를 확정할 수 있게 한다.
-const LEGACY_AREA_CODE_MAP: Record<string, string> = {
-  서울: "11",
-  부산: "21",
-  대구: "22",
-  인천: "23",
-  광주: "24",
-  대전: "25",
-  울산: "26",
-  세종: "29",
-  경기: "31",
-  강원: "32",
-  충북: "33",
-  충남: "34",
-  전북: "35",
-  전남: "36",
-  경북: "37",
-  경남: "38",
-  제주: "39",
-};
-
 function getNowKST(): { date: string; hour: string } {
   const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
   return {
@@ -97,9 +72,7 @@ async function callPollen(
   try {
     const res = await fetch(`${BASE}/${operation}?${params}`, {
       next: { revalidate: 3600 * 6 },
-      // 종류당 최대 2회(명세 체계 → 구 체계) 직렬 호출이라 4s씩 — 합쳐도 종전 상한(8s)과 같다.
-      // 홈은 꽃가루에 5s 클라이언트 타임아웃을 걸어두므로 여기서 더 늘리면 리포트 착수가 밀린다.
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) return null;
     const data = await res.json();
@@ -128,21 +101,7 @@ export async function GET(request: NextRequest) {
     const results = await Promise.all(
       OPERATIONS.map(async ({ key, operation }) => {
         const value = await callPollen(operation, key, apiKey, areaNo, `${date}${hour}`);
-        if (value != null) return [key, value] as const;
-
-        const legacy = await callPollen(
-          operation,
-          key,
-          apiKey,
-          LEGACY_AREA_CODE_MAP[region],
-          date
-        );
-        if (legacy != null) {
-          console.info(
-            `[pollen API] ${operation}: 구 지역코드(${LEGACY_AREA_CODE_MAP[region]}/YYYYMMDD)로 값을 받았습니다 — areaNo 체계 재확인 필요`
-          );
-        }
-        return [key, legacy] as const;
+        return [key, value] as const;
       })
     );
 
