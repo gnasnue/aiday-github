@@ -8,6 +8,7 @@ import {
   KMA_RANGE,
   type FcstItem,
 } from "@/lib/kma-forecast";
+import { isWeatherUnavailable } from "@/lib/weather-response";
 
 // 위경도 → 기상청 격자 좌표 변환 (Lambert Conformal Conic Projection)
 function latLonToGrid(lat: number, lon: number): { nx: number; ny: number } {
@@ -283,7 +284,7 @@ export async function GET(request: NextRequest) {
     // 성공(200)으로 위장하지 않고 오류로 돌려준다 — 클라이언트가 1회 재시도하고, 그 사이
     // 서버 캐시(revalidate)가 데워지면 회복한다. 현재값만 있고 예보만 빈 "부분 성공"은
     // 200으로 정직하게 내보내 상단 칩은 살리고 시간대별만 안내 카드로 처리하게 둔다.
-    if (temperature == null && hourlyForecast.length === 0) {
+    if (isWeatherUnavailable(temperature, hourlyForecast.length)) {
       return NextResponse.json(
         { error: "기상청 예보를 불러오지 못했습니다." },
         { status: 502 }
