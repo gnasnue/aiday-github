@@ -1,0 +1,40 @@
+name: CI
+
+# 마일스톤 A: 기존 lib 유닛 테스트(15개+)와 린트를 PR마다 실제 게이트로 만든다.
+# 이 게이트가 "코드 수정 후 홈이 깨진다"(A계통 회귀)를 머지 전에 잡는 첫 방어선이다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+
+  # 빌드 게이트는 Supabase 공개 env가 있어야 /signup 프리렌더가 통과한다
+  # (없으면 빌드가 하드 실패 — repo 밖 .env.local 의존). 아래 secrets를
+  # 저장소 Settings > Secrets에 추가한 뒤 이 잡의 주석을 풀어 활성화한다:
+  #   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+  #
+  # build:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: actions/setup-node@v4
+  #       with:
+  #         node-version: 20
+  #         cache: npm
+  #     - run: npm ci
+  #     - run: npm run build
+  #       env:
+  #         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+  #         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
