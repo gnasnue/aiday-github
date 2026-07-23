@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { feelsLikeC } from "@/lib/feels-like";
 import { getNcstBaseDateTime } from "@/lib/kma-time";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 import {
   buildHourlyForecast,
   kmaNum,
@@ -142,16 +143,19 @@ export async function GET(request: NextRequest) {
       return `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?${params}`;
     };
 
+    // 단기예보(hourlyForecast의 원천)는 data.go.kr 게이트웨이가 간헐 502·연결 행을 내므로
+    // 총 8초 예산 안에서 재시도해 간헐 성공을 붙잡는다(단일 fetch 대비 최악 지연 동일).
+    // 보조(0200 fill·실황 ncst)는 종전대로 best-effort 단일 시도 — 없어도 기본 동작이 유지된다.
     const [res, fillRes, ncstRes] = await Promise.all([
-      fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }), // 30분 캐시
+      fetchWithRetry(fcstUrl(base_date, base_time), { init: { next: { revalidate: 1800 } } }), // 30분 캐시
       base_time !== "0200"
         ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null)
         : Promise.resolve(null),
       fetch(ncstUrl(ncst.base_date, ncst.base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null),
     ]);
-    if (!res.ok) {
+    if (!res || !res.ok) {
       return NextResponse.json(
-        { error: `기상청 API 오류: ${res.status}` },
+        { error: `기상청 API 오류: ${res?.status ?? "timeout"}` },
         { status: 502 }
       );
     }
