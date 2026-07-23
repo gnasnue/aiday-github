@@ -37,6 +37,28 @@ export const KMA_RANGE = {
   POP: [0, 100],
 } as const;
 
+/**
+ * 단기예보 응답(JSON)에서 유효 예보 항목만 추출한다.
+ *
+ * data.go.kr은 NO_DATA·서비스 오류를 **HTTP 200 + resultCode≠"00"** 으로 돌려주는 경우가 있다
+ * (발표 경계·부분 장애·호출한도). 예전엔 헤더를 안 보고 `body.items.item ?? []`만 읽어,
+ * 이런 "성공을 가장한 실패"를 빈 예보로 그대로 받아 홈 시간대별 환경이 통째로 비었다.
+ * (uv·pollen 라우트는 이미 resultCode를 검증한다 — weather만 빠져 있던 비대칭을 여기서 해소.)
+ *
+ * resultCode가 있고 "00"이 아니면 실패로 보고 빈 배열을 돌려준다. item이 배열이 아니면(단일
+ * 객체·빈 문자열 등) 빈 배열. 호출부는 빈 배열을 "이 발표본은 쓸 수 없음"으로 해석해 폴백한다.
+ */
+export function extractFcstItems(json: unknown): FcstItem[] {
+  const response = (json as { response?: unknown })?.response as
+    | { header?: { resultCode?: string }; body?: { items?: { item?: unknown } } }
+    | undefined;
+  if (!response) return [];
+  const code = response.header?.resultCode;
+  if (code != null && code !== "00") return [];
+  const item = response.body?.items?.item;
+  return Array.isArray(item) ? (item as FcstItem[]) : [];
+}
+
 /** 값 검증 — 결측·비수치·범위 밖(센티널)은 null */
 export function kmaNum(
   v: string | undefined,

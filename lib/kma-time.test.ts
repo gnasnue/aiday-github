@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getNcstBaseDateTime, ymd } from "./kma-time";
+import { getNcstBaseDateTime, recentFcstBases, ymd } from "./kma-time";
 
 // 초단기실황 base_time 계산 회귀 방지 — 정각~14분 구간의 직전 시각 롤백과
 // 자정 경계(날짜까지 넘어가는 롤백)가 하루 15분씩 조용히 틀릴 수 있는 지점이다.
@@ -33,6 +33,37 @@ describe("getNcstBaseDateTime", () => {
       base_date: "20261231",
       base_time: "2300",
     });
+  });
+});
+
+describe("recentFcstBases", () => {
+  it("자기 자신을 첫 원소로, 발표본을 최신→과거 순으로 반환한다", () => {
+    expect(recentFcstBases("20260723", "1100", 3)).toEqual([
+      { base_date: "20260723", base_time: "1100" },
+      { base_date: "20260723", base_time: "0800" },
+      { base_date: "20260723", base_time: "0500" },
+    ]);
+  });
+
+  it("발표 목록 앞을 넘어가면 전날 2300으로 이어진다", () => {
+    expect(recentFcstBases("20260723", "0500", 3)).toEqual([
+      { base_date: "20260723", base_time: "0500" },
+      { base_date: "20260723", base_time: "0200" },
+      { base_date: "20260722", base_time: "2300" },
+    ]);
+  });
+
+  it("월 경계도 전달 말일로 롤백한다", () => {
+    expect(recentFcstBases("20260801", "0200", 2)).toEqual([
+      { base_date: "20260801", base_time: "0200" },
+      { base_date: "20260731", base_time: "2300" },
+    ]);
+  });
+
+  it("목록에 없는 base_time은 마지막 발표본(2300)으로 간주한다", () => {
+    expect(recentFcstBases("20260723", "0000", 1)).toEqual([
+      { base_date: "20260723", base_time: "2300" },
+    ]);
   });
 });
 
