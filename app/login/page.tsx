@@ -1,19 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+
+const REMEMBERED_EMAIL_KEY = "aiday.rememberedEmail";
 
 const Login = () => {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
+  const [rememberEmail, setRememberEmail] = useState(false);
+
+  // 저장해 둔 아이디(이메일)가 있으면 자동으로 채워준다.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(REMEMBERED_EMAIL_KEY);
+      if (saved) {
+        setEmail(saved);
+        setRememberEmail(true);
+      }
+    } catch {
+      // localStorage 접근 불가(프라이빗 모드 등) — 조용히 무시
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -22,6 +39,12 @@ const Login = () => {
     if (!email.trim()) {
       toast.error("이메일을 입력해주세요.");
       return;
+    }
+    try {
+      if (rememberEmail) localStorage.setItem(REMEMBERED_EMAIL_KEY, email.trim());
+      else localStorage.removeItem(REMEMBERED_EMAIL_KEY);
+    } catch {
+      // localStorage 접근 불가 — 저장 없이 진행
     }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
@@ -130,6 +153,20 @@ const Login = () => {
                 </button>
               </div>
               <Input id="pw" type="password" required className="h-12" />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="remember-email"
+                checked={rememberEmail}
+                onCheckedChange={(checked) => setRememberEmail(checked === true)}
+              />
+              <label
+                htmlFor="remember-email"
+                className="cursor-pointer text-sm text-muted-foreground"
+              >
+                이메일 저장
+              </label>
             </div>
 
             <Button
