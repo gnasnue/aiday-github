@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { feelsLikeC } from "@/lib/feels-like";
-import { getNcstBaseDateTime } from "@/lib/kma-time";
+import { getNcstBaseDateTime, recentFcstBases } from "@/lib/kma-time";
 import {
   buildHourlyForecast,
+  extractFcstItems,
   kmaNum,
   KMA_RANGE,
   type FcstItem,
@@ -142,30 +143,35 @@ export async function GET(request: NextRequest) {
       return `https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0/getUltraSrtNcst?${params}`;
     };
 
-    const [res, fillRes, ncstRes] = await Promise.all([
-      fetch(fcstUrl(base_date, base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }), // 30분 캐시
-      base_time !== "0200"
-        ? fetch(fcstUrl(base_date, "0200"), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null)
-        : Promise.resolve(null),
+    // 단기예보 1회 조회 — HTTP 실패·타임아웃·NO_DATA(resultCode≠"00")·빈 body를 모두 빈 배열로
+    // 정규화한다(extractFcstItems). 예전엔 최신 발표본이 NO_DATA를 200으로 돌려주면(발표 경계·부분
+    // 장애·호출한도) 그 빈 응답을 그대로 받아 hourlyForecast가 통째로 비고, 실황(현재값)만 살아
+    // "위 칩은 되는데 시간대별만 오류"가 났다.
+    const fetchFcstItems = (bd: string, bt: string): Promise<FcstItem[]> =>
+      fetch(fcstUrl(bd, bt), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => extractFcstItems(j))
+        .catch(() => [] as FcstItem[]);
+
+    const [latestItems, fillItems, ncstRes] = await Promise.all([
+      fetchFcstItems(base_date, base_time),
+      base_time !== "0200" ? fetchFcstItems(base_date, "0200") : Promise.resolve([] as FcstItem[]),
       fetch(ncstUrl(ncst.base_date, ncst.base_time), { next: { revalidate: 1800 }, signal: AbortSignal.timeout(8000) }).catch(() => null),
     ]);
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: `기상청 API 오류: ${res.status}` },
-        { status: 502 }
-      );
-    }
 
-    const data = await res.json();
-    const items: FcstItem[] = data?.response?.body?.items?.item ?? [];
-
-    // 0200 발표본은 보조 데이터 — 실패해도 최신 발표본만으로 기존과 동일하게 동작한다
-    let fillItems: FcstItem[] = [];
-    if (fillRes?.ok) {
-      try {
-        const fillData = await fillRes.json();
-        fillItems = fillData?.response?.body?.items?.item ?? [];
-      } catch {}
+    // 폴백 체인: 최신 발표본이 비면(NO_DATA·장애·30분 캐시 오염) 직전 발표본들을 차례로 시도한다.
+    // 단기예보는 3시간마다 갱신되고 매 발표본이 +3일치를 담으므로, 직전 발표본도 오늘·내일 예보를
+    // 온전히 커버한다. 이 폴백이 "상류의 순간 결함이 30분 캐시에 고정돼 화면을 계속 막고, 수동
+    // 새로고침도 같은 캐시를 되돌려주던" 반복 오류를 흡수한다(발표본별 URL이 달라 별도 캐시 엔트리).
+    let items: FcstItem[] = latestItems;
+    if (!items.length) {
+      for (const cand of recentFcstBases(base_date, base_time, 4).slice(1)) {
+        const it = await fetchFcstItems(cand.base_date, cand.base_time);
+        if (it.length) {
+          items = it;
+          break;
+        }
+      }
     }
 
     // 실황 관측값 — 실패해도 예보 폴백으로 기존과 동일하게 동작한다
@@ -272,6 +278,24 @@ export async function GET(request: NextRequest) {
     const pty =
       (usingNcst ? normPty(kmaNum(obs["PTY"], KMA_RANGE.PTY_OBS)) : null) ??
       kmaNum(forecast["PTY"], KMA_RANGE.PTY);
+
+    // 현재값도 시간대별 예보도 없으면(실황 실패 + 모든 발표본 실패 = 기상청 전면 지연)
+    // 성공(200)으로 위장하지 않고 오류로 돌려준다 — 클라이언트가 1회 재시도하고, 그 사이
+    // 서버 캐시(revalidate)가 데워지면 회복한다. 현재값만 있고 예보만 빈 "부분 성공"은
+    // 200으로 정직하게 내보내 상단 칩은 살리고 시간대별만 안내 카드로 처리하게 둔다.
+    if (temperature == null && hourlyForecast.length === 0) {
+      return NextResponse.json(
+        { error: "기상청 예보를 불러오지 못했습니다." },
+        { status: 502 }
+      );
+    }
+    if (hourlyForecast.length === 0) {
+      // 부분 성공(실황 현재값은 있으나 모든 발표본이 비어 시간대별 예보 없음) — 원인 추적용 로그.
+      // 다음 재발 시 어느 발표본이 비었는지 즉시 확인할 수 있게 남긴다(#환경데이터 반복 오류).
+      console.warn(
+        `[weather API] hourlyForecast empty — base=${base_date} ${base_time}, ncst=${usingNcst ? "ok" : "miss"}, nx=${nx}, ny=${ny}`
+      );
+    }
     return NextResponse.json({
       temperature,
       feelsLike: temperature != null ? feelsLikeC(temperature, humidity, windSpeed) : null,

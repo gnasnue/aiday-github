@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildHourlyForecast, kmaNum, KMA_RANGE, type FcstItem } from "./kma-forecast";
+import {
+  buildHourlyForecast,
+  extractFcstItems,
+  kmaNum,
+  KMA_RANGE,
+  type FcstItem,
+} from "./kma-forecast";
 
 // KMA는 결측을 ±900대 센티널(-998/-999 등)로 표기한다. 검증 없이 통과시키면
 // 홈 시간대 카드에 "-999°C", 리포트 프롬프트에 습도 -999%가 실린다.
@@ -17,6 +23,34 @@ const items = (time: string, cats: Record<string, string>, date = DATE): FcstIte
 
 const full = (time: string, over: Record<string, string> = {}, date = DATE) =>
   items(time, { TMP: "24", SKY: "1", PTY: "0", REH: "50", WSD: "2", POP: "10", ...over }, date);
+
+describe("extractFcstItems", () => {
+  const item: FcstItem = { category: "TMP", fcstValue: "24", fcstDate: DATE, fcstTime: "1200" };
+
+  it("정상(resultCode 00) 응답에서 item 배열을 뽑는다", () => {
+    const json = {
+      response: { header: { resultCode: "00" }, body: { items: { item: [item] } } },
+    };
+    expect(extractFcstItems(json)).toEqual([item]);
+  });
+
+  it("NO_DATA(resultCode 03)는 빈 배열 — 성공을 가장한 실패를 데이터로 오인하지 않는다", () => {
+    const json = { response: { header: { resultCode: "03", resultMsg: "NO_DATA" }, body: {} } };
+    expect(extractFcstItems(json)).toEqual([]);
+  });
+
+  it("resultCode 없이 item만 있으면 그대로 통과(일부 응답 형태 호환)", () => {
+    const json = { response: { body: { items: { item: [item] } } } };
+    expect(extractFcstItems(json)).toEqual([item]);
+  });
+
+  it("item이 배열이 아니거나(단일 객체·빈 문자열) 구조가 없으면 빈 배열", () => {
+    expect(extractFcstItems({ response: { body: { items: { item: "" } } } })).toEqual([]);
+    expect(extractFcstItems({ response: { body: {} } })).toEqual([]);
+    expect(extractFcstItems(null)).toEqual([]);
+    expect(extractFcstItems(undefined)).toEqual([]);
+  });
+});
 
 describe("kmaNum", () => {
   it("범위 안의 값만 통과시킨다", () => {
