@@ -247,6 +247,31 @@ const buildTip = (
   };
 };
 
+/* ----------------------------- 감염병 만료 게이트 ----------------------------- */
+
+/**
+ * 감염병 팁의 활성 기간(`activeUntil`, "YYYY-MM-DD") 만료 여부.
+ * KST 기준 만료일 당일 23:59까지 활성, 익일 00:00부터 만료. `feels-like.ts`와 같은
+ * KST 보정 관례(`Date.now()+9h` → getUTC*)를 쓴다. 결측·형식오류·가짜 날짜
+ * (2026-02-30 등)는 **만료로 간주(true)** 한다 — fail-closed. 정규식만으론 존재하지
+ * 않는 날짜가 통과하므로 Date.UTC 왕복으로 실제 달력 날짜까지 검증한다.
+ */
+export const isOutbreakExpired = (activeUntil: string | undefined, now: Date): boolean => {
+  if (!activeUntil) return true;
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(activeUntil);
+  if (!m) return true;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  const probe = new Date(Date.UTC(y, mo - 1, d));
+  if (probe.getUTCFullYear() !== y || probe.getUTCMonth() !== mo - 1 || probe.getUTCDate() !== d) {
+    return true; // 가짜 날짜 — 만료 처리
+  }
+  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+  const kstToday = Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), kst.getUTCDate());
+  return kstToday > Date.UTC(y, mo - 1, d); // 만료일 당일까지 활성
+};
+
 /**
  * 오늘 환경 × 이 아이에게 보여줄 팁 목록.
  *
@@ -272,6 +297,9 @@ export function selectTips(
     if (entry.draft && !includeDrafts) continue;
     // 계절 밖 신호(예: 7월의 한파)는 아예 평가하지 않는다 — 침묵도 안심도 아니다.
     if (entry.activeMonths && !entry.activeMonths.includes(month)) continue;
+    // 감염병 팁은 activeUntil 필수 — 결측·오타·만료면 숨긴다(fail-closed).
+    // requires:null 상시 분기보다 먼저 둬야 만료된 유행 팁이 영원히 노출되지 않는다.
+    if (entry.category === "감염병" && isOutbreakExpired(entry.activeUntil, now)) continue;
 
     if (entry.requires == null) {
       tips.push(buildTip(entry, null, profile, now));

@@ -14,6 +14,7 @@ import {
   Sparkles,
   Flame,
   Snowflake,
+  Activity,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
 import PageHeader from "@/components/PageHeader";
@@ -35,6 +36,7 @@ const CATEGORY_ICON: Record<TipCategory, ReactNode> = {
   건조: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
   폭염: <Flame size={20} strokeWidth={1.75} aria-hidden />,
   한파: <Snowflake size={20} strokeWidth={1.75} aria-hidden />,
+  감염병: <Activity size={20} strokeWidth={1.75} aria-hidden />,
   일반: <Sparkles size={20} strokeWidth={1.75} aria-hidden />,
 };
 
