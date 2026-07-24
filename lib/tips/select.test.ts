@@ -60,8 +60,9 @@ describe("selectTips — fail-closed (결측 시 침묵)", () => {
   it("환경 데이터가 아예 없으면 조건부 팁은 하나도 노출하지 않는다", () => {
     const r = selectTips(null, 건강한아이, NOW);
     expect(ids(r)).toEqual(["general-hygiene"]);
-    // 꽃가루는 7월(제공 기간 밖)이라 침묵 목록에서 빠진다 — 없는 게 정상인 결측
-    expect(r.suppressedSignals).toEqual(["uv", "air", "humidity"]);
+    // 꽃가루는 7월(제공 기간 밖)이라 침묵 목록에서 빠진다 — 없는 게 정상인 결측.
+    // 폭염(heat)은 7월 활성이고 weather 결측이라 침묵 목록에 든다. 한파(cold)는 계절 밖이라 빠진다.
+    expect(r.suppressedSignals).toEqual(["uv", "air", "humidity", "heat"]);
   });
 
   it("자외선을 모르면 자외선 팁을 띄우지 않는다 — 근거 없는 확신을 만들지 않기 위해", () => {
@@ -226,7 +227,8 @@ describe("selectTips — 안심 신호 (조용한 이유 설명)", () => {
     expect(r.tips.map((t) => t.category)).toEqual(["일반"]);
     // 픽스처는 꽃가루 지수도 실측(0)이라 안심 목록에 든다. 제공 기간 밖이면 값 자체가
     // 없어 결측으로 빠지므로(위 fail-closed 스위트), 7월 실데이터에서는 3개만 남는다.
-    expect(r.calmSignals).toEqual(["uv", "air", "pollen", "humidity"]);
+    // 폭염(heat)은 7월 활성 + 선선한 픽스처(체감 22°C)라 안심 목록에 든다.
+    expect(r.calmSignals).toEqual(["uv", "air", "pollen", "humidity", "heat"]);
   });
 
   it("발동한 신호는 안심 목록에 넣지 않는다", () => {
@@ -315,8 +317,10 @@ describe("콘텐츠 무결성 — 출처 규율", () => {
     }
   });
 
-  it("모든 출처에 원문 확인일이 있다 — 재검토 주기의 기준", () => {
-    for (const e of TIP_ENTRIES) {
+  it("검증된(초안 아닌) 모든 출처에 원문 확인일이 있다 — 재검토 주기의 기준", () => {
+    // draft 항목은 출처 미검증 상태이므로 확인일 형식을 요구하지 않는다.
+    // 대신 아래 '초안 규율' 스위트가 초안이 검증본으로 위장하지 못하게 막는다.
+    for (const e of TIP_ENTRIES.filter((e) => !e.draft)) {
       for (const s of e.sources) {
         expect(s.retrievedDate, `${e.id}/${s.org}`).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       }
@@ -329,5 +333,90 @@ describe("콘텐츠 무결성 — 출처 규율", () => {
         expect(s.docTitle, `${e.id}/${s.org}`).not.toBe(s.org);
       }
     }
+  });
+});
+
+describe("초안(draft) 게이트 — 미검증 팁은 기본 노출되지 않는다", () => {
+  it("현재 셀렉터의 모든 팁은 검증본이다 (draft 플래그가 남아있지 않다)", () => {
+    // draft는 미검증 초안을 dev에서만 굴려보기 위한 안전장치다. 검증이 끝나면 제거한다 —
+    // 지금 테이블엔 draft가 없어야 한다(폭염·한파 모두 원문 대조 완료).
+    expect(TIP_ENTRIES.filter((e) => e.draft)).toEqual([]);
+  });
+});
+
+describe("selectTips — 폭염·한파 (체감온도 기반, 계절 게이트)", () => {
+  it("여름 체감온도 피크로 폭염 팁을 발동한다", () => {
+    const 폭염 = baseEnv({
+      weather: { ...baseEnv().weather!, temperature: 33, feelsLike: 34, humidity: 70 },
+    });
+    const tip = find(selectTips(폭염, 건강한아이, NOW), "heat-high");
+    expect(tip.severity).toBe("경고"); // 체감 34 → '위험'(≥33, alertLevel 2)
+    expect(tip.title).toContain("34");
+  });
+
+  it("체감이 '주의'(28~32)면 경고가 아니라 주의", () => {
+    const 더움 = baseEnv({
+      weather: { ...baseEnv().weather!, temperature: 29, feelsLike: 30, humidity: 60 },
+    });
+    expect(find(selectTips(더움, 건강한아이, NOW), "heat-high").severity).toBe("주의");
+  });
+
+  it("선선한 여름날은 폭염 팁이 뜨지 않고 안심 신호로 남는다", () => {
+    const 선선 = baseEnv({
+      weather: { ...baseEnv().weather!, temperature: 24, feelsLike: 24 },
+    });
+    const r = selectTips(선선, 건강한아이, NOW);
+    expect(ids(r)).not.toContain("heat-high");
+    expect(r.calmSignals).toContain("heat");
+  });
+
+  it("시간대별 체감 피크로 판단한다 — 아침에 열어도 한낮 더위를 잡는다", () => {
+    const 아침 = baseEnv({
+      weather: {
+        ...baseEnv().weather!,
+        temperature: 26,
+        feelsLike: 26,
+        hourlyForecast: [
+          { hour: "09:00", temp: 26, sky: 1, pty: 0, humidity: 60, windSpeed: 1, pop: 0 },
+          { hour: "15:00", temp: 34, sky: 1, pty: 0, humidity: 70, windSpeed: 1, pop: 0 },
+        ],
+      },
+    });
+    expect(ids(selectTips(아침, 건강한아이, NOW))).toContain("heat-high");
+  });
+
+  it("한파는 7월엔 계절 밖이라 평가하지 않는다 — 침묵도 안심도 아니다", () => {
+    const r = selectTips(baseEnv(), 건강한아이, NOW);
+    expect(ids(r)).not.toContain("cold-high");
+    expect(r.suppressedSignals).not.toContain("cold");
+    expect(r.calmSignals).not.toContain("cold");
+  });
+
+  it("겨울 체감온도 저점으로 한파 팁을 발동한다", () => {
+    const 겨울 = new Date("2026-01-15T09:00:00+09:00");
+    const 한파 = baseEnv({
+      weather: { ...baseEnv().weather!, temperature: -10, feelsLike: -13, humidity: 40 },
+    });
+    const tip = find(selectTips(한파, 건강한아이, 겨울), "cold-high");
+    expect(tip.severity).toBe("경고"); // 체감 -13 → '위험'(≤-12, alertLevel 2)
+    expect(tip.title).toContain("-13");
+  });
+
+  it("겨울엔 폭염이 계절 밖이라 평가하지 않는다", () => {
+    const 겨울 = new Date("2026-01-15T09:00:00+09:00");
+    const r = selectTips(baseEnv(), 건강한아이, 겨울);
+    expect(ids(r)).not.toContain("heat-high");
+    expect(r.calmSignals).not.toContain("heat");
+  });
+
+  it("체질 축(호흡기·알레르기·피부)에 매이지 않아 모든 아이에게 동일 발동한다", () => {
+    const 폭염 = baseEnv({
+      weather: { ...baseEnv().weather!, temperature: 33, feelsLike: 34, humidity: 70 },
+    });
+    const a = find(selectTips(폭염, 건강한아이, NOW), "heat-high");
+    const b = find(selectTips(폭염, 호흡기아이, NOW), "heat-high");
+    expect(a.severity).toBe(b.severity);
+    expect(a.matchedProfile).toBeUndefined();
+    expect(b.matchedProfile).toBeUndefined();
   });
 });

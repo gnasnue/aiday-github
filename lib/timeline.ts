@@ -110,6 +110,39 @@ export const humidityLabel = (h: number) =>
 export const uvLabel = (v: number | null): UvLevel =>
   v == null ? "낮음" : v >= 8 ? "매우강함" : v >= 6 ? "강함" : v >= 3 ? "보통" : "낮음";
 
+// 체감온도(°C) → 온열 위험 라벨 (건강팁 온도 신호용 표시 계층 4단계).
+// 판정 기준은 기온이 아니라 **체감온도**다 — 온열질환은 습도가 얹힌 체감이 이끈다.
+// 임계는 기상청 폭염특보 체감온도 기준(주의보 33°C·경보 35°C)에 정렬하되, 특보는
+// "2일 지속" 같은 지속조건이 붙는 공식 발효 개념이므로 여기서는 특보명을 그대로
+// 쓰지 않고("폭염경보"라 쓰면 우리가 특보를 발효한 것처럼 오인된다) 중립적 위험어를
+// 쓴다. 28°C부터 "주의"를 두는 건 영유아 대비 여유 — TODO(임계 검토): 원문 확인 후 확정.
+export type HeatLevel = "보통" | "주의" | "위험" | "매우위험";
+export const heatLabel = (feelsC: number | null): HeatLevel =>
+  feelsC == null
+    ? "보통"
+    : feelsC >= 35
+      ? "매우위험"
+      : feelsC >= 33
+        ? "위험"
+        : feelsC >= 28
+          ? "주의"
+          : "보통";
+
+// 체감온도(°C) → 한랭 위험 라벨. 임계는 기상청 한파특보 기준(주의보 -12°C·경보 -15°C)에
+// 정렬. 영유아는 저체온에 취약해 0°C 이하부터 "주의"를 둔다.
+// TODO(임계 검토): 아침 최저 기준·평년 대비 하강폭 등 특보 세부는 반영하지 않았다. 원문 확인 필요.
+export type ColdLevel = "보통" | "주의" | "위험" | "매우위험";
+export const coldLabel = (feelsC: number | null): ColdLevel =>
+  feelsC == null
+    ? "보통"
+    : feelsC <= -15
+      ? "매우위험"
+      : feelsC <= -12
+        ? "위험"
+        : feelsC <= 0
+          ? "주의"
+          : "보통";
+
 // 풍속(m/s) → 라벨 (홈 환경 매핑과 동일 임계값)
 const windLevel = (mps: number | null): WindLevel =>
   mps == null ? "약함" : mps >= 9 ? "강함" : mps >= 4 ? "보통" : "약함";

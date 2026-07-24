@@ -12,6 +12,8 @@ import {
   TreeDeciduous,
   Droplet,
   Sparkles,
+  Flame,
+  Snowflake,
 } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
 import PageHeader from "@/components/PageHeader";
@@ -31,6 +33,8 @@ const CATEGORY_ICON: Record<TipCategory, ReactNode> = {
   미세먼지: <LineIcon name="mask" size={20} strokeWidth={1.75} />,
   꽃가루: <TreeDeciduous size={20} strokeWidth={1.75} aria-hidden />,
   건조: <Droplet size={20} strokeWidth={1.75} aria-hidden />,
+  폭염: <Flame size={20} strokeWidth={1.75} aria-hidden />,
+  한파: <Snowflake size={20} strokeWidth={1.75} aria-hidden />,
   일반: <Sparkles size={20} strokeWidth={1.75} aria-hidden />,
 };
 
@@ -48,6 +52,8 @@ const SIGNAL_LABEL: Record<string, string> = {
   air: "대기질",
   pollen: "꽃가루",
   humidity: "습도",
+  heat: "폭염",
+  cold: "한파",
 };
 
 const sourceLine = (s: TipSource) =>
