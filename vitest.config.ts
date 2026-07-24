@@ -9,6 +9,9 @@ export default defineConfig({
       ".claude/worktrees/**",
       // 빌드 산출물(dev/prod distDir 분리 — CLAUDE.md 참조)
       ".next*/**",
+      // Playwright E2E 스펙(tests/e2e/*.spec.ts) — vitest 기본 include 패턴(**/*.spec.ts)과
+      // 겹쳐 vitest가 잘못 주워 실행하면 test.describe() 문법 오류로 깨진다. 별도 러너(npm run test:e2e).
+      "tests/e2e/**",
     ],
   },
 });
