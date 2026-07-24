@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   selectTips,
+  isOutbreakExpired,
   type TipProfileInput,
   type SelectTipsResult,
   type SelectedTip,
@@ -305,6 +306,87 @@ describe("selectTips — 나이 게이팅 (마스크 안전 규칙)", () => {
   });
 });
 
+describe("isOutbreakExpired — activeUntil 만료 판정 (fail-closed)", () => {
+  const 여름 = new Date("2026-08-01T09:00:00+09:00");
+
+  it("만료일이 미래면 활성(false)", () => {
+    expect(isOutbreakExpired("2026-09-30", 여름)).toBe(false);
+  });
+
+  it("만료일이 과거면 만료(true)", () => {
+    expect(isOutbreakExpired("2026-07-31", 여름)).toBe(true);
+  });
+
+  it("KST 경계: 만료일 당일 23:59는 활성, 익일 00:00은 만료", () => {
+    // activeUntil 2026-09-30
+    expect(isOutbreakExpired("2026-09-30", new Date("2026-09-30T14:59:00Z"))).toBe(false); // 23:59 KST
+    expect(isOutbreakExpired("2026-09-30", new Date("2026-09-30T15:00:00Z"))).toBe(true); // 익일 00:00 KST
+  });
+
+  it("결측·형식오류·가짜 날짜는 만료로 간주(fail-closed)", () => {
+    expect(isOutbreakExpired(undefined, 여름)).toBe(true);
+    expect(isOutbreakExpired("2026-8-1", 여름)).toBe(true); // 형식 위반
+    expect(isOutbreakExpired("2026/09/30", 여름)).toBe(true);
+    expect(isOutbreakExpired("2026-02-30", 여름)).toBe(true); // 정규식 통과하나 존재 않는 날짜
+    expect(isOutbreakExpired("2026-13-01", 여름)).toBe(true);
+  });
+});
+
+describe("selectTips — 감염병 팁 (activeUntil 게이트)", () => {
+  it("활성 기간 안이면 감염병 팁을 노출한다 (dev 초안)", () => {
+    const r = selectTips(baseEnv(), 건강한아이, new Date("2026-08-01T09:00:00+09:00"), {
+      includeDrafts: true,
+    });
+    const tip = find(r, "hfmd-outbreak");
+    expect(tip.category).toBe("감염병");
+    expect(tip.severity).toBe("주의");
+  });
+
+  it("만료 후에는 감염병 팁이 사라진다", () => {
+    const r = selectTips(baseEnv(), 건강한아이, new Date("2026-10-05T09:00:00+09:00"), {
+      includeDrafts: true,
+    });
+    expect(ids(r)).not.toContain("hfmd-outbreak");
+  });
+
+  it("감염병 팁은 환경 신호가 아니므로 안심·침묵 목록에 새어들지 않는다", () => {
+    // requires:null이라 calm/suppressed 로직을 거치지 않는다 — "유행 없음"을 암시하는
+    // 음성 배너를 만들지 않기 위함(폴링하지 않으므로 그런 주장을 할 자격이 없다).
+    const r = selectTips(baseEnv(), 건강한아이, new Date("2026-08-01T09:00:00+09:00"), {
+      includeDrafts: true,
+    });
+    expect(ids(r)).toContain("hfmd-outbreak"); // 팁 목록엔 있고
+    const ENV_SIGNALS = ["uv", "air", "pollen", "humidity", "heat", "cold"];
+    for (const s of [...r.calmSignals, ...r.suppressedSignals]) {
+      expect(ENV_SIGNALS, `신호 목록엔 환경 신호만: ${s}`).toContain(s); // 신호 목록엔 환경만
+    }
+  });
+});
+
+describe("콘텐츠 무결성 — 감염병 규율", () => {
+  const 감염병 = TIP_ENTRIES.filter((e) => e.category === "감염병");
+
+  it("모든 감염병 항목은 activeUntil을 갖는다 (유행 만료 필수)", () => {
+    for (const e of 감염병) expect(e.activeUntil, e.id).toBeTruthy();
+  });
+
+  it("감염병 activeUntil은 실제 달력 날짜다 (2026-02-30 같은 가짜 차단)", () => {
+    for (const e of 감염병) {
+      // 미래 기준시각으로도 '만료'라면 날짜 자체가 무효라는 뜻
+      const 무효 = isOutbreakExpired(e.activeUntil, new Date("2000-01-01T00:00:00Z"));
+      expect(무효, `${e.id} activeUntil=${e.activeUntil}`).toBe(false);
+    }
+  });
+
+  it("감염병 팁 출처는 질병관리청 계열이다", () => {
+    for (const e of 감염병) {
+      for (const s of e.sources) {
+        expect(s.org, e.id).toContain("질병관리청");
+      }
+    }
+  });
+});
+
 describe("콘텐츠 무결성 — 출처 규율", () => {
   it("모든 팁에 기관명과 문서명을 갖춘 출처가 최소 1건 있다", () => {
     for (const e of TIP_ENTRIES) {
@@ -337,10 +419,18 @@ describe("콘텐츠 무결성 — 출처 규율", () => {
 });
 
 describe("초안(draft) 게이트 — 미검증 팁은 기본 노출되지 않는다", () => {
-  it("현재 셀렉터의 모든 팁은 검증본이다 (draft 플래그가 남아있지 않다)", () => {
-    // draft는 미검증 초안을 dev에서만 굴려보기 위한 안전장치다. 검증이 끝나면 제거한다 —
-    // 지금 테이블엔 draft가 없어야 한다(폭염·한파 모두 원문 대조 완료).
-    expect(TIP_ENTRIES.filter((e) => e.draft)).toEqual([]);
+  it("draft 팁은 기본(프로덕션·테스트)에서 노출되지 않는다", () => {
+    // 감염병 예시(hfmd-outbreak)는 draft라 includeDrafts 없이는 안 보인다.
+    const r = selectTips(baseEnv(), 건강한아이, NOW);
+    expect(ids(r)).not.toContain("hfmd-outbreak");
+  });
+
+  it("draft 팁의 출처는 '(미검증)'으로 표시돼 검증본으로 위장하지 않는다", () => {
+    for (const e of TIP_ENTRIES.filter((e) => e.draft)) {
+      for (const s of e.sources) {
+        expect(s.docTitle, e.id).toContain("미검증");
+      }
+    }
   });
 });
 

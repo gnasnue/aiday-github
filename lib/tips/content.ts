@@ -23,7 +23,7 @@
 export const SOURCE_DISCLAIMER =
   "기관 원문을 요약한 것으로, 표현은 아이데이가 작성했습니다. 기관의 검수·승인을 받은 문구가 아닙니다.";
 
-export type TipCategory = "자외선" | "미세먼지" | "꽃가루" | "건조" | "폭염" | "한파" | "일반";
+export type TipCategory = "자외선" | "미세먼지" | "꽃가루" | "건조" | "폭염" | "한파" | "감염병" | "일반";
 export type TipSeverity = "정보" | "주의" | "경고";
 
 /** 이 팁이 근거로 삼는 환경 신호. 결측이면 팁 자체를 노출하지 않는다(fail-closed). */
@@ -84,6 +84,15 @@ export type TipEntry = {
    * 온도(폭염·한파)처럼 데이터는 늘 있지만 계절에 따라 의미가 없는 신호에 쓴다.
    */
   activeMonths?: number[];
+  /**
+   * 유행 활성 기간의 마지막 날 ("YYYY-MM-DD"). 감염병 팁은 **필수** — 유행이 끝나면
+   * 자동으로 내려가게 하는 만료 게이트다(지난 유행 경보가 화면에 잔존하는 것 방지).
+   * KST 기준 이 날 23:59까지 노출되고 익일 00:00부터 만료된다. 결측·오타·가짜 날짜
+   * (예: 2026-02-30)는 **만료로 간주해 숨긴다(fail-closed)** — 근거 없는 확신을 만들지
+   * 않는 select.ts 철학과 일치. 종료일은 대개 미리 알 수 없으므로 사람이 재검토하며
+   * 갱신하는 "재검토 만료일"에 가깝다(자동 갱신 리마인더는 자동화 스코프로 보류).
+   */
+  activeUntil?: string;
   /**
    * 출처가 아직 사람 검증을 거치지 않은 **초안**. true면 셀렉터가 기본적으로 제외한다
    * — 개발 환경(NODE_ENV=development)에서만 렌더되고 프로덕션·테스트에는 나오지 않는다.
@@ -155,6 +164,17 @@ const NHIP_COLD: TipSource = {
   docTitle: "「겨울철 한파대비 건강수칙」",
   url: "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=2048",
   retrievedDate: "2026-07-24",
+};
+
+// TODO(출처 검증 — 유행 시 필수): 아래는 감염병 팁 메커니즘 시연용 **미검증 초안 출처**다.
+// 국가건강정보포털 「구내염」 페이지는 수족구병을 언급하나 유행 예방수칙(손씻기·집단생활
+// 자제 등)은 담지 않는다. 실제 수족구 유행 시 사람이 KDCA 유행 보도자료/수족구 전용
+// 안내로 문구·출처를 대조 검증하고 draft·(미검증)을 제거한다. draft라 dev에서만 렌더된다.
+const KDCA_HFMD_DRAFT: TipSource = {
+  org: "질병관리청 국가건강정보포털",
+  docTitle: "「수족구병」 감염병 정보 (미검증 — 유행 보도자료로 대체 필요)",
+  url: "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=5485",
+  retrievedDate: "TODO",
 };
 
 /* ----------------------------- 콘텐츠 테이블 ----------------------------- */
@@ -303,6 +323,26 @@ export const TIP_ENTRIES: TipEntry[] = [
       "실내를 적정 온도(18~20℃)·습도(40~50%)로 유지하기",
     ],
     sources: [NHIP_COLD],
+  },
+  {
+    // 예시(draft): 감염병 팁 유형·activeUntil 만료 게이트 시연용. dev에서만 렌더되며,
+    // 실제 유행 시 사람이 KDCA 유행 보도자료로 검증하고 draft·(미검증)을 제거해 노출한다.
+    id: "hfmd-outbreak",
+    category: "감염병",
+    requires: null, // 역학 신호 — 환경과 무관. 활성 기간은 activeUntil이 통제한다.
+    draft: true,
+    activeUntil: "2026-09-30", // 여름 유행 가정 — KST 이 날 23:59까지 노출, 익일 만료
+    baseSeverity: "주의",
+    title: "수족구병 유행 주의",
+    summary:
+      "여름철 영유아 사이에서 수족구병이 유행할 수 있습니다. 손·발·입에 수포가 생기며 어린이집 등 집단생활에서 빠르게 전파됩니다.",
+    recommendations: [
+      "흐르는 물에 비누로 30초 이상 손씻기 (기저귀 교체·배변 후 특히)",
+      "장난감·집기 등 손이 닿는 표면을 자주 닦고 소독하기",
+      "발열·수포 등 증상이 있으면 어린이집·유치원 등원을 미루고 쉬게 하기",
+      "수건·식기 등 개인 물품을 따로 쓰기",
+    ],
+    sources: [KDCA_HFMD_DRAFT],
   },
   {
     id: "general-hygiene",
