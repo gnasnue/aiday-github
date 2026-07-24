@@ -26,6 +26,7 @@ import { buildRecommendation, type Recommendation } from "@/lib/recommendation-e
 import { useLocation } from "@/lib/useLocation";
 import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, buildTomorrowTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
+import { loadEnvSnapshot, saveEnvSnapshot } from "@/lib/env-cache";
 import { buildPrepKeywords, isCriticalPrep } from "@/lib/prep";
 import { canonicalPrep, canonicalPrepList } from "@/lib/prep-vocab";
 import { ageInMonths, canRecommendMask, isSweatProne } from "@/lib/domain/child-conditions";
@@ -378,7 +379,27 @@ const Home = () => {
       // 초기 로드·위치 변경은 종전대로 loading 스켈레톤을 노출한다.
       const soft = softRefreshRef.current;
       softRefreshRef.current = false;
-      if (!soft) setLoading(true);
+      // 스냅샷 캐시 키/무효화는 위치 원시값만 필요하다(객체 identity 아님) — effect deps와 정렬.
+      const snapLoc = { station: location.station, lat: location.lat, lon: location.lon };
+      // A2 즉시 페인트: 초기 로드(비soft)에서 같은 위치의 신선한(≤90분) env 스냅샷이 있으면,
+      // weather+air 네트워크를 기다리지 않고 그 값으로 시간대별 환경·케어 플랜·"지금 날씨"를
+      // 즉시 그린다. 이후 아래 fetch가 조용히(스켈레톤 없이) 재검증해 최신값으로 덮어쓴다.
+      let hydrated = false;
+      if (!soft) {
+        const snap = loadEnvSnapshot(snapLoc);
+        if (snap) {
+          setEnvRaw(snap.env);
+          if (snap.curWeather) setCurWeather(snap.curWeather);
+          weatherRawRef.current = snap.env.weather;
+          airRawRef.current = snap.env.air;
+          uvRawRef.current = snap.env.uv;
+          pollenRawRef.current = snap.env.pollen;
+          setLoading(false);
+          hydrated = true;
+        }
+      }
+      // 스냅샷으로 그렸으면 스켈레톤을 켜지 않는다(즉시 페인트 유지). 스냅샷이 없으면 종전대로.
+      if (!soft && !hydrated) setLoading(true);
       // 계측 시작 — home 마운트 직후 환경 API 착수 시점. 세션을 로컬로 캡처해
       // 이후 비동기 응답이 항상 이 세션에 마킹하게 한다(공유 ref 덮어쓰기 오염 방지).
       const perf = perfStart();
@@ -444,13 +465,18 @@ const Home = () => {
       try {
         // 4개 모두 즉시 병렬 착수 (개별 실패·타임아웃은 null 폴백).
         // 공공 API(data.go.kr)가 느려지는 날 리포트 착수가 무한정 지연되지 않도록 상한을 둔다.
-        // weather·air는 화면 셸의 근거라 넉넉히(9s), uv·꽃가루는 리포트 착수를 늦추지 않게 짧게(5s).
+        // 클라 타임아웃(9s) > 서버 라우트 상한(uv/pollen AbortSignal.timeout(8000))으로 둔다.
+        // 종전엔 uv/pollen 클라 5s < 서버 8s라, 상류가 5~8초 걸리는 순간 클라가 서버의 캐시
+        // 적재(next.revalidate) 완주 전에 끊어 캐시가 영영 안 데워졌다 → 매 진입 5초 타임아웃 +
+        // uv/pollen 결측 폴백에 갇힘(캐시미스 사이클). 클라를 서버보다 길게 잡아 서버가 상류를
+        // 완주·캐싱하도록 하면, 이후 진입은 revalidate 캐시 히트로 즉시 통과한다.
         // weather·air는 화면 셸의 근거라 실패 시 1회 재시도(콜드 캐시 첫 로드가 폴백에 갇히지 않게).
-        // uv·꽃가루는 리포트 착수를 늦추지 않도록 재시도 없이 종전대로 둔다.
+        // uv·꽃가루는 재시도를 두지 않는다 — 재시도까지 두면 최악 ~19s로 uv/pollen이 weather를
+        // 넘어 새 게이트 병목이 된다(eng review 결론, 타임아웃 상향 단독 채택).
         const weatherP = getJson(`/api/weather?lat=${location.lat}&lon=${location.lon}`, 9000, "weather", 1);
         const airP = getJson(`/api/air?station=${encodeURIComponent(location.station)}`, 9000, "air", 1);
-        const uvP = getJson("/api/uv?region=서울", 5000, "uv");
-        const pollenP = getJson("/api/pollen?region=서울", 5000, "pollen");
+        const uvP = getJson("/api/uv?region=서울", 9000, "uv");
+        const pollenP = getJson("/api/pollen?region=서울", 9000, "pollen");
 
         // 1) weather·air 도착 → 화면 셸·상단 카드·시간대 카드를 먼저 표시 (uv·꽃가루는 이후 채움)
         const [w, a] = await Promise.all([weatherP, airP]);
@@ -458,12 +484,15 @@ const Home = () => {
         perfMark(perf, "env_primary_gate"); // weather+air 게이트 통과 (화면 셸 표시 가능)
         weatherRawRef.current = w; // fetchReport에서 재사용 (T4: 중복 호출 방지)
         airRawRef.current = a;
-        setEnvRaw({
+        setEnvRaw((prev) => ({
           weather: w && !w.error ? w : null,
           air: a && !a.error ? a : null,
-          uv: null,
-          pollen: null,
-        });
+          // uv/pollen을 여기서 null로 비우지 않는다 — 스냅샷 즉시 페인트·수동 새로고침의 재검증
+          // 중 직전 값을 유지해 시간대 카드가 깜빡이지 않게 한다(uv/pollen은 region=서울 전역값이라
+          // 구 변경에도 유효). 첫 콜드 로드는 prev가 없어 null → 종전과 동일. 아래 full gate에서 갱신.
+          uv: prev?.uv ?? null,
+          pollen: prev?.pollen ?? null,
+        }));
         if (w && !w.error && w.temperature != null) {
           const windLabel = w.windSpeed >= 9 ? "강함" : w.windSpeed >= 4 ? "보통" : "약함";
           // mock 블렌딩 없이 실측만으로 구성 — 습도 결측(드묾)은 경고 미판정 중립값 50,
@@ -510,6 +539,28 @@ const Home = () => {
         const pollenLevel = pollenLabel(pollenVals.length ? Math.max(...pollenVals) : null);
         const uvIndex = u && !u.error && typeof u.uvi === "number" ? u.uvi : 0;
         setWeatherData((prev) => (prev ? { ...prev, pollenLevel, uvIndex } : prev));
+        // A2: 이번 성공분을 즉시 페인트 스냅샷으로 저장 → 다음 콜드 재진입(≤90분)은 스켈레톤 없이
+        // 이 값으로 즉시 그린다. weather 결측이면 saveEnvSnapshot이 내부적으로 저장을 건너뛴다.
+        saveEnvSnapshot(
+          snapLoc,
+          {
+            weather: w && !w.error ? w : null,
+            air: a && !a.error ? a : null,
+            uv: u && !u.error ? u : null,
+            pollen: po && !po.error ? po : null,
+          },
+          w && !w.error && w.temperature != null
+            ? {
+                temperature: w.temperature ?? null,
+                feelsLike: w.feelsLike ?? null,
+                windSpeed: w.windSpeed ?? null,
+                humidity: w.humidity ?? null,
+                pop: w.pop ?? null,
+                sky: w.sky ?? null,
+                pty: w.pty ?? null,
+              }
+            : null
+        );
         // 새로고침 env 재조회 종료 — 이제 리포트 생성(aiLoading)이 이어받는다.
         setRefreshing(false);
         if (w && !w.error) {
@@ -521,10 +572,13 @@ const Home = () => {
           }
           setAiError(false);
           setReportLimitReached(null);
-        } else {
+        } else if (!primedRef.current) {
           // 날씨 실측이 없으면 AI 리포트를 생성할 수 없다(날씨가 핵심 입력).
           // 이때 규칙 기반 기본 추천을 노출하되, aiError로 표시해 헤더에 "기본 추천"을
           // 명확히 붙인다 — 폴백이 정상 AI 리포트로 오인되지 않게 한다.
+          // 단, 당일 캐시 리포트가 이미 프라임돼 있으면(primedRef) 그 리포트는 진짜 AI 리포트다 —
+          // weather가 간헐 실패(기상청 502)했다고 "기본 추천"으로 오표기하지 않는다. A1로 이 캐시
+          // 리포트가 콜드 초기부터 노출되므로, 오표기 가드가 없으면 콜드 아침에 오표기가 잦아진다.
           setAiError(true);
         }
       } catch {
@@ -1389,7 +1443,12 @@ const Home = () => {
           </div>
 
           {/* AI message card */}
-          {loading ? (
+          {/* loading(env 미도착)이어도 당일 캐시 리포트가 프라임돼 있으면(reportPrimed) 스켈레톤 대신
+              실카드를 즉시 그린다. 종전엔 loading 단독 게이트라, 캐시된 리포트가 있어도 콜드 초기
+              마운트에서 weather+air 도착(콜드 ~5s) 전까지 env 스켈레톤 뒤에 숨겨졌다(프라임 최적화가
+              초기 로드에서 무력화됨). 카드 내부 "현재 환경 한 줄"은 length>0 조건부라 env 도착 전
+              자동 숨김 → 스테일 env 수치 노출 위험 없음. 캐시가 없는 첫 진입·게스트는 종전대로 스켈레톤. */}
+          {loading && !reportPrimed ? (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
               <div className="flex items-start gap-3">
                 <Skeleton className="h-10 w-10 rounded-full" />
