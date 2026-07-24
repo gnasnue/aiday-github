@@ -129,18 +129,36 @@ COVERAGE 목표: 신규 코드패스 100%
 
 Sequential implementation, no parallelization opportunity — 전부 `lib/tips` + 단일 페이지를 건드림.
 
+## Layer 2 — 자동화 검토 결론 (보류, 2026-07-24)
+
+Layer 1 배포(#160) 후 Layer 2(자동 감시)를 `/plan-eng-review`로 검토한 결과 **지금 짓지 않기로 결정**했다. 나중에 재탐색하지 않도록 이유를 남긴다.
+
+**검토한 두 접근:**
+- **B) KDCA 보도자료 스크래핑 + LLM 아동필터 + 자동 PR + 스케줄 태스크** — 질병관리청 보도자료는 깨끗한 실시간 API/RSS가 없어 HTML 스크래핑 필요(정부 사이트 개편에 취약), 새 서비스 3개+·운영 부담 큼.
+- **A) 질병관리청 표본감시 OPEN API를 env-style 런타임 신호로 붙이고 큐레이션 팁을 연령별 임계값으로 게이팅** — 스크래핑·자동PR·스케줄 제거. 처음엔 유력해 보였으나 아웃사이드 보이스가 근본 결함을 드러냄.
+
+**A를 접은 이유 (아웃사이드 보이스, 검증됨):**
+1. **적시성 모순** — 표본감시는 주 단위·1~2주 지연 발표. "지금 유행" 신호를 뒤늦은 데이터로 만드는 셈이라, Layer 2를 정당화하던 적시성 논리와 정면 충돌.
+2. **"env 패턴 재사용"은 거짓** — 표본감시는 (질병별 × 연령별) 임계값 + 새 데이터 소스 + 신호 자체의 연령 파라미터화 필요. env 신호(단일 스칼라·flat enum·나이는 심각도만 조정)와 다른 종류.
+3. **activeUntil 게이트 충돌** — Layer 1은 activeUntil 없는 감염병 팁을 fail-closed로 숨기고 테스트가 강제. 표본감시 게이팅 팁은 자연스러운 activeUntil이 없어 두 층이 싸움.
+4. 질병별 지표 비대칭(독감=의사환자분율 유행기준 / 수족구=천분율 추세 / RSV=병원체 감시, 다른 API), 히스테리시스 부재(주간 데이터 flapping), 지역 입도 불일치(전국 vs 아이 지역), 캐시 주기 상이(주간 → 장기 서버캐시, env 핫패스 금지).
+
+**결정 근거:** 이미 배포된 **수동 Layer 1이 A보다 더 적시적이고 단순**하다 — 사람이 유행 보도를 본 날 draft로 팁을 올리고 activeUntil을 정확히 지정, KDCA 원문으로 검증 후 머지. 자동화는 이보다 나은지 불확실하고 복잡도만 크다.
+
+**재검토 트리거(re-open criteria):** "수동 작성이 실사용에서 유의미하게 느리다/누락된다"는 근거가 쌓이면 그때 자동화를 재검토한다. 그 경우에도 접근 A의 4개 결함(적시성·신호형태·게이트충돌·지표비대칭)을 먼저 해소해야 한다.
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
-| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | out of credits |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_resolved | scope reduced to Layer 1; 2 arch/quality issues folded; 2 cross-model tensions resolved |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | out of credits (both runs) |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | no_build | R1: Layer 1 (구현·배포 #160). R2: Layer 2 자동화 검토 → 보류 결정 |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
-- **OUTSIDE VOICE:** Codex out of credits → Claude subagent ran. Surfaced 8 points; #5(전략)·#3/#4(타입·검증) resolved via D5/D6; #1(침묵)·#6(출처)·#7(캐시) folded as plan requirements; #2(activeUntil 유지 리마인더) deferred to automation scope.
-- **CROSS-MODEL:** 2 tensions. #5 scope (review: Layer 1 first / outside voice: automation is the value) → resolved A (Layer 1 shallow + automation next). #3 enforcement (review: test / outside voice: type union) → resolved A (test+runtime+calendar-validation).
-- **VERDICT:** ENG CLEARED (SCOPE_REDUCED) — ready to implement Layer 1. 구현 미착수 상태로 계획만 확정.
+- **OUTSIDE VOICE (R2):** Codex out of credits → Claude subagent. 표본감시 접근 A의 8개 결함 제시. #1(적시성 모순)·#2(env 패턴 아님)·#3(activeUntil 충돌)이 load-bearing.
+- **CROSS-MODEL (R2):** 리뷰는 "표본감시 A가 스크래핑 B보다 단순·견고"라 판단했으나, 아웃사이드 보이스가 "A는 지연·복잡·게이트충돌로 수동 Layer 1보다 나을 게 없다"고 반박 → 사용자 결정 **B(지금 안 짓기)** 로 수렴.
+- **VERDICT:** NO-BUILD — Layer 2 자동화 보류. 수동 Layer 1(배포 완료)이 현 시점 정답. 재검토 트리거는 위 참조.
 
 NO UNRESOLVED DECISIONS
