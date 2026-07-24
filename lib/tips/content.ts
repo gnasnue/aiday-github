@@ -23,11 +23,11 @@
 export const SOURCE_DISCLAIMER =
   "기관 원문을 요약한 것으로, 표현은 아이데이가 작성했습니다. 기관의 검수·승인을 받은 문구가 아닙니다.";
 
-export type TipCategory = "자외선" | "미세먼지" | "꽃가루" | "건조" | "일반";
+export type TipCategory = "자외선" | "미세먼지" | "꽃가루" | "건조" | "폭염" | "한파" | "일반";
 export type TipSeverity = "정보" | "주의" | "경고";
 
 /** 이 팁이 근거로 삼는 환경 신호. 결측이면 팁 자체를 노출하지 않는다(fail-closed). */
-export type TipSignal = "uv" | "air" | "pollen" | "humidity" | null;
+export type TipSignal = "uv" | "air" | "pollen" | "humidity" | "heat" | "cold" | null;
 
 /** 프로필 민감도 축 — lib/domain/child-conditions의 판정 함수와 1:1 대응 */
 export type TipProfileFlag = "respiratory" | "allergy" | "skin";
@@ -77,6 +77,21 @@ export type TipEntry = {
    */
   maskRecommendationIndex?: number;
   maskAlternative?: string;
+  /**
+   * 이 팁을 평가할 월(1~12). 지정하면 그 밖의 달에는 아예 평가하지 않는다 —
+   * 침묵(suppressed)도 안심(calm)도 아니다. 7월에 "한파는 주의 수준이 아니에요" 같은
+   * 계절과 어긋난 안내를 막기 위한 것으로, 꽃가루의 `isPollenSeason` 게이트와 같은 취지다.
+   * 온도(폭염·한파)처럼 데이터는 늘 있지만 계절에 따라 의미가 없는 신호에 쓴다.
+   */
+  activeMonths?: number[];
+  /**
+   * 출처가 아직 사람 검증을 거치지 않은 **초안**. true면 셀렉터가 기본적으로 제외한다
+   * — 개발 환경(NODE_ENV=development)에서만 렌더되고 프로덕션·테스트에는 나오지 않는다.
+   * "사실·인용은 사람이 원문 확인 후 넣는다"는 이 파일의 절대 원칙을 지키면서도, 로직을
+   * 먼저 굴려보기 위한 안전장치다. 출처 검증이 끝나면 이 플래그와 docTitle의 "(미검증)"을
+   * 지운다.
+   */
+  draft?: boolean;
   sources: TipSource[];
 };
 
@@ -123,6 +138,23 @@ const KDCA_HANDWASH: TipSource = {
   docTitle: "「올바른 손씻기 6단계」 실천 매뉴얼",
   url: "https://www.kdca.go.kr/",
   retrievedDate: "2026-07-22",
+};
+
+// 국가건강정보포털은 전문 의학회 검수를 거친 질병관리청 운영 플랫폼이라, 폭염·한파 같은
+// 건강위해정보의 딥링크 근거로 적합하다. 아래 두 문서는 원문을 확인해(2026-07-24) 팁의
+// 권고가 원문 내용과 일치함을 대조했다.
+const NHIP_HEAT: TipSource = {
+  org: "질병관리청 국가건강정보포털",
+  docTitle: "「기후변화에 의한 폭염」 건강정보",
+  url: "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=3848",
+  retrievedDate: "2026-07-24",
+};
+
+const NHIP_COLD: TipSource = {
+  org: "질병관리청 국가건강정보포털",
+  docTitle: "「겨울철 한파대비 건강수칙」",
+  url: "https://health.kdca.go.kr/healthinfo/biz/health/gnrlzHealthInfo/gnrlzHealthInfo/gnrlzHealthInfoView.do?cntnts_sn=2048",
+  retrievedDate: "2026-07-24",
 };
 
 /* ----------------------------- 콘텐츠 테이블 ----------------------------- */
@@ -229,6 +261,48 @@ export const TIP_ENTRIES: TipEntry[] = [
       "증상이 심해지면 자가 판단으로 스테로이드를 쓰지 말고 소아청소년과·피부과 상담",
     ],
     sources: [KADA_GUIDELINE],
+  },
+  {
+    id: "heat-high",
+    category: "폭염",
+    requires: "heat",
+    activeMonths: [5, 6, 7, 8, 9], // 여름철에만 평가 — 겨울엔 "폭염 아님" 안내조차 띄우지 않는다
+    minLevel: 1, // 체감 "주의"(28°C) 이상부터 노출
+    alertLevel: 2, // 체감 "위험"(33°C, 폭염주의보급) 이상이면 경고
+    baseSeverity: "주의",
+    // 온열질환은 전 영유아 공통 위험이라 특정 체질 축(호흡기·알레르기·피부)에 매이지 않는다.
+    title: "체감 {value}°C — 영유아 온열질환 {level}",
+    summary:
+      "영유아는 체온 조절 능력이 미숙하고 체중 대비 체표면적이 넓어 성인보다 온열질환에 취약합니다. 판단 기준은 기온이 아니라 습도가 얹힌 체감온도입니다.",
+    // 권고는 「기후변화에 의한 폭염」 원문 대조(2026-07-24) — 원문에 없는 항목은 넣지 않는다.
+    recommendations: [
+      "가장 더운 오후 시간대(2~5시)에는 야외활동을 피하고 그늘·실내 위주로",
+      "목마르지 않아도 물을 자주 마시기 (20분마다 한 컵 정도)",
+      "통풍이 잘 되는 헐렁한 옷을 입히기",
+      "얼굴이 붉고 축 처지거나 의식이 흐려지면 시원한 곳으로 옮겨 몸을 식히고, 증상이 심하면 119에 신고",
+    ],
+    sources: [NHIP_HEAT],
+  },
+  {
+    id: "cold-high",
+    category: "한파",
+    requires: "cold",
+    activeMonths: [11, 12, 1, 2, 3], // 겨울철에만 평가
+    minLevel: 1, // 체감 "주의"(0°C 이하) 이상부터 노출
+    alertLevel: 2, // 체감 "위험"(-12°C, 한파주의보급) 이상이면 경고
+    baseSeverity: "주의",
+    title: "체감 {value}°C — 영유아 한랭질환 {level}",
+    summary:
+      "영유아는 체온 유지가 어려워 추위에 오래 노출되면 저체온·동상 위험이 성인보다 큽니다. 판단 기준은 바람이 반영된 체감온도입니다.",
+    // 권고는 「겨울철 한파대비 건강수칙」 원문 대조(2026-07-24).
+    recommendations: [
+      "옷은 가볍고 여러 겹 겹쳐 입혀 공기층으로 보온하기",
+      "모자·장갑·목도리로 노출 부위를 줄이기",
+      "외출 전 체감온도를 확인하고 추운 시간대 외출은 짧게",
+      "만 1세 이하 영유아는 차가운 방에서 재우지 않기",
+      "실내를 적정 온도(18~20℃)·습도(40~50%)로 유지하기",
+    ],
+    sources: [NHIP_COLD],
   },
   {
     id: "general-hygiene",

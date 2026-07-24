@@ -14,7 +14,8 @@
  */
 
 import { isPollenSeason, type EnvData } from "../env-data";
-import { dustLabel, pollenLabel, uvLabel, humidityLabel } from "../timeline";
+import { dustLabel, pollenLabel, uvLabel, humidityLabel, heatLabel, coldLabel } from "../timeline";
+import { feelsLikeC } from "../feels-like";
 import {
   hasRespiratory,
   hasAllergy,
@@ -73,6 +74,8 @@ export type SelectTipsResult = {
 const UV_LEVELS = ["낮음", "보통", "강함", "매우강함"] as const;
 const DUST_LEVELS = ["좋음", "보통", "나쁨", "매우나쁨"] as const;
 const POLLEN_LEVELS = ["낮음", "보통", "높음", "매우높음"] as const;
+// 폭염·한파 공통 위험 계단 — timeline.heatLabel/coldLabel의 반환값과 1:1 정렬한다.
+const TEMP_LEVELS = ["보통", "주의", "위험", "매우위험"] as const;
 
 const indexOf = <T extends readonly string[]>(levels: T, label: string): number => {
   const i = levels.indexOf(label as T[number]);
@@ -151,6 +154,23 @@ const readSignal = (env: EnvData, signal: Exclude<TipSignal, null>): SignalReadi
       if (h == null) return null;
       // 표시 계층과 같은 기준(습도 30% 이하 = 건조)으로만 발동한다
       return { level: humidityLabel(h) === "건조" ? 1 : 0, label: "건조", value: h };
+    }
+    case "heat":
+    case "cold": {
+      // 온열·한랭 판단은 기온이 아니라 **체감온도**로 한다(습도·바람이 얹힌 값).
+      // hourlyForecast엔 체감이 없어 시각마다 feelsLikeC로 계산한다 — 홈 카드와 같은 공식.
+      if (missing.has("weather")) return null;
+      const hourFeels = (env.weather?.hourlyForecast ?? [])
+        .map((s) => (s.temp != null ? feelsLikeC(s.temp, s.humidity, s.windSpeed) : null))
+        .filter((v): v is number => v != null);
+      // 폭염은 하루 최고 체감(peak), 한파는 하루 최저 체감(trough)이 위험의 피크다.
+      const extreme =
+        signal === "heat"
+          ? peak(env.weather?.feelsLike ?? null, hourFeels)
+          : trough(env.weather?.feelsLike ?? null, hourFeels);
+      if (extreme == null) return null;
+      const label = signal === "heat" ? heatLabel(extreme) : coldLabel(extreme);
+      return { level: indexOf(TEMP_LEVELS, label), label, value: extreme };
     }
   }
 };
@@ -236,13 +256,23 @@ const buildTip = (
 export function selectTips(
   env: EnvData | null,
   profile: TipProfileInput | null,
-  now: Date = new Date()
+  now: Date = new Date(),
+  opts?: { includeDrafts?: boolean }
 ): SelectTipsResult {
   const tips: SelectedTip[] = [];
   const suppressed: Exclude<TipSignal, null>[] = [];
   const calm: Exclude<TipSignal, null>[] = [];
 
+  const month = now.getMonth() + 1;
+  // 미검증 초안은 기본적으로 개발 환경에서만 렌더한다 — 프로덕션·테스트(NODE_ENV≠development)
+  // 에는 나오지 않는다. 테스트는 opts.includeDrafts로 명시적으로 켜서 로직만 검증한다.
+  const includeDrafts = opts?.includeDrafts ?? process.env.NODE_ENV === "development";
+
   for (const entry of TIP_ENTRIES) {
+    if (entry.draft && !includeDrafts) continue;
+    // 계절 밖 신호(예: 7월의 한파)는 아예 평가하지 않는다 — 침묵도 안심도 아니다.
+    if (entry.activeMonths && !entry.activeMonths.includes(month)) continue;
+
     if (entry.requires == null) {
       tips.push(buildTip(entry, null, profile, now));
       continue;
