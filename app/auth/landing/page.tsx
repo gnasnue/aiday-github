@@ -53,7 +53,10 @@ const AuthLanding = () => {
       // (2026-07-20 결정: 가입 직후 전체 화면 동의 게이트는 지인 베타 이탈 요소라 제거)
 
       // 가입 시 확인한 약관 등 현재까지의 동의 이력을 계정에 동기화한다.
-      await syncLocalConsentsToDb("auth_sync");
+      // 홈 표시는 이 동기화 결과에 의존하지 않는 백그라운드 이력 기록이므로 await하지 않는다 —
+      // 예전엔 이 Supabase 왕복이 프로필 조회 왕복 뒤에 직렬로 쌓여 랜딩 스피너를 그만큼 길게
+      // 잡았다. 클라이언트 네비(router.replace)라 문서가 유지돼 non-await 프로미스도 완주한다.
+      void syncLocalConsentsToDb("auth_sync").catch(() => {});
 
       // DB가 비어 있고 게스트 시절 만든 로컬 프로필이 있으면 DB로 이전 후 재조회
       if (!res.list.length && realLocalProfiles().length) {
