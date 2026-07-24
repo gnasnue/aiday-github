@@ -41,3 +41,7 @@ Trash Can/
 
 # chip A/B 하네스가 실행 시 재생성하는 시나리오 덤프 (아티팩트)
 scripts/__chip-ab-scenarios.json
+
+# Playwright E2E 원본 산출물 (screenshots/·traces/에 실패 증거만 별도 큐레이션해 둠)
+test-results/
+playwright-report/
