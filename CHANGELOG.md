@@ -38,6 +38,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Security
 - **DB 함수 노출면 축소 — 보안 어드바이저 경고 2건 해소** (`supabase/migrations/20260722022535_security_advisor_hardening.sql`) — `public.rls_auto_enable()`의 PUBLIC 기본 EXECUTE 권한을 `public`·`anon`·`authenticated`에서 회수(lint `0028`). 조사 결과 이 함수는 `returns event_trigger`로 이벤트 트리거 `ensure_rls`에 연결되어 public 스키마 CREATE TABLE 시 RLS를 자동 적용하는 안전장치였고, 반환 타입상 PostgREST RPC로는 호출되지 않아 경고는 린터의 보수적 휴리스틱에 가까웠다. 다만 이벤트 트리거는 EXECUTE 권한과 무관하게 소유자 권한으로 발화하므로 회수해도 자동 RLS 기능은 유지된다(적용 후 `evtenabled=O` 확인). 함께 `public.set_updated_at()`의 search_path를 `''`로 고정(lint `0011`) — 본문이 `now()`와 NEW 필드만 쓰므로 pg_catalog 암묵 해석으로 동작에 영향이 없다. `report_usage`의 RLS Enabled No Policy(INFO)는 service_role 전용 접근이라 의도된 상태로 유지.
 
+## [0.3.19.2] - 2026-07-24
+
+> 이번 릴리스는 위 `[Unreleased]`에 쌓여 있던 항목들과는 별개로, QA(Playwright E2E 55건 실행 → 발견 2건 수정·재검증)에서 나온 결과만 담은 소규모 핫픽스다. `[Unreleased]`의 나머지 항목은 계속 다음 릴리스를 기다린다.
+
+### Added
+- **Playwright E2E 테스트 스위트 신설** (`playwright.config.ts`, `tests/e2e/*.spec.ts` 9개 + `fixtures.ts`) — PRD v2.8과 실제 코드를 대조해 P0 5종 + P1 예외/경계/탐색 케이스를 자동화(mobile 390×844 + desktop 1280×800). `docs/test/`에 테스트 계획(`test-plan.md`)·케이스(`test-cases.md`)·결과 리포트(`test-report.md`)·최종 요약(`최종보고서.md`)을 문서화. `npm run test:e2e`로 실행.
+
+### Fixed
+- **홈 데모 프로필 "예시" 배지 미표시** (`app/(main)/home/page.tsx`) — `lib/profile.ts`의 `isDemoProfile` 판별 함수는 있었으나 이를 참조해 화면에 표시하는 코드가 없어(PRD S-001 수락 기준 미충족) 데모 프로필(지우·도윤)이 실프로필과 구분되지 않던 문제. 프로필 세그먼트 버튼에 `(예시)` 배지를 조건부 렌더하도록 추가.
+- **게스트 429(레이트리밋) 화면에 가입 유도 문구·CTA 부재** (`app/api/report/route.ts`, `app/(main)/home/page.tsx`) — 게스트·로그인 사용자가 일일 한도(각각 10회·20회)에 도달했을 때 서버가 동일한 문자열을 반환하고 클라이언트는 이를 사라지는 토스트로만 표시해, PRD S-001이 요구한 게스트 전환 유도("가입하면 계속 이용할 수 있어요" + [무료로 시작하기])가 전혀 노출되지 않던 문제(게스트→가입 전환 퍼널의 핵심 지점 공백). 서버 응답에 `isGuest` 플래그를 추가하고, 홈 화면에 게스트/로그인별로 다른 문구 + 게스트 전용 CTA를 담은 영구 배너를 신설.
+
 ## [0.3.19.1] - 2026-07-19
 
 ### Changed

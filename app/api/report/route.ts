@@ -219,10 +219,16 @@ export async function POST(req: NextRequest) {
   const rate = await checkReportRateLimit(req.headers, userId);
   if (!rate.allowed) {
     perfLog("rate_limited", ` · ${rate.used}/${rate.limit}회`);
+    // 게스트/로그인 문구를 분기한다 — 게스트는 가입 전환 유도, 로그인은 한도 안내만
+    // (홈 화면의 영구 배너·CTA는 isGuest 플래그로 분기, app/(main)/home/page.tsx 참조).
+    const isGuest = !userId;
     return NextResponse.json(
       {
-        error: "오늘 사용할 수 있는 AI 리포트 생성 횟수를 모두 썼어요. 내일 다시 만들어드릴게요.",
+        error: isGuest
+          ? "오늘의 체험 횟수를 모두 사용했어요. 가입하면 계속 이용할 수 있어요."
+          : "오늘의 브리핑 생성 한도에 도달했어요. 내일 다시 이용할 수 있어요.",
         limit: rate.limit,
+        isGuest,
       },
       { status: 429, headers: { "Retry-After": "3600" } }
     );

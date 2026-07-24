@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
 import { Bell, MapPin, ChevronDown, ChevronRight, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
@@ -17,6 +18,7 @@ import {
   allowBrowseHome,
   defaultProfiles,
   fetchProfilesFromDb,
+  isDemoProfile,
   loadProfiles,
   realLocalProfiles,
 } from "@/lib/profile";
@@ -289,6 +291,9 @@ const Home = () => {
   // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
   const [aiStreaming, setAiStreaming] = useState(false);
   const [aiError, setAiError] = useState(false);
+  // 429(한도 초과) 전용 — 게스트/로그인 여부에 따라 카드 안에 다른 안내+CTA를 영구 표시한다
+  // (토스트는 사라지므로 별도 상태로 붙잡아 둔다). 다른 원인의 실패에서는 null로 유지.
+  const [reportLimitReached, setReportLimitReached] = useState<{ isGuest: boolean } | null>(null);
   // 수동 새로고침의 "환경 재fetch" 구간 — 이 동안엔 aiLoading이 아직 false라, 별도 플래그로
   // 리포트 스켈레톤·버튼 비활성·아이콘 회전을 유지한다. env 재조회가 끝나 리포트 생성으로
   // 넘어가는 순간(aiLoading=true) 해제되고, 이후는 aiLoading이 이어받는다.
@@ -515,6 +520,7 @@ const Home = () => {
             setAiMessage("");
           }
           setAiError(false);
+          setReportLimitReached(null);
         } else {
           // 날씨 실측이 없으면 AI 리포트를 생성할 수 없다(날씨가 핵심 입력).
           // 이때 규칙 기반 기본 추천을 노출하되, aiError로 표시해 헤더에 "기본 추천"을
@@ -652,7 +658,7 @@ const Home = () => {
         type AttemptResult =
           | { kind: "done"; payload: ReportPayload }
           | { kind: "retry"; reason: "exception" | "stream_error" | "empty" }
-          | { kind: "fatal"; httpStatus: number; detail?: string }
+          | { kind: "fatal"; httpStatus: number; detail?: string; isGuest?: boolean }
           | { kind: "stale" };
 
         // 리포트 요청 1회: fetch → SSE 소비. 콜드 스타트/게이트웨이 순간 오류/네트워크 끊김은
@@ -700,11 +706,14 @@ const Home = () => {
           // 429(한도)·4xx(입력)·503(설정)은 재시도해도 결과가 같으므로 즉시 폴백(fatal).
           if (!res.ok || !res.body) {
             let detail: string | undefined;
+            let isGuest: boolean | undefined;
             try {
-              detail = (await res.json())?.error;
+              const body = await res.json();
+              detail = body?.error;
+              isGuest = body?.isGuest;
               if (detail) console.error("[AI report] 서버 오류 상세:", detail);
             } catch {}
-            return { kind: "fatal", httpStatus: res.status, detail };
+            return { kind: "fatal", httpStatus: res.status, detail, isGuest };
           }
 
           if (isCurrent()) setAiStreaming(true); // hook 도착 후 본문 스켈레톤 표시 근거
@@ -794,6 +803,7 @@ const Home = () => {
 
         if (attemptRes.kind === "done") {
           const done = attemptRes.payload;
+          setReportLimitReached(null);
           setAiHook(done.hook ?? "");
           setAiMessage(done.message);
           if (Array.isArray(done.checklist) && done.checklist.length > 0) {
@@ -814,6 +824,11 @@ const Home = () => {
           perfMark(perf, `report_http_${attemptRes.httpStatus}`);
           outcome = `http_${attemptRes.httpStatus}`;
           setAiError(true);
+          // 하루 한도 소진(429)은 카드 안에 게스트/로그인 여부에 맞는 안내+CTA를 영구 표시한다
+          // (토스트는 몇 초 뒤 사라져 재방문 시 다시 보이지 않으므로 별도 상태로 붙잡아 둔다).
+          setReportLimitReached(
+            attemptRes.httpStatus === 429 ? { isGuest: attemptRes.isGuest ?? true } : null
+          );
           // 하루 한도 소진(429)은 "잠시 후 다시"가 거짓말이 된다 — 서버 문구를 그대로 쓴다.
           toast(
             attemptRes.httpStatus === 429 && attemptRes.detail
@@ -827,6 +842,7 @@ const Home = () => {
           perfMark(perf, `report_${attemptRes.reason}`);
           outcome = attemptRes.reason;
           setAiError(true);
+          setReportLimitReached(null);
           toast(
             attemptRes.reason === "empty"
               ? "AI 리포트 생성에 실패해 기본 추천을 보여드려요."
@@ -882,6 +898,7 @@ const Home = () => {
       setAiHook("");
       setAiPrep({});
       setAiError(false);
+      setReportLimitReached(null);
     }
   }, [active]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -934,6 +951,7 @@ const Home = () => {
     setAiHook("");
     setAiMessage("");
     setAiError(false);
+    setReportLimitReached(null);
     setRefreshing(true); // env 재조회 구간 동안 버튼 비활성·스켈레톤·아이콘 회전 유지
     setRefreshNonce((n) => n + 1); // env effect 재실행 → 날씨·대기질 재fetch → 끝나면 리포트 재생성
   };
@@ -1342,6 +1360,11 @@ const Home = () => {
                     }`}
                   >
                     {p.name}
+                    {isDemoProfile(p) && (
+                      <span className="ml-1 text-[11px] font-normal text-muted-foreground">
+                        (예시)
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1417,6 +1440,28 @@ const Home = () => {
                   </button>
                 </div>
               </div>
+
+              {/* AI 리포트 생성 한도(429) 안내 — 토스트는 몇 초 뒤 사라지므로, 재방문해도
+                  보이도록 카드 안에 영구 배너로 둔다. 게스트만 가입 유도 CTA를 붙인다
+                  (로그인 사용자는 가입 유도가 의미 없으므로 한도 안내만). */}
+              {reportLimitReached && (
+                <div className="mb-3 rounded-xl bg-primary-tint p-3">
+                  <p className="text-[13px] leading-[1.5] text-foreground break-keep">
+                    {reportLimitReached.isGuest
+                      ? "오늘의 체험 횟수를 모두 사용했어요. 가입하면 계속 이용할 수 있어요"
+                      : "오늘의 브리핑 생성 한도에 도달했어요. 내일 다시 이용할 수 있어요"}
+                  </p>
+                  {reportLimitReached.isGuest && (
+                    <Button
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => router.push("/signup")}
+                    >
+                      무료로 시작하기
+                    </Button>
+                  )}
+                </div>
+              )}
 
               {/* 잠정본 안내 — 새벽(00~06시) 생성 리포트에만 노출되는 trust line.
                   면책이 아니라 "앱이 아침에 알아서 갱신한다"는 관리 능력의 신호로 쓴다. */}
