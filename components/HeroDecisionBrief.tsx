@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { RefreshCw, Thermometer, Wind } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
-import { highlightHeadline, type Evidence, type HeroState } from "@/lib/hero-brief";
+import { headlineLines, type Evidence, type HeroState } from "@/lib/hero-brief";
 
 // 홈 히어로 — "AI가 오늘의 판단을 완료했다"를 형태로 전달하는 화면당 1개 L2 카드.
 // 명세: docs/reviews/2026-07-25-home-decision-brief-design.html (§2 확대·주석)
@@ -58,6 +58,8 @@ export type HeroDecisionBriefProps = {
   /** fallback 상태에서만 노출되는 재시도 */
   onRetry?: () => void;
   retrying?: boolean;
+  /** 카드 우측 상단 유틸 슬롯(새로고침·공유). 조건 배지 오른쪽 빈 공간을 쓴다 */
+  actions?: ReactNode;
 };
 
 const HeroDecisionBrief = ({
@@ -70,24 +72,39 @@ const HeroDecisionBrief = ({
   issue,
   onRetry,
   retrying = false,
+  actions,
 }: HeroDecisionBriefProps) => {
   const isFallback = state === "fallback";
-  const segments = isFallback
-    ? [{ text: headline, emphasis: false }]
-    : highlightHeadline(headline, prepNames);
+  // 결론은 2줄 고정 — 어절 경계에서 균형 있게 쪼개고 강조 구간은 가르지 않는다.
+  // 길이에 따라 1·2줄이 오가면 카드 높이가 매일 달라지고 결론의 무게감도 흔들린다.
+  const lines = isFallback
+    ? [[{ text: headline, emphasis: false }]]
+    : headlineLines(headline, prepNames);
 
   return (
     // radius 24(rounded-3xl) + shadow-card는 화면에서 이 카드만 쓴다 — 색이 아니라
     // 기하와 깊이로 "여기가 중심"을 말한다.
     <section className="rounded-3xl bg-card p-5 shadow-card" aria-labelledby="hero-headline">
-      {context && (
-        <p
-          className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
-        >
-          {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
-          <span>{context}</span>
-        </p>
-      )}
+      {/* 상단 행 — 조건 배지(좌) + 유틸(우). 배지가 Hug라 오른쪽에 남는 빈 공간을
+          새로고침·공유가 쓴다. 44px 타깃을 유지하면서 카드 높이가 늘지 않도록
+          -mt-2/-mr-2로 광학 정렬만 맞춘다(배지 높이 34px < 버튼 44px). */}
+      <div className="flex items-start justify-between gap-2">
+        {context ? (
+          <p
+            className={`inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
+          >
+            {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
+            <span>{context}</span>
+          </p>
+        ) : (
+          <span />
+        )}
+        {actions && (
+          // -my-2로 위아래 8px씩 상쇄해 44px 버튼이 34px 배지보다 행을 키우지 않게 한다
+          // (터치 타깃은 44px 그대로, 시각적 높이만 배지에 맞춘다)
+          <div className="-my-2 -mr-2 flex shrink-0 items-center text-muted-foreground">{actions}</div>
+        )}
+      </div>
 
       {/* 결론 — display 28/800. fallback은 title-lg 20/700으로 낮춘다:
           강한 결론 타입은 "AI가 판단했다"는 신호이고, 규칙 기반 추천이 빌려 쓰면
@@ -102,20 +119,24 @@ const HeroDecisionBrief = ({
             : "mt-4 text-[28px] font-extrabold leading-[1.3] tracking-[-0.028em]"
         }`}
       >
-        {segments.map((seg, i) =>
-          seg.emphasis ? (
-            // 강조는 색이 아니라 형태 — 글자는 잉크(16:1)로 두고 primary-tint 밴드를 깐다.
-            // accent 텍스트는 무채색·저조도에서 잉크보다 밝아져 강조가 역전된다(실측).
-            <span
-              key={i}
-              className="shadow-[inset_0_-0.28em_0_hsl(var(--primary-tint))] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
-            >
-              {seg.text}
-            </span>
-          ) : (
-            <span key={i}>{seg.text}</span>
-          )
-        )}
+        {lines.map((line, li) => (
+          <span key={li} className="block">
+            {line.map((seg, i) =>
+              seg.emphasis ? (
+                // 강조는 색이 아니라 형태 — 글자는 잉크(16:1)로 두고 primary-tint 밴드를 깐다.
+                // accent 텍스트는 무채색·저조도에서 잉크보다 밝아져 강조가 역전된다(실측).
+                <span
+                  key={i}
+                  className="shadow-[inset_0_-0.28em_0_hsl(var(--primary-tint))] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
+                >
+                  {seg.text}
+                </span>
+              ) : (
+                <span key={i}>{seg.text}</span>
+              )
+            )}
+          </span>
+        ))}
       </h2>
 
       {support && (
@@ -146,15 +167,6 @@ const HeroDecisionBrief = ({
               >
                 {e.value}
               </span>
-              {/* 도트 = 색 없이도 살아남는 상태 신호. 뉴트럴 칩에는 붙이지 않는다 */}
-              {e.tone !== "neutral" && (
-                <span
-                  aria-hidden="true"
-                  className={`ml-0.5 h-1 w-1 shrink-0 rounded-full ${
-                    e.tone === "warn" ? "bg-status-warn" : "bg-status-good"
-                  }`}
-                />
-              )}
             </li>
           ))}
         </ul>

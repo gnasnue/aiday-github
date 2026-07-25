@@ -1205,6 +1205,17 @@ const Home = () => {
     return `${base} ${hh}:${mm} 기준`;
   })();
 
+  // 헤더 우측에 놓는 짧은 발행 시각 — 타이틀("오늘의 AI 리포트")과 나란히 서므로 날짜를
+  // 반복하지 않는다. 350px 안에서 타이틀이 2줄로 깨지지 않게 하는 조건이기도 하다.
+  // 날짜가 필요한 경우(자정 넘긴 잠정본)는 상세 펼침의 안내 문구가 담당한다.
+  const reportMetaShort = (() => {
+    if (reportTs == null) return "오늘 기준";
+    const d = new Date(reportTs);
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    return `${hh}:${mm} 기준`;
+  })();
+
   // 새벽(00~06시) 생성 잠정본 여부 — 전날 밤 발표본 재료로 만든 리포트임을 카드 안에서
   // 알린다. 06시 이후 방문 시 리포트 effect가 당일 발표본으로 재생성해 ts가 갱신되면
   // 캡션은 자연히 사라진다. "언제 보라"가 아니라 "앱이 알아서 갱신한다"를 전달하는 문구.
@@ -1303,7 +1314,8 @@ const Home = () => {
       tone: "warn" as const,
       priority: w.label === ctxIssue ? -1 : i, // AI가 고른 1순위를 맨 앞으로
     })),
-    { label: "현재", value: nowValue("현재날씨"), priority: 10 },
+    // "지금 몇 도"는 부모가 가장 먼저 확인하는 값이라 주의 신호보다 앞에 고정한다
+    { label: "현재", value: nowValue("현재날씨"), priority: 10, pin: true },
     { label: "체감", value: nowValue("체감"), priority: 11 },
   ]);
 
@@ -1595,45 +1607,20 @@ const Home = () => {
             </button>
           </div>
 
-          {/* 오늘 준비 머리글 — 아이 이름·발행 메타·유틸을 히어로 밖으로 올렸다.
-              종전엔 히어로 카드 상단에 피치 밴드로 얹혀 있었는데, 화면에서 가장 넓은 유채색 면을
-              행동 정보가 0인 chrome에 배정하는 셈이었다. 밴드를 없애면 히어로가 "판단"만 담고
-              결론 앞에 읽을 것이 2겹(조건 → 결론)으로 줄어든다. */}
-          <div className="mt-2 flex items-start justify-between gap-3 pb-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="truncate text-[20px] font-bold leading-[1.35] tracking-[-0.02em]">
-                {cur.name}의 오늘 준비
-              </h1>
-              {/* 날짜·발행 시각은 .num이 아니라 .tabular — "7월 25일 (금)"은 한글 문장이고
-                  DESIGN.md가 .num(-0.03em)의 한글 사용을 금지한다. 자릿수 정렬만 필요하다. */}
-              <p className="tabular mt-1 text-[13px] font-medium leading-[1.45] text-muted-foreground break-keep">
-                {aiError ? "기본 추천" : "AI 판단"} · {reportMeta}
-              </p>
-            </div>
-            {/* 새로고침·공유 — 44px 터치 타깃 + Lucide 20/1.75.
-                -mr-3으로 아이콘 광학 우측선을 프레임 콘텐츠선(20px)에 맞춘다. */}
-            <div className="-mr-3 -mt-2 flex shrink-0 items-center text-muted-foreground">
-              <button
-                onClick={refreshReport}
-                disabled={aiLoading || refreshing}
-                aria-label="리포트 새로고침"
-                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
-              >
-                <RefreshCw className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
-              </button>
-              <button
-                onClick={handleShare}
-                disabled={sharing}
-                aria-label="공유"
-                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
-              >
-                {sharing ? (
-                  <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
-                ) : (
-                  <Share2 className="h-5 w-5" strokeWidth={1.75} />
-                )}
-              </button>
-            </div>
+          {/* 오늘 준비 머리글 — 타이틀(좌) + 발행 시각(우).
+              새로고침·공유는 히어로 카드 우측 상단으로 옮겼다: 리포트를 다시 받는 행위는
+              리포트 카드에 붙는 것이 맞고, 그 자리(조건 배지 오른쪽)는 원래 비어 있던
+              공간이라 세로 예산이 들지 않는다. 비워진 이 자리에 발행 시각을 넣는다. */}
+          <div className="mt-2 flex items-baseline justify-between gap-3 pb-3">
+            <h1 className="min-w-0 flex-1 text-[20px] font-bold leading-[1.35] tracking-[-0.02em] break-keep">
+              {withSubjectSuffix(cur.name)} 위한 오늘의 AI 리포트
+            </h1>
+            {/* 날짜·발행 시각은 .num이 아니라 .tabular — "7월 26일 (일)"은 한글 문장이고
+                DESIGN.md가 .num(-0.03em)의 한글 사용을 금지한다. 자릿수 정렬만 필요하다. */}
+            <p className="tabular shrink-0 text-[13px] font-medium leading-[1.45] text-muted-foreground">
+              {aiError && "기본 추천 · "}
+              {reportMetaShort}
+            </p>
           </div>
 
           {/* AI 판단 브리프 — 조건 pill → 결론(28/800) → 체질 근거 → 판단 근거 칩.
@@ -1669,6 +1656,33 @@ const Home = () => {
               issue={heroIssue}
               onRetry={heroSt === "fallback" ? refreshReport : undefined}
               retrying={aiLoading || refreshing}
+              actions={
+                <>
+                  <button
+                    onClick={refreshReport}
+                    disabled={aiLoading || refreshing}
+                    aria-label="리포트 새로고침"
+                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+                  >
+                    <RefreshCw
+                      className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`}
+                      strokeWidth={1.75}
+                    />
+                  </button>
+                  <button
+                    onClick={handleShare}
+                    disabled={sharing}
+                    aria-label="공유"
+                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+                  >
+                    {sharing ? (
+                      <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
+                    ) : (
+                      <Share2 className="h-5 w-5" strokeWidth={1.75} />
+                    )}
+                  </button>
+                </>
+              }
             />
           )}
 
@@ -1695,18 +1709,21 @@ const Home = () => {
               보조문은 접힘 상태에서도 "무엇을 근거로 판단했는지"를 보여준다 — 종전 trust line은
               펼쳤을 때만 렌더돼 대부분의 사용자가 한 번도 보지 못했다. */}
           {!listLoading && (
-            <>
+            /* 진입 행 + 펼침 본문을 하나의 표면으로 묶는다 — 카드를 둘로 나누면 펼쳤을 때
+               "다른 카드가 하나 더 생긴" 것처럼 보인다. 그림자는 이 컨테이너만 갖고,
+               둘 사이는 헤어라인 divider로만 구분한다. */
+            <div className="mt-2 rounded-[18px] bg-card shadow-soft">
               <button
                 onClick={() => setReportExpanded((v) => !v)}
                 aria-expanded={reportExpanded}
-                className="mt-2 flex min-h-16 w-full items-center gap-3 rounded-[18px] bg-card p-3 text-left shadow-soft transition-smooth active:bg-muted"
+                className="flex min-h-16 w-full items-center gap-3 rounded-[18px] p-3 text-left transition-smooth active:bg-muted"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
                   <List className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[15px] font-semibold tracking-[-0.01em]">
-                    {reportExpanded ? "판단 근거 접기" : "판단 근거 자세히 보기"}
+                    {reportExpanded ? "AI 리포트 접기" : "AI 리포트 자세히 보기"}
                   </span>
                   <span className="block truncate text-[13px] text-muted-foreground">{basisSub}</span>
                 </span>
@@ -1716,7 +1733,7 @@ const Home = () => {
                 />
               </button>
               {reportExpanded && (
-                <div className="mt-2 space-y-3 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
+                <div className="space-y-3 border-t border-border px-3 pb-4 pt-4 animate-fade-up">
                   {messageParagraphs}
                   {/* 잠정본 안내 — 히어로가 아니라 이 상세 안에 둔다. 결론 옆에 붙으면 조건과
                       결론 사이에 읽을 것이 한 겹 늘고, 성격도 "판단"이 아니라 출처·시점 정보라
@@ -1729,7 +1746,7 @@ const Home = () => {
                   {trustLine}
                 </div>
               )}
-            </>
+            </div>
           )}
 
           {/* 오늘 챙길 것 — 히어로 밖 L1 카드. 리포트가 정착하기 전(스트리밍 포함)까지는

@@ -131,6 +131,74 @@ export function highlightHeadline(headline: string, prepNames: string[]): Headli
   return [{ text: headline, emphasis: false }];
 }
 
+/**
+ * 결론을 **2줄로 고정**해서 렌더하기 위해 어절 경계에서 쪼갠다.
+ *
+ * 왜 고정하는가: 28px/800은 화면에서 유일한 대형 타입인데, AI 문구 길이에 따라 1줄과
+ * 2줄이 오가면 히어로 높이가 매일 달라지고 결론의 무게감도 흔들린다. 2줄로 고정하면
+ * 카드 높이가 일정해지고 대형 타입이 제 몫(두 줄)을 채운다.
+ *
+ * 규칙
+ *  - 공백(어절) 경계에서만 자른다 — 한국어를 어절 중간에서 끊지 않는다.
+ *  - **강조 구간을 가르지 않는다.** 하이라이트 밴드가 두 줄로 쪼개지면 형태가 무너진다.
+ *  - 두 줄 길이 차가 가장 작은 지점을 고른다. 한 글자만 남는 분할은 버린다.
+ *  - 어절이 하나뿐이면 1줄로 둔다 — 공백이 없으면 쪼갤 수가 없다(구조적 예외).
+ */
+export function headlineLines(headline: string, prepNames: string[] = []): HeadlineSegment[][] {
+  const segs = highlightHeadline(headline, prepNames);
+
+  // 강조 구간의 문자 오프셋 범위
+  let acc = 0;
+  let emStart = -1;
+  let emEnd = -1;
+  for (const s of segs) {
+    if (s.emphasis) {
+      emStart = acc;
+      emEnd = acc + s.text.length;
+    }
+    acc += s.text.length;
+  }
+
+  // 공백 위치 후보
+  const candidates: number[] = [];
+  for (let i = 0; i < headline.length; i++) {
+    if (!/\s/.test(headline[i])) continue;
+    if (emStart >= 0 && i > emStart && i < emEnd) continue; // 강조 구간 내부 금지
+    const left = headline.slice(0, i).trim().length;
+    const right = headline.slice(i + 1).trim().length;
+    if (left < 2 || right < 2) continue; // 한 글자만 남는 분할은 버린다
+    candidates.push(i);
+  }
+  if (!candidates.length) return [segs];
+
+  const best = candidates.reduce((a, b) => {
+    const d = (i: number) =>
+      Math.abs(headline.slice(0, i).trim().length - headline.slice(i + 1).trim().length);
+    return d(b) < d(a) ? b : a;
+  });
+
+  // 세그먼트를 오프셋 기준으로 두 줄로 나눈다
+  const lines: HeadlineSegment[][] = [[], []];
+  let pos = 0;
+  for (const s of segs) {
+    const start = pos;
+    const end = pos + s.text.length;
+    pos = end;
+    if (end <= best) {
+      lines[0].push(s);
+    } else if (start >= best + 1) {
+      lines[1].push(s);
+    } else {
+      // 분할점이 이 세그먼트 안 — 강조 구간은 후보에서 제외했으므로 항상 평문이다
+      const head = s.text.slice(0, best - start).trimEnd();
+      const tail = s.text.slice(best - start + 1).trimStart();
+      if (head) lines[0].push({ text: head, emphasis: s.emphasis });
+      if (tail) lines[1].push({ text: tail, emphasis: s.emphasis });
+    }
+  }
+  return lines[1].length ? lines : [lines[0]];
+}
+
 /* ============================================================
    3. 강조 준비물 1개 선정
    ============================================================ */
@@ -179,6 +247,9 @@ export type EvidenceCandidate = {
   tone?: EvidenceTone;
   /** 낮을수록 먼저. 같은 tone 안에서의 순서 */
   priority: number;
+  /** tone과 무관하게 맨 앞에 고정한다 — "지금 몇 도"는 부모가 가장 먼저 확인하는 값이라
+   *  주의 신호보다 앞에 둔다(읽는 순서 = 현재 상태 → 무엇이 문제인지). */
+  pin?: boolean;
 };
 
 export const EVIDENCE_MAX = 3;
@@ -199,9 +270,16 @@ export function pickEvidence(candidates: EvidenceCandidate[]): Evidence[] {
       const v = (c.value ?? "").trim();
       return v.length > 0 && v !== "—" && v !== "-";
     })
-    .map((c) => ({ label: c.label, value: (c.value as string).trim(), tone: c.tone ?? "neutral", priority: c.priority }));
+    .map((c) => ({
+      label: c.label,
+      value: (c.value as string).trim(),
+      tone: c.tone ?? "neutral",
+      priority: c.priority,
+      pin: c.pin,
+    }));
 
   const ranked = alive.sort((a, b) => {
+    if (!!a.pin !== !!b.pin) return a.pin ? -1 : 1; // 고정 칩이 언제나 맨 앞
     const aIssue = a.tone === "neutral" ? 1 : 0;
     const bIssue = b.tone === "neutral" ? 1 : 0;
     if (aIssue !== bIssue) return aIssue - bIssue;
