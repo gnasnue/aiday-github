@@ -1,6 +1,7 @@
 # 홈 Hero Decision Brief — Figma 제작 지시서
 
 > 산출일 2026-07-25 · 시안: [`2026-07-25-home-decision-brief-design.html`](./2026-07-25-home-decision-brief-design.html)
+> 동작 프로토타입: [`2026-07-25-home-decision-brief-prototype.html`](./2026-07-25-home-decision-brief-prototype.html) — 아이 전환·상태 5종·다크·치수 오버레이·계약 상한 스트레스를 실제로 눌러볼 수 있다
 > 대상: 390px 모바일 홈 (AI 판단 브리프 + 준비물 실행)
 > 권위: 색·간격·반경의 단일 진실은 `app/globals.css`. 이 문서의 hex는 hsl에서 계산한 근사값이다.
 > **이 문서는 명세이며 앱 코드는 변경하지 않았다** — `app/(main)/home/page.tsx`는 다른 세션이 작업 중.
@@ -46,8 +47,8 @@ color/white            #FFFFFF      color/blue/700     #295EA3
 | `bg/card` | `#FFFFFF` | `#252019` | Hero·체크리스트 면 |
 | `bg/surface` | `#F3F0ED` | `#2E2823` | 근거 칩·아이콘 타일·세그먼트 트랙 |
 | `bg/brand-tint` | `#FFEDDD` | `#3B2A1C` | 강조 준비물 타일 1곳 |
-| `bg/state-caution` | `#FDF2E9` | `#2B211A` | **신규** context pill (주의) |
-| `bg/state-safe` | `#EDF6F0` | `#1E2A22` | **신규** context pill (기회) |
+| `bg/state-caution` | `#FDF2E9` | `#2B211A` | **신규** context pill (주의) · 코드 토큰명 `--status-warn-tint` |
+| `bg/state-safe` | `#EDF6F0` | `#1E2A22` | **신규** context pill (기회) · 코드 토큰명 `--status-good-tint` |
 | `bg/done` | `#DCEFE2` | `#1E2E24` | 체크리스트 all-done 카드 |
 | `text/primary` | `#26201B` | `#F7F1EA` | 헤드라인·제목·수치 |
 | `text/secondary` | `#6E655D` | `#B4A99E` | supporting·사유 |
@@ -136,8 +137,8 @@ Effect        Elevation/L2-hero
 | state | pill fill | pill 아이콘 | 아이콘 색 | 헤드라인 어법 |
 |---|---|---|---|---|
 | `normal` | `bg/surface` (웜 뉴트럴, 신규 토큰 없음) | `Icon/CloudSun` | `text/secondary` | “가볍게 … 챙겨주세요” |
-| `caution` | `bg/state-caution` | 이슈 아이콘(온도계·우산·잎·먼지) | `state/caution` | “… 챙겨주세요” |
-| `safe` | `bg/state-safe` | `Icon/Sun` | `state/safe` | “… 다녀오세요” |
+| `caution` | `bg/state-caution` (`bg-status-warn-tint`) | 이슈 아이콘(온도계·우산·잎·먼지) | `state/caution` | “… 챙겨주세요” |
+| `safe` | `bg/state-safe` (`bg-status-good-tint`) | `Icon/Sun` | `state/safe` | “… 다녀오세요” |
 
 > **색만으로 상태를 구분하지 않는다.** 아이콘 모양 + 어법 + 근거 칩 도트 유무가 색 없이도 상태를 전달한다(무채색 검증: 시안 §5).
 
@@ -275,7 +276,16 @@ Border        상단 border/hairline 1px (첫 행은 없음)
   `maxw/hero-text 310`(=350−20−20) · `maxw/title 250`(=350−44−44−12) · `maxw/prep-text 226`(=350−20−24−12−36−12−20) · `maxw/detail-sub 246`.
 - **truncate(1줄 + …) 대상** — 계량·라벨성 단문만: 헤더 메타·위치 라벨·`DetailEntryRow/Sub`·`PrepChecklistRow/Title`·`EvidenceChip/Label`.
 - **wrap(Auto height) + truncate 절대 금지 대상** — 판단 문장 전부: `Hero/Context`·`Hero/Headline`·`Hero/Supporting`·`PrepChecklistRow/Reason`·`FeedbackRow/Question`. 판단을 자르면 제품이 사라진다.
-- **줄 수 계약(콘텐츠 상한)** — Headline ≤ 24자·최대 3줄(28px에서 한 줄 약 11자) / Context ≤ 30자·2줄 / Supporting ≤ 90자·3줄 / `PrepRow/Reason` ≤ 34자·2줄 / `DetailEntryRow/Sub` ≤ 18자·**1줄 고정**(2줄이 되면 행이 20px 커져 첫 준비물 행이 폴드 밖으로 나간다 — 실측 확인).
+- **줄 수 계약(콘텐츠 상한)** — Headline ≤ 24자·최대 3줄(28px에서 한 줄 약 11자) / **Context ≤ 20자·1줄** / **Supporting ≤ 60자·2줄** / `PrepRow/Reason` ≤ 34자·2줄 / `DetailEntryRow/Sub` ≤ 18자·**1줄 고정**.
+  이 수치는 임의값이 아니라 **첫 화면 보존선에서 역산한 값**이다(프로토타입 실측):
+
+  | 콘텐츠 | Hero | 헤더 하단 | 첫 행 하단 | Safari(≈671) | 스탠드얼론(736) |
+  |---|---|---|---|---|---|
+  | 기본(2줄·2줄·1줄) | 272px | y=599 | y=670 | 첫 행까지 | 둘째 행까지 |
+  | 계약 상한(3줄·2줄·1줄) | 308px | y=635 | y=707 | 헤더까지 | 첫 행까지 |
+  | 계약 위반(3줄·3줄·2줄) | 375px | y=703 | y=774 | 근거 행까지 | 헤더까지 |
+
+  → **계약을 지키면 “체크할 것이 있다”는 신호(헤더+카운터)가 항상 첫 화면에 남는다.** Context를 2줄로 허용하거나 Supporting을 3줄로 늘리는 순간 그 보장이 깨진다. 따라서 이 상한은 문구 취향이 아니라 **레이아웃 계약**이다 — AI 프롬프트의 자수 제한(`hook` 25자)과 같은 층위로 다뤄야 한다.
 
 ## 12. 검수 항목 추가 (§7과 함께 본다)
 
@@ -283,3 +293,31 @@ Border        상단 border/hairline 1px (첫 행은 없음)
 - [ ] 헤드라인 키프레이즈에 `text/action`(주황 글자)이 쓰이지 않았다
 - [ ] `DetailEntryRow/Sub`(판단 기준)가 **1줄**로 유지된다 — 아이 이름이 길면 “체질” 앞 이름을 생략하고 “우리 아이 체질 · 등원 08:30 기준”으로 대체
 - [ ] trust line이 **접힘 상태에서도** 보인다(현행은 펼침에서만 렌더 — `app/(main)/home/page.tsx:1613-1618`)
+
+
+---
+
+## 13. 구현 현황 (Phase 0 완료 · 2026-07-25)
+
+히어로를 홈에 배선하기 전, **충돌 없이 만들 수 있는 부분**을 먼저 구현했다. `app/(main)/home/page.tsx`는 손대지 않았다(다른 세션의 미커밋 변경이 같은 구간에 있다).
+
+**신규 파일**
+
+| 파일 | 역할 |
+|---|---|
+| `lib/hero-brief.ts` | 파생 로직 — `toBrief`(hook → 조건+결론) · `prepNeedles` · `highlightHeadline` · `pickPrimaryPrep` · `pickEvidence` · `heroState` · `splitPrepText` |
+| `lib/hero-brief.test.ts` | 유닛 테스트 28건. 입력 문구는 `lib/prompts/report.ts` few-shot에서 가져왔다 |
+| `components/HeroDecisionBrief.tsx` | 상태 4종(normal·caution·safe·fallback) · 하이라이트 밴드 · 근거 칩 · 재시도 |
+| `components/PrepChecklistCard.tsx` | 행 3상태 + all-done · accent 타일 1개 · 피드백 슬롯 |
+| `components/PrepIcon.tsx` | 준비물 이름 → 아이콘 18px 매핑 |
+
+**토큰 2개 추가** — `app/globals.css`(라이트·다크) + `tailwind.config.ts`. 이름은 기존 `status-*` 계열에 맞춰 `--status-warn-tint` / `--status-good-tint`로 정했다(`state` vs `status` 혼동 방지).
+
+**검증**: `tsc --noEmit` 0 · ESLint 0 · vitest **298 passed**(기존 270 + 신규 28) · Tailwind 빌드로 신규 클래스 6종 생성 확인. `rounded-3xl`이 정확히 `1.5rem`(24px)이라 **Hero radius에 새 토큰이 필요 없다**는 것도 확인했다.
+
+**Phase 0에서 로직 결함 2건을 테스트가 잡았다**
+
+1. `pickPrimaryPrep`이 hook "**겉옷**"과 체크리스트 "**얇은 겉옷**"을 매칭하지 못했다. hook은 25자 제한 때문에 수식어를 떨구는데, 그러면 헤드라인 강조와 accent 타일이 **서로 다른 항목**을 가리켜 “결론과 실행이 같은 단어”라는 설계 전제가 깨진다. → 핵심 명사(마지막 어절)까지 후보에 넣는 `prepNeedles`를 만들어 **두 함수가 같은 규칙을 공유**하게 했다.
+2. 체크리스트 divider를 `button`에 `first:border-t-0`으로 걸어 **모든 행의 상단선이 사라졌다**(button은 li의 유일한 자식이라 `first:`가 항상 참). → `li`로 옮겼다.
+
+**Phase 1(배선) 남은 작업**: `home/page.tsx` 1450~1747 교체 · 로컬 `splitHook`·`checklistIcon` 사본 제거 · `DESIGN.md` Decisions Log 기록 · `/design-review` 픽셀 검수 → PR.

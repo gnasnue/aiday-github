@@ -340,6 +340,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
       <span class="meta-chip">브랜드 오렌지 1개 + 상태색 1개</span>
       <span class="meta-chip">이모지 UI 0건</span>
       <span class="meta-chip">지우 · 만 4세 · 서울 중구</span>
+      <span class="meta-chip"><a href="./2026-07-25-home-decision-brief-prototype.html" style="color:inherit;font-weight:700;text-decoration:underline">↗ 인터랙티브 프로토타입</a></span>
     </div>
     <nav class="toc">
       <a href="#s1">1. 완성 화면</a>
@@ -360,6 +361,15 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
     <p class="sec__no">01 / DELIVERABLE</p>
     <h2 class="sec__title">완성된 390px 모바일 홈 화면</h2>
     <p class="sec__lead">상태는 <b>caution</b>(주의). 실측 y좌표(프레임 상단 기준): Hero 하단 <b>433</b> · 근거 진입 행 하단 <b>509</b> · 체크리스트 헤더 하단 <b>599</b> · 첫 준비물 행 하단 <b>670</b> · 둘째 행 하단 <b>733</b>. 390×844 스탠드얼론(상태바 44 + BottomNav 64 제외 = 736px)에서 <b>두 번째 행까지</b>, 브라우저 크롬이 있는 Safari(가용 ≈671px)에서 <b>첫 행까지</b> 보인다 — 스크롤 없이 이해와 실행이 같은 화면에 있다.</p>
+
+    <table class="t" style="max-width:820px;margin:0 0 28px">
+      <thead><tr><th>콘텐츠 길이</th><th>Hero</th><th>체크리스트 헤더 하단</th><th>첫 준비물 행 하단</th><th>Safari (≈671)</th><th>스탠드얼론 (736)</th></tr></thead>
+      <tbody>
+        <tr><td><b>기본</b> — 헤드라인 2줄 · supporting 2줄 · context 1줄</td><td>272px</td><td>y=599</td><td>y=670</td><td><b>첫 행까지</b></td><td><b>둘째 행까지</b></td></tr>
+        <tr><td><b>계약 상한</b> — 헤드라인 3줄 · 이유 2줄 · 4자 이름</td><td>308px</td><td>y=635</td><td>y=707</td><td>헤더까지<br>(첫 행 밀림)</td><td><b>첫 행까지</b></td></tr>
+      </tbody>
+    </table>
+    <p class="sec__lead" style="margin:-14px 0 28px"><b>두 경우 모두 “체크할 것이 있다”는 신호(섹션 헤더 + 카운터)가 첫 화면에 남는다.</b> 최악의 문구 길이에서도 사라지는 것은 첫 행의 <i>내용</i>뿐이고 실행의 존재 자체는 사라지지 않는다 — 값은 <a href="./2026-07-25-home-decision-brief-prototype.html">프로토타입</a>이 렌더할 때마다 다시 실측한다.</p>
 
     <div class="board">
       <div class="stack">
@@ -1199,7 +1209,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
   </section>
 
   <p class="foot">
-    산출물 · <b>2026-07-25</b> — 이 문서는 시안·명세이며 <b>앱 코드는 변경하지 않았다</b>(<code>app/(main)/home/page.tsx</code>는 다른 세션이 작업 중). 승인 후 §9 표의 규칙 변경을 <code>DESIGN.md</code> Decisions Log에 기록하고, <code>docs/reviews/2026-07-25-home-decision-brief-figma-handoff.md</code>의 Figma 제작 지시서로 컴포넌트를 만든 뒤 구현한다. · 폰트가 Pretendard로 안 보이면 CDN 미로딩(시스템 폴백) 상태이니 자간·굵기 인상만 참고할 것.
+    산출물 · <b>2026-07-25</b> — 실제로 눌러볼 수 있는 구현 프로토타입은 <code>2026-07-25-home-decision-brief-prototype.html</code>(아이 전환·상태 5종·다크·치수 오버레이·계약 상한 스트레스). 이 문서는 시안·명세이며 <b>앱 코드는 변경하지 않았다</b>(<code>app/(main)/home/page.tsx</code>는 다른 세션이 작업 중). 승인 후 §9 표의 규칙 변경을 <code>DESIGN.md</code> Decisions Log에 기록하고, <code>docs/reviews/2026-07-25-home-decision-brief-figma-handoff.md</code>의 Figma 제작 지시서로 컴포넌트를 만든 뒤 구현한다. · 폰트가 Pretendard로 안 보이면 CDN 미로딩(시스템 폴백) 상태이니 자간·굵기 인상만 참고할 것.
   </p>
 </div>
 </body>
