@@ -54,7 +54,9 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // v21: 판단 순서·개인화 프롬프트 개편 + 자외선 강함 미만 입력 제외 (2026-07-20, docs/report-eval/)
 // v22: 질병명(비염·천식·아토피) 진단 단정 제거 — 민감 체질 표현으로 전환 (2026-07-21)
 // v23: 준비물 정합성 런타임 강제 — 근거 없는 마스크 제거·prep⊆checklist (2026-07-22)
-const reportCacheKey = (childId: string) => `aiday:report:v23:${childId}:${localDateStr()}`;
+// v24: hook 계약 개정(25자 1절 → 40자 "조건 — 행동" 2절). 구형 캐시의 짧은 hook은
+// 히어로에서 배지가 비거나 28px 결론이 6자만 담당하게 되므로 버전을 올려 무효화한다.
+const reportCacheKey = (childId: string) => `aiday:report:v24:${childId}:${localDateStr()}`;
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {

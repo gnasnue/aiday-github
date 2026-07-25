@@ -276,7 +276,7 @@ Border        상단 border/hairline 1px (첫 행은 없음)
   `maxw/hero-text 310`(=350−20−20) · `maxw/title 250`(=350−44−44−12) · `maxw/prep-text 226`(=350−20−24−12−36−12−20) · `maxw/detail-sub 246`.
 - **truncate(1줄 + …) 대상** — 계량·라벨성 단문만: 헤더 메타·위치 라벨·`DetailEntryRow/Sub`·`PrepChecklistRow/Title`·`EvidenceChip/Label`.
 - **wrap(Auto height) + truncate 절대 금지 대상** — 판단 문장 전부: `Hero/Context`·`Hero/Headline`·`Hero/Supporting`·`PrepChecklistRow/Reason`·`FeedbackRow/Question`. 판단을 자르면 제품이 사라진다.
-- **줄 수 계약(콘텐츠 상한)** — Headline ≤ 24자·최대 3줄(28px에서 한 줄 약 11자) / **Context ≤ 20자·1줄** / **Supporting ≤ 60자·2줄** / `PrepRow/Reason` ≤ 34자·2줄 / `DetailEntryRow/Sub` ≤ 18자·**1줄 고정**.
+- **줄 수 계약(콘텐츠 상한)** — Headline 15~24자·1~2줄(3줄까지 허용) — 28px 실측 한 줄 경계는 약 16자(AI 계약: 행동절 15~24자) / **Context ≤ 20자·1줄** / **Supporting ≤ 60자·2줄** / `PrepRow/Reason` ≤ 34자·2줄 / `DetailEntryRow/Sub` ≤ 18자·**1줄 고정**.
   이 수치는 임의값이 아니라 **첫 화면 보존선에서 역산한 값**이다(프로토타입 실측):
 
   | 콘텐츠 | Hero | 헤더 하단 | 첫 행 하단 | Safari(≈671) | 스탠드얼론(736) |

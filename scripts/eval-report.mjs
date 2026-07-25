@@ -290,7 +290,25 @@ export const runChecks = (s, r) => {
 
   add("message 존재", !!r.message, `${r.message?.length ?? 0}자`);
   add("message ≤ 250자", (r.message?.length ?? 0) <= 250, `${r.message?.length ?? 0}자`);
-  add("hook ≤ 25자", (r.hook?.length ?? 0) <= 25, `${r.hook?.length ?? 0}자: ${r.hook}`);
+  add("hook ≤ 40자", (r.hook?.length ?? 0) <= 40, `${r.hook?.length ?? 0}자: ${r.hook}`);
+  // hook 두 절 계약 — 홈 히어로가 앞 절은 작은 배지(13/600), 뒤 절은 큰 결론(28/800)으로
+  // 나눠 렌더한다(lib/hero-brief.ts toBrief). 절이 하나뿐이거나 한쪽이 뭉툭하면 화면에서
+  // 배지가 비거나 28px 대형 타입이 6자만 담당하게 된다.
+  const [hookCond, hookAct] = /\s+[—–-]\s+/.test(r.hook ?? "")
+    ? (r.hook ?? "").split(/\s+[—–-]\s+/, 2).map((x) => x.trim())
+    : ["", (r.hook ?? "").trim()];
+  add("hook 2절 구조(대시 구분)", !!hookCond, `조건 "${hookCond}" / 행동 "${hookAct}"`);
+  // 앞 절 = 1순위 지표명 + 등급·수치. 주의 지표가 없는 날은 "모처럼 무난한 날"류를 허용한다.
+  const METRIC = /미세먼지|초미세먼지|꽃가루|자외선|강수|소나기|비|일교차|폭염|한파|습도|바람|기온|도/;
+  const GRADE = /좋음|보통|나쁨|매우나쁨|높음|매우높음|낮음|강함|매우강함|폭염|한파|건조/;
+  const CALM = /무난|특이사항|걱정할/;
+  add(
+    "① 조건절 = 지표 + 등급·수치",
+    CALM.test(hookCond) || (METRIC.test(hookCond) && (/\d/.test(hookCond) || GRADE.test(hookCond))),
+    hookCond
+  );
+  // 뒤 절만 읽어도 할 일이 성립해야 한다 — 12자 미만은 "우산 챙겨요"처럼 뭉툭해진다.
+  add("② 행동절 ≥ 12자", hookAct.length >= 12, `${hookAct.length}자: ${hookAct}`);
   add("자외선 수치 미노출", !/자외선\s*(지수)?\s*\d/.test(body));
   add(
     "안심문장 없음",

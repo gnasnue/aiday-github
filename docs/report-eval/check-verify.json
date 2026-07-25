@@ -1,0 +1,301 @@
+{
+  "label": "check-verify",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-25T16:38:22.495Z",
+  "results": [
+    {
+      "id": "S01",
+      "title": "이슈 경합 — 천식 5세 (폭염+미세먼지 나쁨+자외선 강함)",
+      "focus": "우선순위: 호흡기 아이는 미세먼지가 1순위여야",
+      "expects": [
+        "미세먼지×호흡기 민감 연결이 중심 (질병명 없이)",
+        "야외활동 조정 또는 마스크",
+        "폭염·자외선은 부차적"
+      ],
+      "latencyMs": 5048,
+      "output": {
+        "hook": "미세먼지 나쁨 — 등원길 마스크 챙기고 야외활동 줄여주세요",
+        "message": "오늘 **미세먼지**와 **초미세먼지** 모두 **나쁨**이에요.\n호흡기가 민감한 준호는 **등원**(**08:30**)길 **마스크** 착용하고, **야외활동**(**11시~12:30**)은 짧게 줄이거나 실내로 바꿔주세요.\n**낮 33도**까지 오르고 **자외선**도 **강함**이라 **모자**와 **물통**도 챙겨주세요.",
+        "checklist": [
+          "😷 마스크",
+          "🧢 모자",
+          "💧 물통",
+          "🧴 선크림"
+        ],
+        "prep": {
+          "등원": [
+            "마스크"
+          ],
+          "야외활동": [
+            "마스크",
+            "모자",
+            "물통"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "183자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "183자"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "32자: 미세먼지 나쁨 — 등원길 마스크 챙기고 야외활동 줄여주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"미세먼지 나쁨\" / 행동 \"등원길 마스크 챙기고 야외활동 줄여주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "미세먼지 나쁨"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "22자: 등원길 마스크 챙기고 야외활동 줄여주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "무난한 날 — 무특이 4세, 이슈 없음",
+      "focus": "억지 이슈 생성 금지: 문제없는 날 무엇을 말하나",
+      "expects": [
+        "없는 문제를 만들지 않음",
+        "안심문장(~는 괜찮아요) 없음",
+        "그래도 오늘 결정에 유용한 한마디"
+      ],
+      "latencyMs": 3922,
+      "output": {
+        "hook": "모처럼 무난한 날 — 가벼운 옷차림으로 활동하기 좋아요",
+        "message": "오늘은 걱정할 환경이 없어요.\n**등원**(**08:30**) **23도**로 선선하고, **야외활동**(**11시**)엔 **25도**까지 올라 놀기 좋은 날씨예요.\n**하원**(**16시**)도 **26도**라 가벼운 옷차림이면 충분해요.",
+        "checklist": [
+          "👕 가벼운 옷",
+          "💧 물통",
+          "🧢 모자"
+        ],
+        "prep": {}
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "135자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "135자"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "30자: 모처럼 무난한 날 — 가벼운 옷차림으로 활동하기 좋아요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"모처럼 무난한 날\" / 행동 \"가벼운 옷차림으로 활동하기 좋아요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "모처럼 무난한 날"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "18자: 가벼운 옷차림으로 활동하기 좋아요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "title": "등원 시간 소나기 80% → 오후 갬",
+      "focus": "시간대 정확성: 우산은 등원에, 오후는 갬을 인지",
+      "expects": [
+        "등원 시간대에 우산·비 안내",
+        "하원을 비 오는 시간처럼 말하지 않음"
+      ],
+      "latencyMs": 4974,
+      "output": {
+        "hook": "등원길 강수확률 80% — 우산 챙겨 소나기 대비해주세요",
+        "message": "오늘 **등원**(**08:30**)길 **소나기** 확률이 **80%**로 높아요.\n**우산** 꼭 챙기고, 신발이 젖을 수 있으니 여벌 양말도 준비해주세요.\n비 그친 뒤 **야외활동**(**11시**)은 **26도** 구름많음으로 놀기 좋고, **하원**(**16시**) 땐 **28도**까지 오르니 가벼운 옷차림이면 충분해요.",
+        "checklist": [
+          "☂️ 우산",
+          "🧦 여벌 양말",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "등원": [
+            "우산",
+            "여벌 양말"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "185자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "185자"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "31자: 등원길 강수확률 80% — 우산 챙겨 소나기 대비해주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"등원길 강수확률 80%\" / 행동 \"우산 챙겨 소나기 대비해주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "등원길 강수확률 80%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "16자: 우산 챙겨 소나기 대비해주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}
