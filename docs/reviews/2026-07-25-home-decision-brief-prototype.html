@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AiDay 홈 · Decision Brief 인터랙티브 프로토타입</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+/* ============================================================
+   AiDay 홈 · Hero Decision Brief — 구현 프로토타입
+   · 화면은 데이터(BRIEFS)로 렌더된다 — 핸드오프 문서의 컴포넌트
+     프로퍼티(context/headline/support/evidence/isPrimary)가 그대로 입력이다.
+   · 클래스명 = Figma 레이어명 = React 컴포넌트명 (3자 일치)
+   · 명세: 2026-07-25-home-decision-brief-design.html
+   ============================================================ */
+:root{
+  --doc-bg:#EDEAE6; --doc-panel:#F6F4F2; --doc-fg:#26201B; --doc-muted:#6E655D;
+  --doc-line:#DED8D2; --doc-accent:#C2540A;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --doc-bg:#181513; --doc-panel:#211D1A; --doc-fg:#F3EFEA; --doc-muted:#A99F95; --doc-line:#332C27; --doc-accent:#F0A167; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--doc-bg);color:var(--doc-fg);
+  font-family:'Pretendard Variable',Pretendard,-apple-system,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased}
+
+.lab{max-width:1180px;margin:0 auto;padding:40px 24px 80px;display:flex;gap:40px;align-items:flex-start;flex-wrap:wrap}
+.lab__mast{flex:1 1 100%;max-width:760px;margin:0 0 12px}
+.lab__eyebrow{font-size:12px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--doc-accent);margin:0 0 12px}
+.lab__title{font-size:30px;line-height:1.25;font-weight:800;letter-spacing:-.025em;margin:0 0 12px}
+.lab__sub{font-size:15px;line-height:1.7;color:var(--doc-muted);margin:0}
+.lab__sub b{color:var(--doc-fg);font-weight:600}
+.lab__sub code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+
+/* 좌: 기기 스테이지 */
+.stage{position:relative;flex:0 0 auto;padding-right:130px}
+.stage__hint{font-size:12px;font-weight:600;color:var(--doc-muted);margin:10px 0 0;text-align:center;width:390px}
+
+/* 폴드 가이드 */
+.fold{position:absolute;left:-8px;width:406px;border-top:1px dashed rgba(194,84,10,.55);pointer-events:none;z-index:6;display:none}
+.fold::after{content:attr(data-label);position:absolute;right:0;top:-19px;font-size:10px;font-weight:700;
+  letter-spacing:.02em;color:#C2540A;background:var(--doc-bg);padding:1px 5px;border-radius:4px;white-space:nowrap}
+.is-overlay .fold{display:block}
+
+/* 치수 배지 */
+.measure{position:absolute;z-index:7;font-size:10px;font-weight:700;font-variant-numeric:tabular-nums;
+  color:#fff;background:#C2540A;padding:2px 5px;border-radius:4px;white-space:nowrap;pointer-events:none;display:none}
+.is-overlay .measure{display:block}
+.measure--ghost{background:rgba(38,32,27,.72)}
+
+/* 우: 컨트롤 패널 */
+.panel{flex:1 1 340px;min-width:320px;max-width:460px;display:flex;flex-direction:column;gap:22px}
+.ctl__label{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--doc-muted);margin:0 0 8px}
+.ctl__row{display:flex;gap:6px;flex-wrap:wrap}
+.ctl__btn{font:inherit;font-size:13px;font-weight:600;color:var(--doc-muted);background:var(--doc-panel);
+  border:1px solid var(--doc-line);border-radius:999px;padding:8px 14px;cursor:pointer;transition:all .18s ease-out}
+.ctl__btn:hover{color:var(--doc-fg)}
+.ctl__btn[aria-pressed="true"]{background:var(--doc-accent);border-color:var(--doc-accent);color:#fff}
+.ctl__note{font-size:12.5px;line-height:1.6;color:var(--doc-muted);margin:8px 0 0}
+.ctl__note b{color:var(--doc-fg)}
+
+.readout{background:var(--doc-panel);border:1px solid var(--doc-line);border-radius:14px;padding:16px 18px}
+.readout__h{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--doc-muted);margin:0 0 12px}
+.readout__grid{display:grid;grid-template-columns:1fr auto;gap:7px 12px;font-size:12.5px}
+.readout__k{color:var(--doc-muted)}
+.readout__v{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;font-weight:700;text-align:right}
+.readout__v[data-ok="1"]{color:#2f7a51}
+.readout__v[data-ok="0"]{color:#b04f20}
+.readout__foot{font-size:11.5px;line-height:1.6;color:var(--doc-muted);margin:12px 0 0;padding-top:12px;border-top:1px solid var(--doc-line)}
+
+/* ============================================================
+   제품 프레임 — 여기서부터 제품 토큰만 사용
+   ============================================================ */
+.frame{
+  --bg:#F6F4F2; --card:#FFFFFF; --ink:#26201B; --muted:#6E655D; --faint:#9C938A;
+  --line:#F0EDEA; --surface:#F3F0ED; --control:#E0D6C8;
+  --primary:#F97316; --accent:#C2540A; --tint:#FFEDDD;
+  --good:#3D8B5F; --good-bg:#DCEFE2; --warn:#D4622A; --info:#295EA3;
+  --state-caution:#FDF2E9; --state-safe:#EDF6F0;
+  --shadow-soft:0 1px 2px hsl(28 20% 15% / .04);
+  --shadow-card:0 1px 3px hsl(28 20% 15% / .05), 0 10px 28px -10px hsl(28 30% 20% / .12);
+  width:390px;background:var(--bg);color:var(--ink);border-radius:28px;position:relative;overflow:hidden;
+  box-shadow:0 1px 3px rgba(20,14,8,.08),0 24px 48px -24px rgba(20,14,8,.32);
+  font-size:16px;line-height:1.5;
+}
+.frame--dark{
+  --bg:#1B1715;--card:#252019;--ink:#F7F1EA;--muted:#B4A99E;--faint:#8A8078;
+  --line:#332C27;--surface:#2E2823;--control:#3D352E;
+  --primary:#FB8B3C;--accent:#F9A25E;--tint:#3B2A1C;
+  --good:#7CC79C;--good-bg:#1E2E24;--warn:#EE9163;--info:#7FAEE0;
+  --state-caution:#2B211A;--state-safe:#1E2A22;
+}
+.frame *{box-sizing:border-box}
+.frame svg{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.ic14{width:14px;height:14px}.ic16{width:16px;height:16px}.ic18{width:18px;height:18px}
+.ic20{width:20px;height:20px}.ic22{width:22px;height:22px}
+.frame .num{font-variant-numeric:tabular-nums;letter-spacing:-.03em;font-weight:600}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.frame :focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:8px}
+
+/* statusbar */
+.statusbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 24px}
+.statusbar__time{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.statusbar__right{display:flex;align-items:center;gap:6px;opacity:.85}
+.statusbar__right i{display:block;background:currentColor}
+.sb-sig{width:16px;height:10px;clip-path:polygon(0 70%,15% 70%,15% 100%,0 100%,28% 55%,43% 55%,43% 100%,28% 100%,43% 40%,58% 40%,58% 100%,43% 100%,58% 25%,73% 25%,73% 100%,58% 100%)}
+.sb-wifi{width:15px;height:10px;clip-path:polygon(50% 100%,0 45%,12% 33%,50% 70%,88% 33%,100% 45%)}
+.sb-bat{width:23px;height:11px;border:1.5px solid currentColor;border-radius:3px;background:none;position:relative}
+.sb-bat::after{content:"";position:absolute;inset:1.5px;width:68%;background:currentColor;border-radius:1px}
+
+/* HomeHeader */
+.home-header{padding:4px 20px 0}
+.home-header__row1{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:44px}
+.profile-seg{display:flex;align-items:center;gap:2px;background:var(--surface);border-radius:999px;padding:4px}
+.profile-seg__tab{border:0;background:none;font:inherit;font-size:14px;font-weight:500;color:var(--muted);
+  min-height:36px;padding:0 14px;border-radius:999px;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1)}
+.profile-seg__tab.is-on{background:var(--card);color:var(--ink);font-weight:700;box-shadow:var(--shadow-soft)}
+.profile-seg__add{border:1px dashed var(--control);background:none;font:inherit;font-size:14px;font-weight:500;
+  color:var(--muted);min-height:36px;padding:0 12px;border-radius:999px;margin-left:8px;display:inline-flex;align-items:center;gap:4px;cursor:pointer}
+.loc-btn{border:0;background:none;font:inherit;font-size:13px;font-weight:500;color:var(--muted);
+  min-height:44px;display:inline-flex;align-items:center;gap:3px;cursor:pointer;white-space:nowrap}
+.home-header__row2{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:8px 0 12px}
+.home-header__titleblock{min-width:0;flex:1}
+.home-header__title{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.35;margin:0;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-header__meta{font-size:13px;font-weight:500;line-height:1.45;color:var(--muted);margin:4px 0 0;word-break:keep-all}
+.home-header__actions{display:flex;gap:0;flex:none;margin:-8px -12px 0 0}
+.icon-btn{width:44px;height:44px;border:0;background:none;border-radius:14px;display:grid;place-items:center;
+  color:var(--muted);cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1)}
+.icon-btn:hover{background:rgba(38,32,27,.05);color:var(--ink)}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn.is-spinning svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.home-main{padding:0 20px 8px}
+
+/* HeroDecisionBrief */
+.hero{position:relative;background:var(--card);border-radius:24px;padding:20px;box-shadow:var(--shadow-card)}
+.hero__context{display:inline-flex;align-items:center;gap:8px;max-width:100%;
+  background:var(--state-caution);color:var(--ink);border-radius:999px;padding:8px 12px;margin:0;
+  font-size:13px;font-weight:600;line-height:1.35;letter-spacing:-.01em;word-break:keep-all}
+.hero__context svg{color:var(--warn);flex:none}
+.hero[data-state="normal"] .hero__context,
+.hero[data-state="fallback"] .hero__context{background:var(--surface)}
+.hero[data-state="normal"] .hero__context svg,
+.hero[data-state="fallback"] .hero__context svg{color:var(--muted)}
+.hero[data-state="safe"] .hero__context{background:var(--state-safe)}
+.hero[data-state="safe"] .hero__context svg{color:var(--good)}
+.hero__headline{font-size:28px;font-weight:800;letter-spacing:-.028em;line-height:1.3;margin:16px 0 0;
+  color:var(--ink);word-break:keep-all}
+/* 키프레이즈 강조 = 잉크 유지 + 하이라이트 밴드(색이 아니라 형태) */
+.hero__headline b{font-weight:800;color:var(--ink);
+  box-shadow:inset 0 -0.28em 0 var(--tint);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.hero[data-state="fallback"] .hero__headline{font-size:20px;font-weight:700;letter-spacing:-.02em;line-height:1.4}
+.hero[data-state="fallback"] .hero__headline b{box-shadow:none;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.hero__support{font-size:15px;font-weight:400;line-height:1.66;color:var(--muted);margin:8px 0 0;word-break:keep-all}
+.hero__support b{font-weight:600;color:var(--ink)}
+.hero__evidence{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 0;padding:0;list-style:none}
+.evidence-chip{display:inline-flex;align-items:center;gap:4px;background:var(--surface);border-radius:999px;padding:8px 12px;white-space:nowrap}
+.evidence-chip__label{font-size:13px;font-weight:500;color:var(--muted);letter-spacing:-.01em}
+.evidence-chip__value{font-size:13px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.evidence-chip__value--num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.evidence-chip__dot{width:4px;height:4px;border-radius:50%;flex:none;margin-left:2px}
+.evidence-chip[data-tone="warn"] .evidence-chip__value{color:var(--warn)}
+.evidence-chip[data-tone="warn"] .evidence-chip__dot{background:var(--warn)}
+.evidence-chip[data-tone="good"] .evidence-chip__value{color:var(--good)}
+.evidence-chip[data-tone="good"] .evidence-chip__dot{background:var(--good)}
+.hero__retry{display:inline-flex;align-items:center;gap:6px;margin:16px 0 0;padding:0 12px;height:44px;
+  border:0;border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;font-size:14px;font-weight:600;cursor:pointer}
+.hero__retry:active{transform:scale(.98)}
+
+/* DetailEntryRow */
+.detail-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--card);border:0;
+  border-radius:18px;padding:12px;margin:8px 0 0;box-shadow:var(--shadow-soft);cursor:pointer;font:inherit;
+  color:var(--ink);transition:all .2s cubic-bezier(.4,0,.2,1);min-height:64px}
+.detail-row:active{transform:scale(.995);background:var(--surface)}
+.icon-tile{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;flex:none;background:var(--surface);color:var(--muted);
+  transition:all .2s cubic-bezier(.4,0,.2,1)}
+.icon-tile--accent{background:var(--tint);color:var(--accent)}
+.detail-row__body{min-width:0;flex:1}
+.detail-row__label{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em}
+.detail-row__sub{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.detail-row__chev{color:var(--faint);flex:none}
+
+/* SectionHeader + Checklist */
+.checklist-card{background:var(--card);border-radius:20px;padding:20px 20px 8px;box-shadow:var(--shadow-soft);margin:24px 0 0;
+  transition:background .3s ease-out}
+.checklist-card[data-all-done="1"]{background:var(--good-bg)}
+.checklist-card[data-all-done="1"] .icon-tile{background:rgba(255,255,255,.72)}
+.checklist-card[data-all-done="1"] .feedback{border-top-color:rgba(38,32,27,.08)}
+.checklist-card[data-all-done="1"] .feedback__btn{background:rgba(255,255,255,.72)}
+.section-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 10px}
+.section-header__title{font-size:17px;font-weight:700;letter-spacing:-.015em;margin:0}
+.section-header__meta{font-size:13px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;flex:none}
+.section-header__meta b{color:var(--ink);font-weight:700}
+.section-header__meta--done{color:var(--good)}
+.checklist{list-style:none;margin:0;padding:0}
+.checklist__row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:none;border:0;
+  font:inherit;color:inherit;padding:8px 0;min-height:56px;cursor:pointer;border-top:1px solid var(--line);
+  transition:all .2s cubic-bezier(.4,0,.2,1);border-radius:12px}
+.checklist li:first-child .checklist__row{border-top:0}
+.checklist__row:active{background:var(--surface);transform:scale(.99)}
+.checkbox{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--control);background:var(--card);
+  display:grid;place-items:center;flex:none;color:transparent;transition:all .2s cubic-bezier(.4,0,.2,1)}
+.checklist__body{min-width:0;flex:1}
+.checklist__title{display:block;font-size:16px;font-weight:500;letter-spacing:-.01em;transition:color .2s ease-out}
+.checklist__reason{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px;word-break:keep-all}
+.checklist__row[aria-pressed="true"] .checkbox{border-color:var(--good);background:var(--good);color:#fff}
+.checklist__row[aria-pressed="true"] .icon-tile{background:var(--surface);color:var(--faint)}
+.checklist__row[aria-pressed="true"] .checklist__title{color:var(--muted);text-decoration:line-through;
+  text-decoration-color:var(--faint);text-decoration-thickness:1.5px;text-underline-offset:2px}
+.checklist__row[aria-pressed="true"] .checklist__reason{color:var(--muted)}
+
+/* FeedbackRow */
+.feedback{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0 0;padding:16px 4px 0;border-top:1px solid var(--line)}
+.feedback__q{font-size:13px;font-weight:500;color:var(--muted);margin:0}
+.feedback__actions{display:flex;gap:8px;flex:none}
+.feedback__btn{width:36px;height:36px;border:0;border-radius:12px;background:var(--surface);color:var(--muted);
+  display:grid;place-items:center;cursor:pointer;transition:all .2s cubic-bezier(.4,0,.2,1)}
+.feedback__btn:hover{color:var(--ink)}
+.feedback__btn.is-on{background:var(--tint);color:var(--accent)}
+
+/* BottomNav */
+.bottom-nav{display:flex;justify-content:space-around;align-items:center;background:var(--card);
+  border-top:1px solid var(--line);padding:8px 4px 12px;margin-top:20px}
+.bottom-nav__item{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--faint)}
+.bottom-nav__item.is-on{color:var(--primary)}
+
+/* 로딩 스켈레톤 */
+.skel{display:block;background:var(--surface);border-radius:8px}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="m16 6-4-4-4 4"/><path d="M12 2v13"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M20 10c0 5-5.5 10.2-7.4 11.8a1 1 0 0 1-1.2 0C9.5 20.2 4 15 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-thermo" viewBox="0 0 24 24"><path d="M14 14.76V4.5a2.5 2.5 0 0 0-5 0v10.26a4.5 4.5 0 1 0 5 0z"/></symbol>
+  <symbol id="i-cloudsun" viewBox="0 0 24 24"><path d="M12 2v2M5.22 5.22l1.42 1.42M2 12h2M18.36 5.22l-1.42 1.42"/><path d="M15.94 9.06A4 4 0 1 0 8.5 11"/><path d="M13 22H7a4 4 0 0 1 0-8 5 5 0 0 1 9.7-1.3A3.5 3.5 0 1 1 17.5 22Z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+  <symbol id="i-leaf" viewBox="0 0 24 24"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></symbol>
+  <symbol id="i-jacket" viewBox="0 0 24 24"><path d="M12 3 8 4.5 4 6a2 2 0 0 0-1.2 2.1l.7 4.2a1 1 0 0 0 1 .8h1.1V20a1 1 0 0 0 1 1h10.8a1 1 0 0 0 1-1v-6.9h1.1a1 1 0 0 0 1-.8l.7-4.2A2 2 0 0 0 20 6l-4-1.5L12 3Z"/><path d="M12 3v18"/></symbol>
+  <symbol id="i-shirt" viewBox="0 0 24 24"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M7 3h10l-1 5H8L7 3Z"/><path d="M8 8h8l-.8 12a1 1 0 0 1-1 1H9.8a1 1 0 0 1-1-1L8 8Z"/><path d="M8.4 14h7.2"/></symbol>
+  <symbol id="i-mask" viewBox="0 0 24 24"><path d="M6 8h12a1 1 0 0 1 1 1v2.5a6.5 6.5 0 0 1-6.5 6.5h-1A6.5 6.5 0 0 1 5 11.5V9a1 1 0 0 1 1-1Z"/><path d="M5.6 8.6 2.5 7M18.4 8.6 21.5 7"/><path d="M8 12h8M9.5 15h5"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></symbol>
+  <symbol id="i-dn" viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+  <symbol id="i-wind" viewBox="0 0 24 24"><path d="M12.8 19.6A2 2 0 1 0 14 16H2"/><path d="M17.5 8a2.5 2.5 0 1 1 2 4H2"/><path d="M9.8 4.4A2 2 0 1 1 11 8H2"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+</svg>
+
+<div class="lab" id="lab">
+  <header class="lab__mast">
+    <p class="lab__eyebrow">AiDay · Interactive Prototype · 2026-07-25</p>
+    <h1 class="lab__title">홈 Decision Brief — 데이터로 렌더되는 구현 시안</h1>
+    <p class="lab__sub">정적 목업이 아니다. 화면 전체가 <code>BRIEFS</code> 데이터 객체 하나로 그려지며, 그 키는 핸드오프 문서의 컴포넌트 프로퍼티(<code>context · headline · support · evidence · isPrimary</code>)와 <b>1:1로 같다</b>. 아이를 바꾸면 같은 날씨에서 <b>판단·준비물·강조 대상이 전부 달라진다</b> — 이 제품의 핵심 주장(체질 개인화)이 레이아웃에서 실제로 작동하는지 보는 화면이다. 우측 계측값은 렌더할 때마다 실측된다.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="frame" id="app"></div>
+    <div class="fold" id="foldA" data-label="Safari 크롬 포함 가용 하한 671px"></div>
+    <div class="fold" id="foldB" data-label="스탠드얼론(PWA) 가용 하한 736px"></div>
+    <div id="measures"></div>
+    <p class="stage__hint">체크리스트·피드백·새로고침은 실제로 동작한다 — 눌러볼 수 있다</p>
+  </div>
+
+  <div class="panel">
+    <div>
+      <p class="ctl__label">아이 (같은 날씨 · 다른 체질)</p>
+      <div class="ctl__row" id="ctlChild"></div>
+      <p class="ctl__note" id="childNote"></p>
+    </div>
+    <div>
+      <p class="ctl__label">Hero 상태</p>
+      <div class="ctl__row" id="ctlState"></div>
+    </div>
+    <div>
+      <p class="ctl__label">검증 모드</p>
+      <div class="ctl__row" id="ctlMode"></div>
+      <p class="ctl__note"><b>치수·폴드</b>는 Figma dev mode처럼 실측 배지와 첫 화면 경계선을 얹는다. <b>계약 상한 텍스트</b>는 핸드오프에 명시한 문구 상한(헤드라인 24자·3줄 / context 1줄 / supporting 2줄 / 이유 2줄 / 4자 이름)을 꽉 채운 최악 케이스다.</p>
+    </div>
+
+    <div class="readout">
+      <p class="readout__h">실시간 계측 (렌더 직후 측정)</p>
+      <div class="readout__grid" id="readout"></div>
+      <p class="readout__foot">명세: <code>2026-07-25-home-decision-brief-design.html</code> · 제작 지시서: <code>…-figma-handoff.md</code></p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   1. 데이터 — 컴포넌트 프로퍼티가 그대로 입력이 된다
+   · headline의 **…** 구간이 키프레이즈(하이라이트 밴드)
+   · 조사는 lib/prompts/report.ts 규칙: 받침 없으면 "지우는", 있으면 "도윤이는"
+   ============================================================ */
+const CHILDREN = {
+  jiwoo: { name:'지우', age:'만 4세', topic:'지우는', subj:'지우가', trait:'땀이 많은 편',
+           schedule:'등원 08:30', note:'프로필 체질 = <b>땀 많음</b>. 꽃가루 높음이 있어도 호흡기 민감이 아니므로 <code>isCriticalPrep</code>의 마스크 강조 조건에 걸리지 않는다 → 1순위는 일교차.' },
+  doyun: { name:'도윤', age:'만 5세', topic:'도윤이는', subj:'도윤이가', trait:'호흡기가 민감한 편',
+           schedule:'등원 09:00', note:'프로필 체질 = <b>호흡기 민감</b>. 같은 날씨인데 꽃가루 높음이 1순위로 올라가고, <code>isCriticalPrep</code>이 마스크를 긴급으로 판정해 <b>강조 타일이 마스크로 이동</b>한다.' }
+};
+
+const ICON = { jacket:'i-jacket', shirt:'i-shirt', cup:'i-cup', mask:'i-mask' };
+
+/* 같은 날: 7월 25일 금요일 · 아침 19°C → 낮 28°C · 일교차 9°C · 꽃가루 높음 */
+const BRIEFS = {
+  jiwoo: {
+    caution: {
+      icon:'i-thermo',
+      context:'등원·야외활동 시간에 일교차가 커요',
+      headline:'얇게 입히고\n**겉옷**을 챙겨주세요',
+      support:'지우가 땀을 많이 흘리는 편이라, 산책 후 갈아입을 <b>여벌 옷</b>도 함께 챙겨주면 좋아요.',
+      evidence:[{l:'일교차',v:'9°C',t:'warn'},{l:'현재',v:'19°C'},{l:'꽃가루',v:'높음',t:'warn'}],
+      prep:[
+        {t:'얇은 겉옷', r:'아침 19°C, 낮엔 벗기 쉽게', i:'jacket', primary:true},
+        {t:'여벌 옷',   r:'산책 후 땀 갈아입기',       i:'shirt'},
+        {t:'마스크',    r:'꽃가루 높음, 등원길에',     i:'mask'},
+        {t:'물통',      r:'땀 많은 날 수분 보충',      i:'cup'}
+      ]
+    }
+  },
+  doyun: {
+    caution: {
+      icon:'i-leaf',
+      context:'꽃가루가 높고 일교차도 커요',
+      headline:'**마스크** 챙기고\n얇게 입혀주세요',
+      support:'도윤이는 호흡기가 민감한 편이라, 꽃가루가 높은 날엔 등원길 <b>마스크</b>가 먼저예요.',
+      evidence:[{l:'꽃가루',v:'높음',t:'warn'},{l:'일교차',v:'9°C',t:'warn'},{l:'현재',v:'19°C'}],
+      prep:[
+        {t:'마스크',    r:'꽃가루 높음, 등원길에',     i:'mask', primary:true},
+        {t:'얇은 겉옷', r:'아침 19°C, 낮엔 벗기 쉽게', i:'jacket'},
+        {t:'물통',      r:'실내 활동 늘 때 수분 보충', i:'cup'}
+      ]
+    }
+  }
+};
+
+/* normal·safe·fallback은 날씨가 만드는 상태라 아이 이름만 템플릿으로 들어간다 */
+const SHARED = (c) => ({
+  normal: {
+    icon:'i-cloudsun',
+    context:'오늘은 특별히 주의할 환경이 없어요',
+    headline:'가볍게 입히고\n**물통**을 챙겨주세요',
+    support:`아침 <b>21°C</b>에서 낮 <b>26°C</b>까지 올라요. 얇은 겉옷 하나면 ${c.topic} 벗고 입기 편해요.`,
+    evidence:[{l:'현재',v:'21°C'},{l:'일교차',v:'5°C'},{l:'강수',v:'없음'}],
+    prep:[
+      {t:'물통',      r:'야외활동 때 수분 보충',     i:'cup', primary:true},
+      {t:'얇은 겉옷', r:'아침 21°C, 낮엔 벗기 쉽게', i:'jacket'},
+      {t:'여벌 옷',   r:'놀이 후 갈아입기',          i:'shirt'}
+    ]
+  },
+  safe: {
+    icon:'i-sun',
+    context:'야외활동하기 좋은 날이에요',
+    headline:'오전에 **산책**을 다녀오세요',
+    support:`낮부터 흐려져요. ${c.topic} 물통과 여벌 옷만 챙기면 충분해요.`,
+    evidence:[{l:'현재',v:'22°C'},{l:'일교차',v:'4°C'},{l:'야외활동',v:'좋음',t:'good'}],
+    prep:[
+      {t:'물통',      r:'산책 때 수분 보충',      i:'cup', primary:true},
+      {t:'여벌 옷',   r:'흙·땀 묻으면 갈아입기',  i:'shirt'},
+      {t:'얇은 겉옷', r:'오전엔 아직 서늘해요',   i:'jacket'}
+    ]
+  },
+  /* AI 실패·한도 → 규칙 엔진 결과. 결론 타입을 20/700으로 낮추고 강조 타일을 만들지 않는다 */
+  fallback: {
+    icon:'i-cloudsun',
+    context:'기상청 예보 기준 기본 추천',
+    headline:'아침 **19°C**, 낮 **28°C**까지 올라요',
+    support:`일교차가 큰 날이라 얇게 입히고 겉옷을 챙기는 편이 좋아요. ${c.name} 체질을 반영한 판단은 잠시 후 다시 시도해 주세요.`,
+    evidence:[{l:'일교차',v:'9°C',t:'warn'},{l:'현재',v:'19°C'}],
+    retry:true,
+    prep:[
+      {t:'얇은 겉옷', r:'일교차 9°C',      i:'jacket'},
+      {t:'여벌 옷',   r:'기본 준비물',      i:'shirt'},
+      {t:'물통',      r:'기본 준비물',      i:'cup'}
+    ]
+  }
+});
+
+/* 긴 텍스트 스트레스 — 실서비스에서 나올 수 있는 최장 조합 */
+const STRESS = {
+  child:{ name:'박도윤성', age:'만 5세', topic:'박도윤성이는', subj:'박도윤성이가', schedule:'등원 09:00',
+          note:'4자 이름 + <b>계약 상한</b>을 꽉 채운 문구. 카드가 Hug로 늘어나기만 하고 잘리지 않는지, 그리고 첫 화면 경계가 어디까지 밀리는지 본다.' },
+  brief:{
+    icon:'i-thermo',
+    context:'등원·하원 모두 일교차가 커요',
+    headline:'바람이 차요,\n**방한 겉옷**과 목수건을\n챙겨주세요',
+    support:'박도윤성이는 호흡기가 민감해 찬 바람을 오래 맞지 않게 해주세요.',
+    evidence:[{l:'일교차',v:'12°C',t:'warn'},{l:'체감',v:'-3°C',t:'warn'},{l:'바람',v:'강함',t:'warn'}],
+    prep:[
+      {t:'방한 겉옷', r:'체감 -3°C, 바람이 강해 목까지 덮이는 옷', i:'jacket', primary:true},
+      {t:'여벌 옷',   r:'실내 활동 후 땀이 식으며 체온이 떨어질 수 있어요', i:'shirt'},
+      {t:'마스크',    r:'찬 바람 막고 꽃가루 차단',  i:'mask'},
+      {t:'물통',      r:'건조한 날 수분 보충',        i:'cup'}
+    ]
+  }
+};
+
+/* ============================================================
+   2. 상태
+   ============================================================ */
+const S = { child:'jiwoo', state:'caution', dark:false, overlay:false, stress:false,
+            done:new Set(), rated:null, refreshing:false };
+
+const STATES = [['caution','주의'],['normal','평상'],['safe','기회'],['fallback','폴백'],['loading','로딩']];
+
+/* ============================================================
+   3. 렌더
+   ============================================================ */
+const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+/* **…** → <b> (키프레이즈). 데이터의 <b> 태그는 그대로 통과시킨다 */
+const key = (s) => s.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\n/g, '<br>');
+
+function currentBrief(){
+  const c = child();
+  if (S.stress) return STRESS.brief;
+  const own = (BRIEFS[S.child] || {})[S.state];
+  return own || SHARED(c)[S.state] || SHARED(c).normal;
+}
+function child(){
+  if (S.stress) return STRESS.child;
+  return CHILDREN[S.child];
+}
+
+function heroHTML(){
+  if (S.state === 'loading' && !S.stress) return `
+    <section class="hero" data-state="loading" aria-busy="true">
+      <span class="skel" style="width:196px;height:36px;border-radius:999px"></span>
+      <span class="skel" style="width:100%;height:26px;margin-top:16px"></span>
+      <span class="skel" style="width:64%;height:26px;margin-top:10px"></span>
+      <span class="skel" style="width:100%;height:16px;margin-top:16px"></span>
+      <span class="skel" style="width:78%;height:16px;margin-top:8px"></span>
+      <div style="display:flex;gap:8px;margin-top:18px">
+        <span class="skel" style="width:94px;height:36px;border-radius:999px"></span>
+        <span class="skel" style="width:81px;height:36px;border-radius:999px"></span>
+        <span class="skel" style="width:94px;height:36px;border-radius:999px"></span>
+      </div>
+    </section>`;
+
+  const b = currentBrief();
+  const state = S.stress ? 'caution' : S.state;
+  const chips = b.evidence.map(e => `
+    <li class="evidence-chip"${e.t ? ` data-tone="${e.t}"` : ''}>
+      <span class="evidence-chip__label">${esc(e.l)}</span>
+      <span class="evidence-chip__value${/\d/.test(e.v) ? ' evidence-chip__value--num' : ''}">${esc(e.v)}</span>
+      ${e.t ? '<span class="evidence-chip__dot"></span>' : ''}
+    </li>`).join('');
+
+  return `
+    <section class="hero" data-state="${state}" aria-labelledby="hl">
+      <p class="hero__context"><svg class="ic16"><use href="#${b.icon}"/></svg>${esc(b.context)}</p>
+      <h2 class="hero__headline" id="hl">${key(esc(b.headline))}</h2>
+      <p class="hero__support">${b.support}</p>
+      <ul class="hero__evidence">${chips}</ul>
+      ${b.retry ? `<button class="hero__retry" data-act="retry"><svg class="ic16"><use href="#i-refresh"/></svg>AI 판단 다시 받기</button>` : ''}
+    </section>`;
+}
+
+function checklistHTML(){
+  if (S.state === 'loading' && !S.stress) return `
+    <section class="checklist-card">
+      <div class="section-header"><span class="skel" style="width:88px;height:20px"></span><span class="skel" style="width:32px;height:16px"></span></div>
+      <div style="padding:8px 0"><span class="skel" style="width:100%;height:46px;border-radius:12px"></span></div>
+      <div style="padding:8px 0"><span class="skel" style="width:100%;height:46px;border-radius:12px"></span></div>
+    </section>`;
+
+  const b = currentBrief();
+  const items = b.prep;
+  const doneCount = items.filter(it => S.done.has(it.t)).length;
+  const allDone = doneCount === items.length;
+
+  const rows = items.map(it => {
+    const on = S.done.has(it.t);
+    return `<li>
+      <button class="checklist__row" data-act="toggle" data-key="${esc(it.t)}" aria-pressed="${on}">
+        <span class="checkbox"><svg class="ic14" style="stroke-width:3"><use href="#i-check"/></svg></span>
+        <span class="icon-tile${it.primary ? ' icon-tile--accent' : ''}"><svg class="ic18"><use href="#${ICON[it.i]}"/></svg></span>
+        <span class="checklist__body">
+          <span class="checklist__title">${esc(it.t)}</span>
+          <span class="checklist__reason">${esc(it.r)}</span>
+        </span>
+      </button></li>`;
+  }).join('');
+
+  const meta = allDone
+    ? `<p class="section-header__meta section-header__meta--done" aria-live="polite">준비 끝</p>`
+    : `<p class="section-header__meta" aria-live="polite"><b>${doneCount}</b> / ${items.length}</p>`;
+
+  const fbQ = S.rated ? '의견 감사해요' : '이 판단이 도움이 되었나요?';
+
+  return `
+    <section class="checklist-card"${allDone ? ' data-all-done="1"' : ''}>
+      <div class="section-header">
+        <h2 class="section-header__title">오늘 챙길 것</h2>
+        ${meta}
+      </div>
+      <ul class="checklist">${rows}</ul>
+      <div class="feedback">
+        <p class="feedback__q">${fbQ}</p>
+        <div class="feedback__actions">
+          <button class="feedback__btn${S.rated==='up' ? ' is-on' : ''}" data-act="rate" data-v="up" aria-label="도움이 됐어요" aria-pressed="${S.rated==='up'}"><svg class="ic16"><use href="#i-up"/></svg></button>
+          <button class="feedback__btn${S.rated==='down' ? ' is-on' : ''}" data-act="rate" data-v="down" aria-label="아쉬웠어요" aria-pressed="${S.rated==='down'}"><svg class="ic16"><use href="#i-dn"/></svg></button>
+        </div>
+      </div>
+    </section>`;
+}
+
+function render(){
+  const c = child();
+  const app = document.getElementById('app');
+  app.className = 'frame' + (S.dark ? ' frame--dark' : '');
+
+  const tabs = S.stress
+    ? `<button class="profile-seg__tab is-on" aria-pressed="true">${esc(c.name)}</button>`
+    : Object.entries(CHILDREN).map(([k,v]) =>
+        `<button class="profile-seg__tab${k===S.child ? ' is-on' : ''}" data-act="child" data-k="${k}" aria-pressed="${k===S.child}">${v.name}</button>`).join('');
+
+  app.innerHTML = `
+    <div class="statusbar">
+      <span class="statusbar__time">9:41</span>
+      <span class="statusbar__right"><i class="sb-sig"></i><i class="sb-wifi"></i><i class="sb-bat"></i></span>
+    </div>
+
+    <header class="home-header">
+      <div class="home-header__row1">
+        <div class="profile-seg" role="group" aria-label="아이 선택">
+          ${tabs}
+          <button class="profile-seg__add" aria-label="아이 추가"><svg class="ic14"><use href="#i-plus"/></svg>추가</button>
+        </div>
+        <button class="loc-btn"><svg class="ic14"><use href="#i-pin"/></svg><span>서울 중구</span><svg class="ic14"><use href="#i-down"/></svg></button>
+      </div>
+      <div class="home-header__row2">
+        <div class="home-header__titleblock">
+          <h1 class="home-header__title">${esc(c.name)}의 오늘 준비</h1>
+          <p class="home-header__meta"><span class="num">7월 25일</span> 금요일 · ${S.state==='fallback' ? '기본 추천' : 'AI 판단'} <span class="num">오전 6:20</span></p>
+        </div>
+        <div class="home-header__actions">
+          <button class="icon-btn${S.refreshing ? ' is-spinning' : ''}" data-act="refresh" aria-label="리포트 새로고침"><svg class="ic20"><use href="#i-refresh"/></svg></button>
+          <button class="icon-btn" data-act="noop" aria-label="리포트 공유"><svg class="ic20"><use href="#i-share"/></svg></button>
+        </div>
+      </div>
+    </header>
+
+    <main class="home-main">
+      ${heroHTML()}
+      ${S.state==='loading' && !S.stress ? '' : `
+      <button class="detail-row" data-act="noop">
+        <span class="icon-tile"><svg class="ic18"><use href="#i-list"/></svg></span>
+        <span class="detail-row__body">
+          <span class="detail-row__label">판단 근거 자세히 보기</span>
+          <span class="detail-row__sub">${esc(c.name)} 체질 · ${esc(c.schedule.replace(/(\d)/g,'$1'))} 기준</span>
+        </span>
+        <svg class="ic20 detail-row__chev"><use href="#i-right"/></svg>
+      </button>`}
+      ${checklistHTML()}
+    </main>
+
+    <nav class="bottom-nav">
+      <span class="bottom-nav__item is-on"><svg class="ic22"><use href="#i-home"/></svg>홈</span>
+      <span class="bottom-nav__item"><svg class="ic22"><use href="#i-wind"/></svg>환경정보</span>
+      <span class="bottom-nav__item"><svg class="ic22"><use href="#i-shirt"/></svg>옷차림</span>
+      <span class="bottom-nav__item"><svg class="ic22"><use href="#i-heart"/></svg>건강팁</span>
+      <span class="bottom-nav__item"><svg class="ic22"><use href="#i-user"/></svg>마이</span>
+    </nav>`;
+
+  document.getElementById('childNote').innerHTML = c.note || '';
+  syncControls();
+  requestAnimationFrame(measure);
+}
+
+/* ============================================================
+   4. 컨트롤
+   ============================================================ */
+function syncControls(){
+  document.getElementById('lab').classList.toggle('is-overlay', S.overlay);
+  document.querySelectorAll('#ctlChild [data-k]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === S.child && !S.stress)));
+  document.querySelectorAll('#ctlState [data-s]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === S.state)));
+  document.querySelectorAll('#ctlMode [data-m]').forEach(b => b.setAttribute('aria-pressed', String(!!S[b.dataset.m])));
+}
+
+function buildControls(){
+  document.getElementById('ctlChild').innerHTML = Object.entries(CHILDREN)
+    .map(([k,v]) => `<button class="ctl__btn" data-k="${k}" aria-pressed="false">${v.name} · ${v.trait}</button>`).join('');
+  document.getElementById('ctlState').innerHTML = STATES
+    .map(([s,label]) => `<button class="ctl__btn" data-s="${s}" aria-pressed="false">${label}</button>`).join('');
+  document.getElementById('ctlMode').innerHTML =
+    `<button class="ctl__btn" data-m="dark" aria-pressed="false">다크 모드</button>
+     <button class="ctl__btn" data-m="overlay" aria-pressed="false">치수·폴드</button>
+     <button class="ctl__btn" data-m="stress" aria-pressed="false">계약 상한 텍스트</button>`;
+
+  document.getElementById('ctlChild').onclick = (e) => {
+    const b = e.target.closest('[data-k]'); if(!b) return;
+    S.child = b.dataset.k; S.stress = false; S.done.clear(); render();
+  };
+  document.getElementById('ctlState').onclick = (e) => {
+    const b = e.target.closest('[data-s]'); if(!b) return;
+    S.state = b.dataset.s; S.done.clear(); render();
+  };
+  document.getElementById('ctlMode').onclick = (e) => {
+    const b = e.target.closest('[data-m]'); if(!b) return;
+    S[b.dataset.m] = !S[b.dataset.m];
+    if (b.dataset.m === 'stress') { S.done.clear(); if (S.stress) S.state = 'caution'; }
+    render();
+  };
+
+  /* 프레임 안 인터랙션 — 이벤트 위임 */
+  document.getElementById('app').addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act]'); if(!t) return;
+    const act = t.dataset.act;
+    if (act === 'toggle') {
+      const k = t.dataset.key;
+      S.done.has(k) ? S.done.delete(k) : S.done.add(k);
+      render();
+    } else if (act === 'rate') {
+      if (!S.rated) { S.rated = t.dataset.v; render(); }
+    } else if (act === 'child') {
+      S.child = t.dataset.k; S.done.clear(); render();
+    } else if (act === 'refresh' || act === 'retry') {
+      if (S.refreshing) return;
+      S.refreshing = true;
+      const back = S.state;
+      S.state = 'loading'; render();
+      setTimeout(() => {
+        S.refreshing = false;
+        S.state = (back === 'fallback' || back === 'loading') ? 'caution' : back;
+        render();
+      }, 900);
+    }
+  });
+}
+
+/* ============================================================
+   5. 실측 — 렌더할 때마다 다시 잰다 (Figma dev mode 대응)
+   ============================================================ */
+function measure(){
+  const app = document.getElementById('app');
+  const R = app.getBoundingClientRect();
+  const q = (s) => app.querySelector(s);
+  const box = (el) => el ? el.getBoundingClientRect() : null;
+
+  const hero = box(q('.hero')), det = box(q('.detail-row')), card = box(q('.checklist-card'));
+  const rows = [...app.querySelectorAll('.checklist__row')].map(box);
+  const chips = [...app.querySelectorAll('.evidence-chip')].map(box);
+  const hl = q('.hero__headline');
+  const hlBox = box(hl);
+  const lineH = hl ? parseFloat(getComputedStyle(hl).lineHeight) : 0;
+  const lines = hlBox && lineH ? Math.round(hlBox.height / lineH) : 0;
+
+  /* 폴드 가이드 */
+  document.getElementById('foldA').style.top = (app.offsetTop + 671) + 'px';
+  document.getElementById('foldB').style.top = (app.offsetTop + 736) + 'px';
+
+  /* 치수 배지 */
+  const M = [];
+  const rel = (b) => ({ top: b.top - R.top, bottom: b.bottom - R.top, h: b.height });
+  if (hero) { const h = rel(hero); M.push({ x: 414, y: h.top + h.h/2 - 9, txt: `Hero ${Math.round(h.h)}px`, ghost:false }); }
+  if (hero && det) M.push({ x: 414, y: rel(hero).bottom, txt: `gap 8`, ghost:true });
+  if (det && card) M.push({ x: 414, y: rel(det).bottom + 4, txt: `gap 24`, ghost:true });
+  if (rows[0]) { const r0 = rel(rows[0]); M.push({ x: 414, y: r0.top + r0.h/2 - 9, txt: `행 ${Math.round(r0.h)}px`, ghost:true }); }
+  if (rows[0]) M.push({ x: 414, y: rel(rows[0]).bottom - 9, txt: `첫 행 하단 y=${Math.round(rel(rows[0]).bottom)}`, ghost:false });
+
+  document.getElementById('measures').innerHTML = M.map(m =>
+    `<span class="measure${m.ghost ? ' measure--ghost' : ''}" style="left:${m.x}px;top:${app.offsetTop + m.y}px">${m.txt}</span>`).join('');
+
+  /* 계측 표 */
+  const chipSum = chips.length ? Math.round(chips.reduce((a,b)=>a+b.width,0) + (chips.length-1)*8) : 0;
+  const r1 = rows[0] ? Math.round(rel(rows[0]).bottom) : null;
+  const r2 = rows[1] ? Math.round(rel(rows[1]).bottom) : null;
+  const rowsOk = rows.every(b => b.height >= 56);
+  const sh = box(q('.section-header'));
+  const shB = sh ? Math.round(sh.bottom - R.top) : null;
+
+  const data = [
+    ['Hero 높이', hero ? `${Math.round(hero.height)}px` : '—', null],
+    ['헤드라인 줄 수', lines ? `${lines}줄` : '—', lines ? (lines <= 3 ? 1 : 0) : null],
+    ['근거 칩 합계', chipSum ? `${chipSum} / 310px` : '—', chipSum ? (chipSum <= 310 ? 1 : 0) : null],
+    ['체크리스트 행', rows.length ? `${rows.length}행 · 최소 ${Math.round(Math.min(...rows.map(b=>b.height)))}px` : '—', rows.length ? (rowsOk?1:0) : null],
+    ['체크리스트 헤더 하단', shB ? `y=${shB}` : '—', shB ? (shB <= 671 ? 1 : 0) : null],
+    ['첫 준비물 행 하단', r1 ? `y=${r1}` : '—', r1 ? (r1 <= 671 ? 1 : 0) : null],
+    ['· Safari(≤671)', r1 ? (r1 <= 671 ? '보임' : '가림') : '—', r1 ? (r1 <= 671 ? 1 : 0) : null],
+    ['· 스탠드얼론(≤736)', r2 ? (r2 <= 736 ? '2행 보임' : '1행') : '—', r2 ? (r2 <= 736 ? 1 : 0) : null],
+    ['전체 높이', `${Math.round(R.height)}px`, null],
+  ];
+  document.getElementById('readout').innerHTML = data.map(([k,v,ok]) =>
+    `<span class="readout__k">${k}</span><span class="readout__v"${ok===null?'':` data-ok="${ok}"`}>${v}</span>`).join('');
+}
+
+buildControls();
+render();
+window.addEventListener('resize', () => requestAnimationFrame(measure));
+</script>
+</body>
+</html>
