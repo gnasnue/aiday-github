@@ -1,0 +1,343 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AiDay 피치덱 — 5분</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!--
+  AiDay 피치덱 (5분 · 9장)
+  채점 기준 ① 어떻게 돈을 벌 것인가 → S7 전담
+  채점 기준 ② 기능 나열 아닌 유저 플로우 → 덱 전체가 '서연의 하루'를 따라 흐름
+  조작: ← → 방향키 / 스페이스 / 화면 클릭, F 전체화면, S 발표자 노트
+  ⚠️ S5 스크린샷은 새벽 02:46 캡처본이라 "전날 밤 예보 기준" 안내가 보인다.
+     최종 덱에는 아침 6시 이후 재캡처본으로 교체할 것 (docs/pitch/assets/briefing-card.png).
+-->
+<style>
+  :root{
+    --bg:#F6F4F2; --card:#fff; --ink:#26201B; --muted:#6E655D; --faint:#9C938A;
+    --brand:#F97316; --accent:#C2540A; --tint:#FFEDDD; --line:#EDE9E5;
+    --good:#3D8B5F; --warn:#D4622A;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    background:#2A2521; color:var(--ink);
+    font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic",sans-serif;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    letter-spacing:-0.01em;
+  }
+  #stage{position:relative; width:100vw; height:100vh; display:flex; align-items:center; justify-content:center}
+  .slide{
+    position:absolute; width:1280px; height:720px; background:var(--bg);
+    padding:64px 72px; display:none; flex-direction:column;
+    box-shadow:0 24px 80px rgba(0,0,0,.45); border-radius:8px; overflow:hidden;
+  }
+  .slide.on{display:flex}
+  /* ── 공통 타이포 ── */
+  .eyebrow{font-size:15px; font-weight:800; letter-spacing:.08em; color:var(--accent); text-transform:uppercase; margin-bottom:18px}
+  h1{font-size:60px; font-weight:800; line-height:1.18; letter-spacing:-0.035em}
+  h2{font-size:44px; font-weight:800; line-height:1.24; letter-spacing:-0.03em; margin-bottom:34px}
+  h2 .hl{color:var(--accent)}
+  .lead{font-size:23px; font-weight:500; color:var(--muted); line-height:1.55}
+  .kicker{margin-top:auto; padding-top:26px; border-top:1px solid var(--line); font-size:21px; font-weight:700; color:var(--ink)}
+  .kicker .hl{color:var(--accent)}
+  .foot{position:absolute; left:72px; bottom:26px; font-size:13px; color:var(--faint); font-weight:600}
+  .pageno{position:absolute; right:72px; bottom:26px; font-size:13px; color:var(--faint); font-weight:700}
+  .src{font-size:14px; color:var(--faint); font-weight:500; margin-top:14px; line-height:1.5}
+  /* ── 레이아웃 ── */
+  .cols{display:flex; gap:26px; flex:1; min-height:0}
+  .col{flex:1; display:flex; flex-direction:column}
+  .card{background:var(--card); border-radius:20px; padding:26px 28px; box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .card.tint{background:var(--tint)}
+  /* ── S2 타임라인 ── */
+  .tl{display:flex; flex-direction:column; gap:12px; flex:1; justify-content:center}
+  .tl-row{display:flex; align-items:flex-start; gap:20px; background:var(--card); border-radius:16px; padding:18px 24px}
+  .tl-row.bad{background:#FDF1EE}
+  .tl-time{font-size:22px; font-weight:800; color:var(--accent); width:78px; flex-shrink:0; font-variant-numeric:tabular-nums}
+  .tl-row.bad .tl-time{color:#BF2C22}
+  .tl-txt{font-size:20px; font-weight:500; line-height:1.45}
+  .tl-txt b{font-weight:800}
+  /* ── 스탯 ── */
+  .stats{display:flex; gap:20px; margin-bottom:26px}
+  .stat{flex:1; background:var(--card); border-radius:20px; padding:26px 24px; text-align:left}
+  .stat .n{font-size:52px; font-weight:800; color:var(--accent); line-height:1; letter-spacing:-0.04em; font-variant-numeric:tabular-nums}
+  .stat .t{font-size:17px; font-weight:600; color:var(--muted); margin-top:12px; line-height:1.45}
+  /* ── 대안 테이블 ── */
+  .alt{display:flex; flex-direction:column; gap:9px; flex:1; justify-content:center}
+  .alt-row{display:flex; align-items:center; gap:16px; background:var(--card); border-radius:16px; padding:13px 24px}
+  .alt-row.key{background:var(--tint)}
+  .alt-name{font-size:19px; font-weight:800; width:176px; flex-shrink:0}
+  .alt-has{font-size:17px; color:var(--muted); font-weight:500; flex:1}
+  .alt-lack{font-size:17px; color:#BF2C22; font-weight:700; flex:1.15}
+  .alt-row.key .alt-lack{color:var(--accent)}
+  /* ── S5 플로우 ── */
+  .flow{display:flex; gap:26px; flex:1; align-items:center; min-height:0}
+  .shot{flex-shrink:0; height:100%; display:flex; align-items:center; justify-content:center}
+  .shot img{max-height:100%; width:auto; border-radius:16px; box-shadow:0 14px 40px rgba(0,0,0,.18)}
+  .steps{flex:1; display:flex; flex-direction:column; gap:12px; justify-content:center; min-width:0}
+  .step{background:var(--card); border-radius:18px; padding:17px 22px; position:relative}
+  .step .num{display:inline-flex; align-items:center; justify-content:center; width:27px; height:27px; border-radius:50%; background:var(--tint); color:var(--accent); font-size:14px; font-weight:800; margin-bottom:8px}
+  .step .st{font-size:20px; font-weight:800; margin-bottom:6px; line-height:1.3}
+  .step .sd{font-size:15px; color:var(--muted); font-weight:500; line-height:1.5}
+  /* ── 해자 ── */
+  .moat{display:flex; gap:20px; flex:1; align-items:center}
+  .moat .card{flex:1; align-self:stretch; display:flex; flex-direction:column; justify-content:center}
+  .moat .mi{font-size:15px; font-weight:800; color:var(--accent); letter-spacing:.06em; margin-bottom:14px}
+  .moat .mt{font-size:24px; font-weight:800; margin-bottom:12px; line-height:1.3}
+  .moat .md{font-size:16px; color:var(--muted); font-weight:500; line-height:1.55}
+  /* ── S7 수익 ── */
+  .rev{display:flex; gap:18px; margin-bottom:22px; flex:1}
+  .rev .r{flex:1; background:var(--card); border-radius:20px; padding:24px; display:flex; flex-direction:column; border-top:5px solid var(--line)}
+  .rev .r.now{border-top-color:var(--brand)}
+  .rev .r.next{border-top-color:#F3B37A}
+  .rev .r.later{border-top-color:var(--line)}
+  .rev .stage{font-size:14px; font-weight:800; color:var(--faint); letter-spacing:.07em; margin-bottom:9px}
+  .rev .r.now .stage{color:var(--accent)}
+  .rev .who{font-size:23px; font-weight:800; margin-bottom:6px; line-height:1.25}
+  .rev .what{font-size:16px; color:var(--muted); font-weight:500; line-height:1.5; margin-bottom:13px}
+  .rev ul{list-style:none; margin-top:auto}
+  .rev li{font-size:15px; color:var(--ink); font-weight:600; line-height:1.5; padding-left:15px; position:relative; margin-bottom:5px}
+  .rev li:before{content:""; position:absolute; left:0; top:8px; width:6px; height:6px; border-radius:50%; background:var(--brand)}
+  .gate{background:var(--tint); border-radius:16px; padding:19px 26px; display:flex; align-items:center; gap:18px}
+  .gate .gl{font-size:14px; font-weight:800; color:var(--accent); letter-spacing:.06em; flex-shrink:0}
+  .gate .gt{font-size:18px; font-weight:700; line-height:1.45}
+  /* ── S8 사다리 ── */
+  .ladder{display:flex; gap:14px; margin-bottom:24px}
+  .rung{flex:1; background:var(--card); border-radius:18px; padding:22px 20px; border-left:5px solid var(--line)}
+  .rung.done{border-left-color:var(--good)}
+  .rung.now{border-left-color:var(--brand); background:var(--tint)}
+  .rung .badge{font-size:13px; font-weight:800; letter-spacing:.05em; margin-bottom:10px; color:var(--faint)}
+  .rung.done .badge{color:var(--good)}
+  .rung.now .badge{color:var(--accent)}
+  .rung .rt{font-size:19px; font-weight:800; line-height:1.3; margin-bottom:8px}
+  .rung .rd{font-size:15px; color:var(--muted); font-weight:500; line-height:1.5}
+  .qs{display:flex; gap:16px}
+  .q{flex:1; background:var(--card); border-radius:16px; padding:18px 22px; font-size:17px; font-weight:700; line-height:1.4}
+  .q span{display:block; font-size:14px; color:var(--accent); font-weight:800; margin-bottom:7px}
+  /* ── 타이틀/엔딩 ── */
+  .center{align-items:center; justify-content:center; text-align:center}
+  .center .lead{margin-top:24px; font-size:26px}
+  .brandmark{display:flex; align-items:center; gap:12px; margin-bottom:34px}
+  .brandmark .bn{font-size:30px; font-weight:800}
+  .ask{display:flex; gap:20px; margin-top:34px; width:100%}
+  .ask .a{flex:1; background:var(--card); border-radius:20px; padding:26px; text-align:left}
+  .ask .al{font-size:14px; font-weight:800; color:var(--accent); letter-spacing:.06em; margin-bottom:11px}
+  .ask .av{font-size:20px; font-weight:700; line-height:1.4}
+  /* 발표자 노트 */
+  #notes{position:fixed; left:0; right:0; bottom:0; background:rgba(20,17,15,.95); color:#F6F4F2; padding:16px 28px; font-size:15px; line-height:1.6; display:none; z-index:10}
+  #notes.on{display:block}
+  #notes b{color:#FDBA8C}
+  #hint{position:fixed; top:14px; right:18px; color:rgba(255,255,255,.4); font-size:12px; font-weight:600; z-index:10}
+</style>
+</head>
+<body>
+<div id="hint">← → 이동 · F 전체화면 · S 노트</div>
+<div id="stage">
+
+  <!-- S1 타이틀 -->
+  <section class="slide center">
+    <div class="brandmark">
+      <svg width="46" height="46" viewBox="17 11 90 90" fill="none"><g transform="translate(0 12.5)" stroke-linecap="round"><g stroke="#F97316" stroke-width="3"><line x1="60" y1="33" x2="60" y2="25"/><line x1="76.6" y1="38.7" x2="81.5" y2="32.4"/><line x1="43.4" y1="38.7" x2="38.5" y2="32.4"/><line x1="85.4" y1="50.8" x2="92.9" y2="48"/><line x1="34.6" y1="50.8" x2="27.1" y2="48"/></g><path d="M38 60 A22 22 0 0 1 82 60 Z" fill="#F97316"/><path d="M20 70 Q60 56 100 70" stroke="#9C938A" stroke-width="5"/><path d="M98 17 Q100.3 21.7 105 24 Q100.3 26.3 98 31 Q95.7 26.3 91 24 Q95.7 21.7 98 17 Z" fill="#C2540A"/></g></svg>
+      <span class="bn">AiDay 아이데이</span>
+    </div>
+    <h1>매일 아침, 오늘 우리 아이에게<br>뭐가 필요한지 <span style="color:var(--accent)">먼저 판단해</span> 주는 AI</h1>
+    <p class="lead">환경 데이터를 우리 아이 기준으로 해석해<br>부모의 하루 첫 육아 판단을 대신 끝내 드립니다</p>
+    <p style="margin-top:26px; font-size:17px; font-weight:700; color:var(--faint); letter-spacing:.01em">만 1~8세 자녀를 둔 맞벌이 가정을 위한 &nbsp;·&nbsp; AI Parenting Decision Agent</p>
+    <div class="foot">AiDay · KAIST OverEdge</div>
+  </section>
+
+  <!-- S2 문제 장면 -->
+  <section class="slide">
+    <div class="eyebrow">문제</div>
+    <h2>서연 씨는 아무것도<br>게을리하지 않았습니다</h2>
+    <div class="tl">
+      <div class="tl-row"><div class="tl-time">07:00</div><div class="tl-txt">날씨 앱에서 <b>‘지금 20°’</b>를 확인. 반팔에 얇은 겉옷을 입혀 등원시킵니다.</div></div>
+      <div class="tl-row"><div class="tl-time">11:00</div><div class="tl-txt">어린이집 산책 시간, 기온은 <b>28°</b>. 땀이 많은 지우는 옷이 흠뻑 젖습니다.</div></div>
+      <div class="tl-row"><div class="tl-time">17:00</div><div class="tl-txt">하원 무렵 <b>17°</b>로 급락. 젖은 옷 그대로 찬바람을 맞습니다.</div></div>
+      <div class="tl-row bad"><div class="tl-time">20:00</div><div class="tl-txt">지우가 <b>감기에 걸렸습니다.</b> 서연 씨는 자책합니다.</div></div>
+    </div>
+    <div class="kicker">문제는 <span class="hl">부모의 노력이 아니라, 판단의 구조</span>입니다. 아침에는 가장 접근하기 쉬운 값 하나(현재 기온)로 판단이 축소됩니다.</div>
+    <div class="foot">AiDay</div><div class="pageno">2 / 9</div>
+  </section>
+
+  <!-- S3 문제의 크기 -->
+  <section class="slide">
+    <div class="eyebrow">문제의 크기</div>
+    <h2>작아 보이는 판단이 <span class="hl">매일, 한 사람에게</span> 쌓입니다</h2>
+    <div class="stats">
+      <div class="stat"><div class="n">75%</div><div class="t">주 3일 이상<br>아침 환경 정보를 확인</div></div>
+      <div class="stat"><div class="n">52.8%</div><div class="t">최근 한 달 내<br>실패·재작업을 실제 경험</div></div>
+      <div class="stat"><div class="n">83%</div><div class="t">이미 자기만의<br>해결책을 쓰고 있음</div></div>
+    </div>
+    <div class="card">
+      <div style="font-size:19px; font-weight:700; line-height:1.5">전날 밤 미리 확인 · 여벌옷 상비 · 배우자와 역할 분담 — <span style="color:var(--accent)">부모들은 이미 이 문제에 시간을 쓰고 있습니다.</span></div>
+      <div style="font-size:17px; color:var(--muted); font-weight:500; margin-top:12px; line-height:1.5">그리고 이 부담은 가족 안에서 한 사람에게 몰립니다. 아침 준비를 <b style="color:var(--ink)">주 5일 전담이 47.2%</b>, <b style="color:var(--ink)">0일이 19.4%</b>로 갈립니다.</div>
+    </div>
+    <div class="src">자체 문제검증 맘테스트 n=36 (2026-07, 행동·사건 기준) · 시장 배경: 막내 6세 이하 맞벌이 가구 53.2%, ’15년 대비 +15.1%p (성평등가족부 2025)</div>
+    <div class="foot">AiDay</div><div class="pageno">3 / 9</div>
+  </section>
+
+  <!-- S4 기존 대안 -->
+  <section class="slide">
+    <div class="eyebrow">왜 아직 안 풀렸나</div>
+    <h2 style="margin-bottom:22px">정보는 주지만, <span class="hl">판단을 완료해 주지 않습니다</span></h2>
+    <div class="alt">
+      <div class="alt-row"><div class="alt-name">날씨·환경 앱</div><div class="alt-has">수치와 시간대별 예보를 준다</div><div class="alt-lack">내 아이 체질·일정과 결합은 부모 몫</div></div>
+      <div class="alt-row"><div class="alt-name">육아 기록 앱</div><div class="alt-has">수유·수면을 기록한다</div><div class="alt-lack">유아기의 Job은 기록이 아니라 판단</div></div>
+      <div class="alt-row"><div class="alt-name">맘카페</div><div class="alt-has">다른 부모의 사례를 준다</div><div class="alt-lack">우리 아이 조건의 답은 아님</div></div>
+      <div class="alt-row"><div class="alt-name">범용 생성형 AI</div><div class="alt-has">물어보면 답한다</div><div class="alt-lack">매번 아이 정보·오늘 일정을 재설명</div></div>
+      <div class="alt-row key"><div class="alt-name">가족 내 분담</div><div class="alt-has">실행(옷 입히기·등원)은 나눌 수 있다</div><div class="alt-lack">기억·예측·판단·조율의 관리 노동은 나눠지지 않는다</div></div>
+    </div>
+    <div class="kicker" style="padding-top:20px">부모가 원하는 건 더 많은 정보가 아니라, <span class="hl">끝난 판단</span>과 <span class="hl">잘 돌보고 있다는 확신</span>입니다.</div>
+    <div class="foot">AiDay</div><div class="pageno">4 / 9</div>
+  </section>
+
+  <!-- S5 솔루션 = 플로우 -->
+  <section class="slide">
+    <div class="eyebrow">해결 — 서연 씨의 달라진 하루</div>
+    <h2 style="margin-bottom:24px">서연 씨는 이제 판단하지 않습니다. <span class="hl">확인만 합니다.</span></h2>
+    <div class="flow">
+      <div class="steps">
+        <div class="step">
+          <div class="num">1</div>
+          <div class="st">한 번만 알려주면 됩니다</div>
+          <div class="sd">지우는 만 4세, 땀이 많은 체질. 등원 8:30 · 산책 11시 · 하원 17시. 한 번 등록하면 매일 다시 입력할 필요가 없습니다.</div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div class="st">07:10, 판단이 끝난 채 도착합니다</div>
+          <div class="sd">시간대별 환경 궤적 × 아이 체질 × 오늘 일정을 결합해 <b>한 줄 결론</b>과 <b>오늘의 케어 행동</b>, <b>챙길 것</b>까지 정리해 보냅니다.</div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div class="st">확인하고, 나갑니다</div>
+          <div class="sd">챙길 것을 탭해 확인하고 나가면 끝. 도움이 됐는지 한 번 남깁니다 — 이 기록이 쌓여야 “쓸수록 정확해지는” 개인화가 가능해집니다.</div>
+        </div>
+      </div>
+      <div class="shot"><img src="assets/decision-brief-hero.png" alt="아이데이 아침 브리핑 — 오전 6:20 판단, 얇게 입히고 겉옷을 챙겨주세요, 일교차 9°C·현재 19°C·꽃가루 높음"></div>
+    </div>
+    <div class="src">현재 단계 — 브리핑은 <b>사람이 직접 생성·발송</b>하며 가치를 먼저 검증합니다. 자동 발송(푸시)은 재방문 지표가 확인된 뒤 착수합니다.</div>
+    <div class="foot">AiDay</div><div class="pageno">5 / 9</div>
+  </section>
+
+  <!-- S6 해자 -->
+  <section class="slide">
+    <div class="eyebrow">왜 우리가 이기나</div>
+    <h2>해자는 지금 있는 게 아니라,<br><span class="hl">이 세 가지가 쌓일 때</span> 생깁니다</h2>
+    <div class="moat">
+      <div class="card"><div class="mi">선제성 · 설계</div><div class="mt">묻기 전에 먼저</div><div class="md">“질문하는 AI”가 아니라 “먼저 답을 가져오는 AI”. 지금은 수동 발송으로 이 가치가 실제로 통하는지를 먼저 확인합니다.</div></div>
+      <div class="card"><div class="mi">개인화 · 가설</div><div class="mt">우리 아이 기준</div><div class="md">프로필만으로는 우위가 되지 않습니다. “오늘 추천이 맞았는가”라는 결과가 누적될 때 비로소 성립하며, 지금은 그 <b>원료를 모으는 단계</b>입니다.</div></div>
+      <div class="card"><div class="mi">신뢰 · 구현됨</div><div class="mt">안전이 먼저</div><div class="md">건강 결과를 약속하는 표현을 차단하고, 연령별 안전 규칙(만 2세 미만 마스크 금지 등)을 코드로 강제합니다.</div></div>
+    </div>
+    <div class="kicker">“ChatGPT로 되지 않나요?” — 범용 AI는 <span class="hl">매번 재설명</span>이 필요하고, 묻기 전에 먼저 알려주지 않습니다.</div>
+    <div class="foot">AiDay</div><div class="pageno">6 / 9</div>
+  </section>
+
+  <!-- S7 수익모델 ⭐ -->
+  <section class="slide">
+    <div class="eyebrow">수익 모델</div>
+    <h2>무료로 <span class="hl">매일 쓰게 만들고</span>,<br>판단이 신뢰를 얻은 뒤에 과금합니다</h2>
+    <div class="rev">
+      <div class="r now">
+        <div class="stage">NOW · 무료</div>
+        <div class="who">아침 브리핑</div>
+        <div class="what">매일 여는 습관을 만드는 리텐션 엔진. 이미 표출된 수요라 획득 비용이 낮습니다.</div>
+        <ul><li>매일 반복되는 진입점</li><li>자발적 검색 수요 존재</li></ul>
+      </div>
+      <div class="r next">
+        <div class="stage">NEXT · 유료 구독</div>
+        <div class="who">프리미엄 케어 리포트</div>
+        <div class="what">첫 판단에서 신뢰를 얻은 뒤, <b>운영 부담을 더 넓게 덜어주는 기능</b>을 유료로 엽니다.</div>
+        <ul><li>다자녀 관리</li><li>결과가 쌓인 개인화</li><li>알림장·공지 통합</li><li>공동 양육자 동기화</li></ul>
+      </div>
+      <div class="r later">
+        <div class="stage">검토 후보</div>
+        <div class="who">육아용품 제휴</div>
+        <div class="what">판단에 필요한 준비물이 이미 결론으로 나오므로 제휴 여지가 생깁니다.</div>
+        <ul><li>판단이 먼저, 커머스는 그다음</li><li>앱 내 구매 연결은 현재 만들지 않음</li></ul>
+      </div>
+    </div>
+    <div class="gate">
+      <div class="gl">과금 시작 조건</div>
+      <div class="gt">아침 재방문율 <b style="color:var(--accent)">30%</b>(북극성)를 넘긴 뒤에 유료화를 엽니다. — 리텐션 없는 과금은 하지 않습니다. 지불의사는 아직 미검증이며, <b>지금 증명하는 것은 “매일 여는가”</b>입니다.</div>
+    </div>
+    <div class="foot">AiDay</div><div class="pageno">7 / 9</div>
+  </section>
+
+  <!-- S8 증거 -->
+  <section class="slide">
+    <div class="eyebrow">증거</div>
+    <h2>“육아가 힘들다”가 아니라 <span class="hl">행동으로</span> 확인했습니다</h2>
+    <div class="ladder">
+      <div class="rung done"><div class="badge">✓ 완료</div><div class="rt">가설검증 인터뷰</div><div class="rd">n=17 · 페인과 수요의 방향성 확인</div></div>
+      <div class="rung done"><div class="badge">✓ 완료</div><div class="rt">문제검증 맘테스트</div><div class="rd">n=36 · 의향이 아닌 <b>행동·사건</b>으로 실재 확인</div></div>
+      <div class="rung now"><div class="badge">● 진행 중</div><div class="rt">오픈 베타</div><div class="rd">매일 여는가 — 아침 재방문율 측정</div></div>
+      <div class="rung"><div class="badge">○ 예정</div><div class="rt">컨시어지 테스트</div><div class="rd">7일 관찰 → Go / Hold / No-go 판정</div></div>
+    </div>
+    <div style="font-size:18px; font-weight:800; margin-bottom:14px">베타에서 우리가 확인하는 것은 “앱을 좋아했는가”가 아닙니다</div>
+    <div class="qs">
+      <div class="q"><span>01</span>기존 정보 탐색을 멈췄는가</div>
+      <div class="q"><span>02</span>실제 준비 행동이 바뀌었는가</div>
+      <div class="q"><span>03</span>다른 보호자도 설명 없이 실행했는가</div>
+    </div>
+    <div class="card" style="margin-top:16px; padding:18px 24px">
+      <div style="font-size:17px; font-weight:700; line-height:1.45">그리고 포지셔닝을 데이터로 가르는 지표 하나 — <span style="color:var(--accent)">외출하지 않는 날에도 여는가.</span> 이것이 “날씨 앱”과 “매일의 육아 판단 앱”을 구분합니다.</div>
+    </div>
+    <div class="foot">AiDay</div><div class="pageno">8 / 9</div>
+  </section>
+
+  <!-- S9 Ask -->
+  <section class="slide center">
+    <div class="eyebrow">다음 6주</div>
+    <h1 style="font-size:52px">부모 한 사람이 모든 것을<br>기억하지 않아도, <span style="color:var(--accent)">가족의 하루가<br>굴러가도록.</span></h1>
+    <div class="ask">
+      <div class="a"><div class="al">증명할 것</div><div class="av">아침 재방문율 ≥ 30%<br><span style="font-size:16px; color:var(--muted); font-weight:600">— 매일의 첫 판단이 습관이 되는가</span></div></div>
+      <div class="a"><div class="al">필요한 것</div><div class="av">베타 참여 가구와<br>솔직한 피드백</div></div>
+    </div>
+    <div class="foot">AiDay · KAIST OverEdge</div><div class="pageno">9 / 9</div>
+  </section>
+
+</div>
+
+<div id="notes"></div>
+
+<script>
+const slides=[...document.querySelectorAll('.slide')];
+const NOTES=[
+ "<b>15초</b> — 인사 + 한 줄 정의. <b>‘먼저 판단해 주는’</b>에 강세 (‘정리’가 아니라 ‘판단’ — 포지셔닝의 축). 심사역 대상 정의는 아래 줄의 <b>AI Parenting Decision Agent</b>. 곧바로 서연 씨 이야기로.",
+ "<b>50초</b> — 천천히 읽지 말고 시간축을 짚어가며 말한다. 마지막 줄이 핵심: 노력의 문제가 아니라 <b>구조</b>의 문제. 여기서 청중이 서연에게 이입해야 한다.",
+ "<b>50초</b> — 숫자 3개만 짚는다. ‘이미 자기만의 해결책을 쓰고 있다(83%)’가 가장 강한 신호 — 수요를 만들 필요가 없다는 뜻. 담당 양극화는 ‘가능성을 시사한다’ 수준으로만 말할 것(가구 내 짝 조사 아님).",
+ "<b>35초</b> — 다 읽지 말고 ‘공통점은 하나’로 묶어라. <b>마지막 줄(가족 내 분담)이 핵심</b> — 실행은 나눠도 관리·판단 노동은 안 나눠진다. 상위 문제를 여기서 증명한다.",
+ "<b>75초 · 덱의 심장</b> — 화면을 가리키며 1→2→3 순서로. 2번에서 잠깐 멈추고 카드를 보여줄 것. ‘판단하지 않는다, 확인만 한다’를 반드시 입으로 말한다. ⚠️ 이 화면은 <b>확정 디자인이며 구현 진행 중</b> — “지금 되나요?” 질문에는 정직하게 답할 것.",
+ "<b>45초</b> — 각 카드의 <b>‘설계 / 가설 / 구현됨’ 꼬리표를 그대로 말한다.</b> 해자가 이미 있다고 말하지 말 것 — 지금 있는 건 신뢰(안전 규칙)뿐이고 나머지는 쌓아야 생긴다. 이 정직함이 오히려 신뢰를 준다. 마지막 ChatGPT 반론은 선점해서 답하는 용도.",
+ "<b>70초 · 채점 포인트</b> — ‘무료로 습관 → 프리미엄 케어 리포트 → (검토) 육아용품 제휴’ 3단. <b>과금 시작 조건</b>을 반드시 언급: 리텐션 전에는 과금하지 않는다. 가격을 물으면 ‘검증 후 결정, 지금은 매일 여는지를 증명하는 단계’로 답한다. 커머스를 물으면 ‘판단이 먼저, 앱 내 구매 연결은 만들지 않는다’.",
+ "<b>45초</b> — 사다리 왼→오른쪽. ‘의향이 아니라 행동을 물었다’가 핵심. 3대 질문은 빠르게 읽고, <b>마지막 줄(외출 없는 날에도 여는가)로 끝낸다</b> — ‘날씨 앱 아니냐’ 질문의 답이다.",
+ "<b>15초</b> — 마지막 문장을 천천히. Ask를 명확히 말하고 끝낸다."
+];
+let i=0;
+function render(){
+  slides.forEach((s,n)=>s.classList.toggle('on',n===i));
+  document.getElementById('notes').innerHTML=`<b>${i+1}/9</b> · ${NOTES[i]}`;
+  fit();
+}
+function fit(){
+  const s=slides[i]; if(!s) return;
+  const k=Math.min(window.innerWidth/1280, window.innerHeight/720);
+  s.style.transform=`scale(${k})`;
+}
+function go(d){ i=Math.max(0,Math.min(slides.length-1,i+d)); render(); }
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(1)}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(-1)}
+  else if(e.key==='Home'){i=0;render()}
+  else if(e.key==='End'){i=slides.length-1;render()}
+  else if(e.key.toLowerCase()==='f'){document.documentElement.requestFullscreen?.()}
+  else if(e.key.toLowerCase()==='s'){document.getElementById('notes').classList.toggle('on')}
+});
+document.getElementById('stage').addEventListener('click',e=>go(e.clientX<window.innerWidth*0.25?-1:1));
+window.addEventListener('resize',fit);
+render();
+</script>
+</body>
+</html>
