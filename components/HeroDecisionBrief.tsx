@@ -58,8 +58,6 @@ export type HeroDecisionBriefProps = {
   /** fallback 상태에서만 노출되는 재시도 */
   onRetry?: () => void;
   retrying?: boolean;
-  /** 잠정본 안내 등, supporting 아래에 붙는 한 줄 */
-  notice?: ReactNode;
 };
 
 const HeroDecisionBrief = ({
@@ -72,7 +70,6 @@ const HeroDecisionBrief = ({
   issue,
   onRetry,
   retrying = false,
-  notice,
 }: HeroDecisionBriefProps) => {
   const isFallback = state === "fallback";
   const segments = isFallback
@@ -125,9 +122,8 @@ const HeroDecisionBrief = ({
         <p className="mt-2 text-[15px] leading-[1.66] text-muted-foreground break-keep">{support}</p>
       )}
 
-      {notice && (
-        <p className="mt-2 text-[13px] leading-[1.5] text-muted-foreground break-keep">{notice}</p>
-      )}
+      {/* 잠정본·출처 같은 시점 정보는 이 카드에 두지 않는다 — 조건과 결론 사이에 읽을 것을
+          늘리고, 성격도 "판단"이 아니라 근거다. 상세 펼침 영역의 trust line 옆에 놓는다. */}
 
       {evidence.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-2">

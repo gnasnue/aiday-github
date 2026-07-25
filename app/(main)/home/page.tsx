@@ -1665,11 +1665,6 @@ const Home = () => {
               support={supportLine ? renderRich(supportLine) : null}
               evidence={evidence}
               issue={heroIssue}
-              notice={
-                reportProvisional
-                  ? "전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요"
-                  : undefined
-              }
               onRetry={heroSt === "fallback" ? refreshReport : undefined}
               retrying={aiLoading || refreshing}
             />
@@ -1721,6 +1716,14 @@ const Home = () => {
               {reportExpanded && (
                 <div className="mt-2 space-y-3 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
                   {messageParagraphs}
+                  {/* 잠정본 안내 — 히어로가 아니라 이 상세 안에 둔다. 결론 옆에 붙으면 조건과
+                      결론 사이에 읽을 것이 한 겹 늘고, 성격도 "판단"이 아니라 출처·시점 정보라
+                      trust line과 같은 묶음에 있는 것이 맞다. */}
+                  {reportProvisional && (
+                    <p className="text-[13px] leading-[1.5] text-muted-foreground break-keep">
+                      전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요
+                    </p>
+                  )}
                   {trustLine}
                 </div>
               )}
