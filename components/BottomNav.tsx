@@ -20,9 +20,15 @@ const BottomNav = () => {
   const pathname = usePathname();
 
   return (
+    // 모바일에서 하단 네비가 스크롤을 따라 흐르던 문제 — 원인 두 개 중 하나를 여기서 없앤다.
+    // `backdrop-filter`를 쓴 `position: fixed` 요소는 iOS Safari가 스크롤 중 backdrop을
+    // 다시 래스터화하면서 고정 레이어가 콘텐츠를 따라 밀린다. 배경을 불투명으로 바꾸면
+    // 합성이 한 겹으로 끝나 흐르지 않고, 반투명 위 텍스트보다 가독성도 좋아진다.
+    // (같은 화면의 sticky 헤더들은 fixed가 아니라 이 문제가 없어 blur를 유지한다)
+    // 나머지 원인인 100vh 기준선은 globals.css의 dvh 전환으로 처리했다.
     <nav
       aria-label="주요 메뉴"
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border/70 bg-background/92 shadow-[0_-4px_16px_hsl(24_30%_12%_/_0.04)] backdrop-blur-xl safe-bottom"
+      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[390px] -translate-x-1/2 border-t border-border bg-background shadow-[0_-4px_16px_hsl(24_30%_12%_/_0.04)] safe-bottom"
     >
       <div className="container-mobile">
         <ul className="grid grid-cols-5">

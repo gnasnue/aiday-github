@@ -212,11 +212,20 @@
   .container-mobile {
     @apply mx-auto w-full max-w-[390px] px-5;
   }
+  /* 100vh는 iOS에서 "툴바가 숨은 상태의 높이"라 실제 보이는 영역보다 크다. 그러면
+     bottom:0 고정 요소(BottomNav)의 기준선이 보이는 화면 밖에 잡히고, 스크롤로 툴바가
+     접히거나 펼쳐질 때마다 네비가 콘텐츠를 따라 흐르는 것처럼 보인다. dvh는 보이는
+     높이를 따라가므로 기준선이 어긋나지 않는다.
+     vh를 먼저 선언해 dvh 미지원 브라우저(iOS 15.3 이하 등) 폴백을 유지한다. */
   .page-frame {
-    @apply mx-auto w-full max-w-[390px] min-h-screen bg-background;
+    @apply mx-auto w-full max-w-[390px] bg-background;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
   .page-shell {
-    @apply min-h-screen w-full bg-muted/40 flex justify-center;
+    @apply w-full bg-muted/40 flex justify-center;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 
   /* 섹션 아이브로우: 카드보다 조용한 섹션 시작 신호 */

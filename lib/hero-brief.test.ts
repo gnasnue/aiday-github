@@ -8,6 +8,7 @@ import {
   heroState,
   splitPrepText,
   prepNeedles,
+  headlineLines,
 } from "./hero-brief";
 
 // 히어로 Decision Brief 파생 규칙 회귀 방지.
@@ -113,6 +114,42 @@ describe("highlightHeadline — 강조 구간은 준비물 명사 매칭으로�
   });
 });
 
+describe("headlineLines — 결론 2줄 고정", () => {
+  const text = (ls: ReturnType<typeof headlineLines>) => ls.map((l) => l.map((s) => s.text).join(""));
+
+  it("길이 차가 가장 작은 어절 경계에서 2줄로 쪼갠다", () => {
+    expect(text(headlineLines("등원길 마스크 챙기고 야외활동 줄여주세요"))).toEqual([
+      "등원길 마스크 챙기고",
+      "야외활동 줄여주세요",
+    ]);
+  });
+
+  it("강조 구간을 가르지 않는다 — 밴드가 두 줄로 쪼개지면 형태가 무너진다", () => {
+    const ls = headlineLines("야외활동 후 물수건과 여벌 옷 챙겨주세요", ["여벌 옷", "물수건"]);
+    const em = ls.flat().filter((s) => s.emphasis).map((s) => s.text);
+    expect(em).toEqual(["여벌 옷"]); // 한 줄 안에 온전히 남는다
+    expect(ls).toHaveLength(2);
+    expect(ls.some((l) => l.some((s) => s.emphasis))).toBe(true);
+  });
+
+  it("짧은 결론도 2줄로 쪼갠다 — 키워드가 첫 줄에 올라온다", () => {
+    expect(text(headlineLines("우산 챙겨주세요"))).toEqual(["우산", "챙겨주세요"]);
+  });
+
+  it("한 글자만 남는 분할은 버린다", () => {
+    // "물 챙겨요" → 앞줄이 1자라 분할 후보가 없다
+    expect(headlineLines("물 챙겨요")).toHaveLength(1);
+  });
+
+  it("어절이 하나뿐이면 1줄로 둔다", () => {
+    expect(headlineLines("챙겨주세요")).toHaveLength(1);
+  });
+
+  it("빈 문자열에도 깨지지 않는다", () => {
+    expect(headlineLines("")).toHaveLength(1);
+  });
+});
+
 describe("prepNeedles — 매칭 후보 생성", () => {
   it("원본·표준명·핵심 명사를 모두 만들고 한 글자는 버린다", () => {
     expect(prepNeedles("얇은 겉옷").sort()).toEqual(["겉옷", "얇은 겉옷"]);
@@ -175,6 +212,15 @@ describe("pickEvidence — 근거 chip 2~3개", () => {
   it("살아남은 칩이 2개 미만이면 빈 배열 — 근거 행 자체를 숨긴다", () => {
     expect(pickEvidence([{ label: "현재", value: "19°C", priority: 1 }])).toEqual([]);
     expect(pickEvidence([{ label: "현재", value: null, priority: 1 }])).toEqual([]);
+  });
+
+  it("pin 칩은 주의 신호보다 앞에 온다 — 현재 기온을 가장 먼저 읽는다", () => {
+    const picked = pickEvidence([
+      { label: "자외선", value: "매우강함", tone: "warn", priority: 0 },
+      { label: "현재", value: "28°", priority: 10, pin: true },
+      { label: "강수", value: "60%", tone: "warn", priority: 1 },
+    ]);
+    expect(picked.map((e) => e.label)).toEqual(["현재", "자외선", "강수"]);
   });
 
   it("tone을 지정하지 않으면 neutral", () => {

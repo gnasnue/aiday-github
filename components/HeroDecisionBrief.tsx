@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { RefreshCw, Thermometer, Wind } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
-import { highlightHeadline, type Evidence, type HeroState } from "@/lib/hero-brief";
+import { headlineLines, type Evidence, type HeroState } from "@/lib/hero-brief";
 
 // 홈 히어로 — "AI가 오늘의 판단을 완료했다"를 형태로 전달하는 화면당 1개 L2 카드.
 // 명세: docs/reviews/2026-07-25-home-decision-brief-design.html (§2 확대·주석)
@@ -72,14 +72,19 @@ const HeroDecisionBrief = ({
   retrying = false,
 }: HeroDecisionBriefProps) => {
   const isFallback = state === "fallback";
-  const segments = isFallback
-    ? [{ text: headline, emphasis: false }]
-    : highlightHeadline(headline, prepNames);
+  // 결론은 2줄 고정 — 어절 경계에서 균형 있게 쪼개고 강조 구간은 가르지 않는다.
+  // 길이에 따라 1·2줄이 오가면 카드 높이가 매일 달라지고 결론의 무게감도 흔들린다.
+  const lines = isFallback
+    ? [[{ text: headline, emphasis: false }]]
+    : headlineLines(headline, prepNames);
 
   return (
     // radius 24(rounded-3xl) + shadow-card는 화면에서 이 카드만 쓴다 — 색이 아니라
     // 기하와 깊이로 "여기가 중심"을 말한다.
     <section className="rounded-3xl bg-card p-5 shadow-card" aria-labelledby="hero-headline">
+      {/* 조건 배지 — 이 카드는 판단만 담는다. 새로고침·공유 같은 유틸은 카드 밖
+          페이지 헤더 우측에 둔다(리포트를 다시 받는 조작은 화면 전체의 유틸이고,
+          결론 옆에 컨트롤이 붙으면 조건→결론으로 가는 시선이 한 번 끊긴다). */}
       {context && (
         <p
           className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
@@ -102,20 +107,24 @@ const HeroDecisionBrief = ({
             : "mt-4 text-[28px] font-extrabold leading-[1.3] tracking-[-0.028em]"
         }`}
       >
-        {segments.map((seg, i) =>
-          seg.emphasis ? (
-            // 강조는 색이 아니라 형태 — 글자는 잉크(16:1)로 두고 primary-tint 밴드를 깐다.
-            // accent 텍스트는 무채색·저조도에서 잉크보다 밝아져 강조가 역전된다(실측).
-            <span
-              key={i}
-              className="shadow-[inset_0_-0.28em_0_hsl(var(--primary-tint))] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
-            >
-              {seg.text}
-            </span>
-          ) : (
-            <span key={i}>{seg.text}</span>
-          )
-        )}
+        {lines.map((line, li) => (
+          <span key={li} className="block">
+            {line.map((seg, i) =>
+              seg.emphasis ? (
+                // 강조는 색이 아니라 형태 — 글자는 잉크(16:1)로 두고 primary-tint 밴드를 깐다.
+                // accent 텍스트는 무채색·저조도에서 잉크보다 밝아져 강조가 역전된다(실측).
+                <span
+                  key={i}
+                  className="shadow-[inset_0_-0.28em_0_hsl(var(--primary-tint))] [box-decoration-break:clone] [-webkit-box-decoration-break:clone]"
+                >
+                  {seg.text}
+                </span>
+              ) : (
+                <span key={i}>{seg.text}</span>
+              )
+            )}
+          </span>
+        ))}
       </h2>
 
       {support && (
@@ -146,15 +155,6 @@ const HeroDecisionBrief = ({
               >
                 {e.value}
               </span>
-              {/* 도트 = 색 없이도 살아남는 상태 신호. 뉴트럴 칩에는 붙이지 않는다 */}
-              {e.tone !== "neutral" && (
-                <span
-                  aria-hidden="true"
-                  className={`ml-0.5 h-1 w-1 shrink-0 rounded-full ${
-                    e.tone === "warn" ? "bg-status-warn" : "bg-status-good"
-                  }`}
-                />
-              )}
             </li>
           ))}
         </ul>
