@@ -58,8 +58,6 @@ export type HeroDecisionBriefProps = {
   /** fallback 상태에서만 노출되는 재시도 */
   onRetry?: () => void;
   retrying?: boolean;
-  /** 카드 우측 상단 유틸 슬롯(새로고침·공유). 조건 배지 오른쪽 빈 공간을 쓴다 */
-  actions?: ReactNode;
 };
 
 const HeroDecisionBrief = ({
@@ -72,7 +70,6 @@ const HeroDecisionBrief = ({
   issue,
   onRetry,
   retrying = false,
-  actions,
 }: HeroDecisionBriefProps) => {
   const isFallback = state === "fallback";
   // 결론은 2줄 고정 — 어절 경계에서 균형 있게 쪼개고 강조 구간은 가르지 않는다.
@@ -85,26 +82,17 @@ const HeroDecisionBrief = ({
     // radius 24(rounded-3xl) + shadow-card는 화면에서 이 카드만 쓴다 — 색이 아니라
     // 기하와 깊이로 "여기가 중심"을 말한다.
     <section className="rounded-3xl bg-card p-5 shadow-card" aria-labelledby="hero-headline">
-      {/* 상단 행 — 조건 배지(좌) + 유틸(우). 배지가 Hug라 오른쪽에 남는 빈 공간을
-          새로고침·공유가 쓴다. 44px 타깃을 유지하면서 카드 높이가 늘지 않도록
-          -mt-2/-mr-2로 광학 정렬만 맞춘다(배지 높이 34px < 버튼 44px). */}
-      <div className="flex items-start justify-between gap-2">
-        {context ? (
-          <p
-            className={`inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
-          >
-            {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
-            <span>{context}</span>
-          </p>
-        ) : (
-          <span />
-        )}
-        {actions && (
-          // -my-2로 위아래 8px씩 상쇄해 44px 버튼이 34px 배지보다 행을 키우지 않게 한다
-          // (터치 타깃은 44px 그대로, 시각적 높이만 배지에 맞춘다)
-          <div className="-my-2 -mr-2 flex shrink-0 items-center text-muted-foreground">{actions}</div>
-        )}
-      </div>
+      {/* 조건 배지 — 이 카드는 판단만 담는다. 새로고침·공유 같은 유틸은 카드 밖
+          페이지 헤더 우측에 둔다(리포트를 다시 받는 조작은 화면 전체의 유틸이고,
+          결론 옆에 컨트롤이 붙으면 조건→결론으로 가는 시선이 한 번 끊긴다). */}
+      {context && (
+        <p
+          className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
+        >
+          {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
+          <span>{context}</span>
+        </p>
+      )}
 
       {/* 결론 — display 28/800. fallback은 title-lg 20/700으로 낮춘다:
           강한 결론 타입은 "AI가 판단했다"는 신호이고, 규칙 기반 추천이 빌려 쓰면

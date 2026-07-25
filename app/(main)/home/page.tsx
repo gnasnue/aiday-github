@@ -1205,17 +1205,6 @@ const Home = () => {
     return `${base} ${hh}:${mm} 기준`;
   })();
 
-  // 헤더 우측에 놓는 짧은 발행 시각 — 타이틀("오늘의 AI 리포트")과 나란히 서므로 날짜를
-  // 반복하지 않는다. 350px 안에서 타이틀이 2줄로 깨지지 않게 하는 조건이기도 하다.
-  // 날짜가 필요한 경우(자정 넘긴 잠정본)는 상세 펼침의 안내 문구가 담당한다.
-  const reportMetaShort = (() => {
-    if (reportTs == null) return "오늘 기준";
-    const d = new Date(reportTs);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
-    return `${hh}:${mm} 기준`;
-  })();
-
   // 새벽(00~06시) 생성 잠정본 여부 — 전날 밤 발표본 재료로 만든 리포트임을 카드 안에서
   // 알린다. 06시 이후 방문 시 리포트 effect가 당일 발표본으로 재생성해 ts가 갱신되면
   // 캡션은 자연히 사라진다. "언제 보라"가 아니라 "앱이 알아서 갱신한다"를 전달하는 문구.
@@ -1607,20 +1596,53 @@ const Home = () => {
             </button>
           </div>
 
-          {/* 오늘 준비 머리글 — 타이틀(좌) + 발행 시각(우).
-              새로고침·공유는 히어로 카드 우측 상단으로 옮겼다: 리포트를 다시 받는 행위는
-              리포트 카드에 붙는 것이 맞고, 그 자리(조건 배지 오른쪽)는 원래 비어 있던
-              공간이라 세로 예산이 들지 않는다. 비워진 이 자리에 발행 시각을 넣는다. */}
-          <div className="mt-2 flex items-baseline justify-between gap-3 pb-3">
-            <h1 className="min-w-0 flex-1 text-[20px] font-bold leading-[1.35] tracking-[-0.02em] break-keep">
-              {withSubjectSuffix(cur.name)} 위한 오늘의 AI 리포트
-            </h1>
-            {/* 날짜·발행 시각은 .num이 아니라 .tabular — "7월 26일 (일)"은 한글 문장이고
-                DESIGN.md가 .num(-0.03em)의 한글 사용을 금지한다. 자릿수 정렬만 필요하다. */}
-            <p className="tabular shrink-0 text-[13px] font-medium leading-[1.45] text-muted-foreground">
-              {aiError && "기본 추천 · "}
-              {reportMetaShort}
-            </p>
+          {/* 오늘 준비 머리글 — 타이틀 + 발행 시각(아래), 유틸은 우측 상단.
+              새로고침·공유는 화면 전체의 유틸이라 히어로 카드 밖에 둔다 — 결론 옆에
+              컨트롤이 붙으면 조건 배지에서 결론으로 가는 시선이 한 번 끊긴다. */}
+          <div className="mt-2 flex items-start justify-between gap-3 pb-3">
+            <div className="min-w-0 flex-1">
+              {/* 아이 이름은 타이틀에서 뺐다 — 바로 위 프로필 세그먼트가 활성 아이를
+                  이미 보여주고 있어 같은 정보가 두 번 나온다. 누구의 리포트인지는
+                  세그먼트가, 무엇인지는 이 타이틀이 말한다. */}
+              <h1 className="text-[20px] font-bold leading-[1.35] tracking-[-0.02em] break-keep">
+                오늘의 AI 리포트
+              </h1>
+              {/* 날짜·발행 시각은 .num이 아니라 .tabular — "7월 26일 (일)"은 한글 문장이고
+                  DESIGN.md가 .num(-0.03em)의 한글 사용을 금지한다. 자릿수 정렬만 필요하다.
+                  타이틀 아래는 폭이 넉넉해 날짜까지 온전히 쓴다(우측 배치 때는 축약형). */}
+              <p className="tabular mt-1 text-[13px] font-medium leading-[1.45] text-muted-foreground break-keep">
+                {aiError && "기본 추천 · "}
+                {reportMeta}
+              </p>
+            </div>
+            {/* 새로고침·공유 — 44px 터치 타깃 + Lucide 20/1.75.
+                -mr-3으로 아이콘 광학 우측선을 프레임 콘텐츠선(20px)에 맞추고,
+                -mt-2로 타이틀 첫 줄과 시각 중심을 맞춘다. */}
+            <div className="-mr-3 -mt-2 flex shrink-0 items-center text-muted-foreground">
+              <button
+                onClick={refreshReport}
+                disabled={aiLoading || refreshing}
+                aria-label="리포트 새로고침"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+              >
+                <RefreshCw
+                  className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`}
+                  strokeWidth={1.75}
+                />
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                aria-label="공유"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+              >
+                {sharing ? (
+                  <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
+                ) : (
+                  <Share2 className="h-5 w-5" strokeWidth={1.75} />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* AI 판단 브리프 — 조건 pill → 결론(28/800) → 체질 근거 → 판단 근거 칩.
@@ -1656,33 +1678,6 @@ const Home = () => {
               issue={heroIssue}
               onRetry={heroSt === "fallback" ? refreshReport : undefined}
               retrying={aiLoading || refreshing}
-              actions={
-                <>
-                  <button
-                    onClick={refreshReport}
-                    disabled={aiLoading || refreshing}
-                    aria-label="리포트 새로고침"
-                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
-                  >
-                    <RefreshCw
-                      className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`}
-                      strokeWidth={1.75}
-                    />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    disabled={sharing}
-                    aria-label="공유"
-                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
-                  >
-                    {sharing ? (
-                      <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
-                    ) : (
-                      <Share2 className="h-5 w-5" strokeWidth={1.75} />
-                    )}
-                  </button>
-                </>
-              }
             />
           )}
 
