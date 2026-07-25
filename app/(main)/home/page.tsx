@@ -129,20 +129,22 @@ const skySlotIcon = (sky: number | null, pty: number | null) => {
 // 체크리스트 아이콘: AI가 "☂️ 우산" 형태로 동적 생성하므로 키워드 매핑 + fallback
 const checklistIcon = (icon: string, text: string) => {
   const s = `${icon} ${text}`;
-  // 색은 부모(아이콘 사각형)의 text-* 를 상속 — 준비물 아이콘은 warn 전용색이 아니다
-  const cls = "shrink-0";
+  // 색은 부모(아이콘 사각형)의 text-* 를 상속 — 준비물 아이콘은 warn 전용색이 아니다.
+  // 크기는 DESIGN.md "컨테이너 내 18px"로 통일. LineIcon 기본값은 19px이고 다른 화면에서도
+  // 쓰이므로 컴포넌트 기본값을 바꾸지 않고, 여기서 CSS로 덮어써 이 카드만 18px로 맞춘다.
+  const cls = "h-[18px] w-[18px] shrink-0";
   if (/😷|마스크/.test(s)) return <LineIcon name="mask" className={cls} />;
   if (/🧣|목수건|목도리/.test(s)) return <LineIcon name="scarf" className={cls} />;
   if (/🧥|👕|가디건|외투|긴팔/.test(s)) return <LineIcon name="cardigan" className={cls} />;
   if (/🧢|👒|모자/.test(s)) return <LineIcon name="cap" className={cls} />;
   if (/타올|수건/.test(s)) return <LineIcon name="towel" className={cls} />;
-  if (/☂|☔|우산|비옷/.test(s)) return <Umbrella size={19} strokeWidth={1.5} className={cls} />;
-  if (/가습기/.test(s)) return <Droplets size={19} strokeWidth={1.5} className={cls} />;
+  if (/☂|☔|우산|비옷/.test(s)) return <Umbrella size={18} strokeWidth={1.5} className={cls} />;
+  if (/가습기/.test(s)) return <Droplets size={18} strokeWidth={1.5} className={cls} />;
   if (/🧴|💧|보습|로션|크림|미온수/.test(s)) return <LineIcon name="droplet" className={cls} />;
   if (/물병|물통|물/.test(s)) return <LineIcon name="bottle" className={cls} />;
   if (/☀|🕶|자외선|선크림|햇빛/.test(s)) return <LineIcon name="sun" className={cls} />;
   if (/통풍|여벌|옷/.test(s)) return <LineIcon name="shirt" className={cls} />;
-  return <CircleCheck size={19} strokeWidth={1.5} className={cls} />;
+  return <CircleCheck size={18} strokeWidth={1.5} className={cls} />;
 };
 
 const renderRich = (text: string) => {
@@ -1099,19 +1101,22 @@ const Home = () => {
 
   const message = aiMessage || fallbackMessage;
 
-  // 리포트 본문 문단 — 펼침 영역과 hook 없는 폴백에서 공통으로 재사용
+  // 리포트 본문 문단 — 펼침 영역과 hook 없는 폴백에서 공통으로 재사용.
+  // v3 body 규격(16/400/1.6)으로 읽는다: 접힘이 기본이라 랜딩 높이에는 영향이 없고,
+  // 펼쳤을 때는 "읽는 리포트"가 되어야 하므로 14px·foreground/80(스케일 밖 반투명)을 버렸다.
   const messageParagraphs = message
     .split("\n")
     .filter(Boolean)
     .map((line, i) => (
-      <p key={i} className="text-[14px] leading-[1.65] text-foreground/80 break-keep">
+      <p key={i} className="text-[16px] leading-[1.6] text-foreground break-keep">
         {renderRich(line)}
       </p>
     ));
 
   // 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지. 리포트 본문(message) 최하단에 붙는다.
+  // caption 13으로 복귀 — 11px은 DESIGN.md에서 eyebrow 전용이고 본문 캡션에는 금지다.
   const trustLine = cur ? (
-    <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground/70">
+    <p className="pt-1 text-[13px] leading-[1.5] text-muted-foreground break-keep">
       {withSubjectSuffix(cur.name)} 위한 프로필 기준 해석 · 기상청·에어코리아 실측 데이터
     </p>
   ) : null;
@@ -1450,51 +1455,69 @@ const Home = () => {
               자동 숨김 → 스테일 env 수치 노출 위험 없음. 캐시가 없는 첫 진입·게스트는 종전대로 스켈레톤. */}
           {loading && !reportPrimed ? (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
-              <div className="flex items-start gap-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-3 w-24" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
+              {/* 스켈레톤은 실카드의 골격을 그대로 따른다 — 헤더 밴드·환경 한 줄·hook 2줄·
+                  divider·체크리스트 3행. 종전 스켈레톤은 실카드에 없는 칩 5개를 그려
+                  로딩→실물 전환에서 없던 요소가 사라지는 잔상을 만들었다. */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 rounded-t-2xl bg-primary-tint px-5 py-3">
+                <Skeleton className="h-3 w-14 rounded-full bg-foreground/[0.06]" />
+                <Skeleton className="h-3 w-36 rounded-full bg-foreground/[0.06]" />
+              </div>
+              <Skeleton className="h-3.5 w-11/12 rounded-full" />
+              <div className="mt-3 space-y-2">
+                <Skeleton className="h-7 w-4/5 rounded-full" />
+                <Skeleton className="h-7 w-3/5 rounded-full" />
+              </div>
+              <div className="mt-5 border-t border-border pt-4">
+                <Skeleton className="h-4 w-24 rounded-full" />
+                <div className="mt-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="flex min-h-14 items-center gap-3">
+                      <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+                      <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                      <Skeleton className="h-4 w-24 rounded-full" />
+                    </div>
+                  ))}
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Skeleton key={i} className="h-6 w-16 rounded-full" />
-                ))}
-              </div>
-              <Skeleton className="mt-4 h-32 w-full rounded-xl" />
             </section>
           ) : (
             <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
               {/* 카드 헤더 — 피치(primary-tint) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
                   구분하고 "AI 리포트"임을 앵커링. 아이콘 타일과 같은 브랜드 웜톤으로 통일(크림 미사용).
-                  라벨(14px/bold)이 주인공이 되도록 날짜·시간 메타는 caption(muted-foreground)으로 톤다운. */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-2 rounded-t-2xl bg-primary-tint px-5 py-3">
-                <span className="shrink-0 text-[14px] font-bold text-foreground">AI 리포트</span>
-                <span className="num min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
+                  리포트 발행 머리글(masthead) 문법: eyebrow 토큰(11/700/+0.14em) + 발행 시각.
+                  라벨을 14px/bold에서 eyebrow로 내려 카드의 주인공이 결론(hook)임을 분명히 한다.
+                  eyebrow 색은 foreground — primary-tint(#FFEDDD) 위에서 14.1:1. accent(#C2540A)는
+                  같은 배경에서 3.84:1로 AA(4.5:1) 미달이라 쓰지 않는다(실측 확인). 11px은
+                  large text가 아니므로 4.5:1 기준이 적용된다.
+                  날짜는 .num(네거티브 자간)이 아니라 .tabular — "7월 25일 (토)"는 한글 문장이고
+                  DESIGN.md가 .num의 한글 사용을 금지한다. 자릿수 정렬만 필요하다.
+                  유틸 버튼은 44px 터치 타깃 + Lucide 20px/1.75. -my-3으로 밴드 높이(44px)는 유지하고,
+                  -mr-3으로 아이콘 우측 광학선을 카드 콘텐츠선(20px)에 맞춘다. */}
+              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 rounded-t-2xl bg-primary-tint px-5 py-3">
+                <span className="eyebrow shrink-0 text-foreground">AI 리포트</span>
+                <span className="tabular min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
                   {aiError && "기본 추천 · "}
                   {reportMeta}
                 </span>
-                <div className="-mr-1.5 flex shrink-0 items-center text-foreground">
+                <div className="-my-3 -mr-3 flex shrink-0 items-center text-foreground">
                   <button
                     onClick={refreshReport}
                     disabled={aiLoading || refreshing}
                     aria-label="리포트 새로고침"
-                    className="rounded-full p-2 transition-smooth hover:bg-foreground/5 disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 disabled:opacity-40"
                   >
-                    <RefreshCw className={`h-4 w-4 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
+                    <RefreshCw className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
                   </button>
                   <button
                     onClick={handleShare}
                     disabled={sharing}
                     aria-label="공유"
-                    className="rounded-full p-2 transition-smooth hover:bg-foreground/5 disabled:opacity-40"
+                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 disabled:opacity-40"
                   >
                     {sharing ? (
-                      <RefreshCw className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+                      <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
                     ) : (
-                      <Share2 className="h-4 w-4" strokeWidth={1.75} />
+                      <Share2 className="h-5 w-5" strokeWidth={1.75} />
                     )}
                   </button>
                 </div>
@@ -1531,17 +1554,26 @@ const Home = () => {
               )}
 
               {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 결론(hook)이 주인공이 되도록
-                  라벨(faint)·값(muted, 숫자는 .num) 모두 조용한 그레이로 물러난다. WCAG AA 유지. */}
+                  조용한 그레이로 물러난다. 크기는 caption 13 (12px은 v3 7단 스케일 밖).
+                  라벨/값 구분을 색(faint→muted)이 아니라 굵기(400→500)로 바꿨다:
+                  faint(#9C938A)는 흰 카드 위에서 3.02:1로 WCAG AA(4.5:1) 미달이고(실측),
+                  라벨은 장식이 아니라 의미 있는 본문이라 4.5:1이 적용된다. muted-foreground는
+                  5.70:1로 통과한다. 둘 다 muted 계열에 머물러 hook 우위는 그대로다.
+                  ※ 구분자(·)만 faint 유지 — 순수 장식 글리프. */}
               {nowWeatherItems.length > 0 && (
-                <p className="text-[12px] leading-[1.5] break-keep">
+                <p className="text-[13px] leading-[1.5] text-muted-foreground break-keep">
                   {nowWeatherItems.map((it, i) => (
                     <span key={it.label}>
-                      {i > 0 && <span className="text-faint"> · </span>}
-                      <span className="text-faint">{it.label} </span>
-                      <span
-                        className={`font-medium text-muted-foreground ${/\d/.test(it.value) ? "num" : ""}`}
-                      >
-                        {it.value}
+                      {i > 0 && <span className="text-faint" aria-hidden="true"> · </span>}
+                      {/* 라벨+값을 한 덩어리로 묶어 줄바꿈은 구분자(·)에서만 일어나게 한다.
+                          묶지 않으면 "습도 / 84%"처럼 지표 중간이 끊겨 읽는 리듬이 깨진다. */}
+                      <span className="whitespace-nowrap">
+                        <span>{it.label} </span>
+                        <span
+                          className={`font-medium ${/\d/.test(it.value) ? "num" : ""}`}
+                        >
+                          {it.value}
+                        </span>
                       </span>
                     </span>
                   ))}
@@ -1552,74 +1584,67 @@ const Home = () => {
                   refreshing(수동 새로고침의 env 재조회 구간)도 포함 — 이때 aiLoading은 아직 false다. */}
               {(aiLoading || refreshing) && !reportPrimed ? (
                 <div className="mt-3 space-y-2">
-                  <Skeleton className="h-6 w-3/4 rounded-full" />
-                  <div className="mt-3 space-y-1.5">
-                    <Skeleton className="h-3.5 w-full rounded-full" />
-                    <Skeleton className="h-3.5 w-5/6 rounded-full" />
-                    <Skeleton className="h-3.5 w-4/6 rounded-full" />
-                  </div>
+                  <Skeleton className="h-7 w-4/5 rounded-full" />
+                  <Skeleton className="h-7 w-3/5 rounded-full" />
                 </div>
               ) : (
                 <>
                   {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론.
-                      '자세히' 토글은 마지막 줄에 우측 정렬로 얹어, 히어로와 한 덩어리로 읽히게 한다
-                      (본문이 준비된 뒤에만 노출 — 스트리밍 중엔 토글 없이 hook만). */}
+                      display 26/800/-0.02em은 v3 규격 그대로 유지(페이지당 1회).
+                      토글은 <h1> 밖으로 분리했다: 종전엔 버튼이 heading 안에 있어
+                      (1) 접근성 heading 이름에 "자세히"가 섞이고
+                      (2) 버튼 폭이 hook 마지막 줄의 줄바꿈 위치를 결정했다.
+                      분리하면 hook이 카드 폭 전체를 온전히 쓰고 결론 문장이 먼저 확정된다. */}
                   {aiHook && (
                     <h1 className="mt-3 text-[26px] font-extrabold leading-[1.32] tracking-[-0.02em] text-foreground break-keep">
-                      {(() => {
-                        const lines = splitHook(aiHook);
-                        const canExpand = !(aiStreaming && !aiMessage);
-                        return lines.map((ln, i) => {
-                          const isLast = i === lines.length - 1;
-                          if (!(isLast && canExpand)) {
-                            return (
-                              <span key={i} className="block">
-                                {ln}
-                              </span>
-                            );
-                          }
-                          return (
-                            <span key={i} className="flex items-end justify-between gap-3">
-                              <span className="min-w-0">{ln}</span>
-                              <button
-                                onClick={() => setReportExpanded((v) => !v)}
-                                aria-expanded={reportExpanded}
-                                className="-my-2 flex shrink-0 items-center gap-0.5 whitespace-nowrap py-2 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
-                              >
-                                {reportExpanded ? "접기" : "자세히"}
-                                <ChevronDown
-                                  className={`h-3.5 w-3.5 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
-                                  strokeWidth={2}
-                                />
-                              </button>
-                            </span>
-                          );
-                        });
-                      })()}
+                      {splitHook(aiHook).map((ln, i) => (
+                        <span key={i} className="block">
+                          {ln}
+                        </span>
+                      ))}
                     </h1>
                   )}
                   {/* message — 상세 설명(리포트 본문).
                       · 스트리밍 중 본문이 아직 안 온 구간엔 스켈레톤.
-                      · hook이 있으면 랜딩 시 본문을 접어두고 [자세한 리포트 보기 ▼]로 펼친다
+                      · hook이 있으면 랜딩 시 본문을 접어두고 [자세한 리포트 ▼]로 펼친다
                         (바쁜 부모가 hook 한 문장만 먼저 보게 하는 게 목적).
                       · hook이 없는 폴백(규칙 기반 기본 추천)에선 접을 히어로가 없으므로 본문을 바로 노출. */}
                   {aiStreaming && !aiMessage ? (
-                    <div className={aiHook ? "mt-2 space-y-1.5" : "mt-3 space-y-2"}>
-                      <Skeleton className="h-3.5 w-full rounded-full" />
-                      <Skeleton className="h-3.5 w-5/6 rounded-full" />
-                      <Skeleton className="h-3.5 w-4/6 rounded-full" />
+                    <div className="mt-3 space-y-2">
+                      <Skeleton className="h-4 w-full rounded-full" />
+                      <Skeleton className="h-4 w-5/6 rounded-full" />
+                      <Skeleton className="h-4 w-4/6 rounded-full" />
                     </div>
                   ) : aiHook ? (
                     reportExpanded && (
-                      <div className="mt-2 space-y-1.5 animate-fade-up">
+                      <div className="mt-3 space-y-3 animate-fade-up">
                         {messageParagraphs}
                         {trustLine}
                       </div>
                     )
                   ) : (
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-3">
                       {messageParagraphs}
                       {trustLine}
+                    </div>
+                  )}
+                  {/* 상세 토글 — heading 밖의 독립 컨트롤. 44px 세로 타깃(min-h-11)을 확보하고
+                      -mx-2/px-2로 히트영역만 넓혀 텍스트 좌측선은 카드 콘텐츠선(x=40)에 유지한다.
+                      우측 정렬로 hook과 경쟁하지 않는 조용한 유틸 위치를 지킨다.
+                      본문이 준비된 뒤에만 노출 — 스트리밍 중엔 토글 없이 hook만. */}
+                  {aiHook && !(aiStreaming && !aiMessage) && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => setReportExpanded((v) => !v)}
+                        aria-expanded={reportExpanded}
+                        className="-mx-2 flex min-h-11 items-center gap-1 rounded-lg px-2 text-[14px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
+                      >
+                        {reportExpanded ? "접기" : "자세한 리포트"}
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
+                          strokeWidth={2}
+                        />
+                      </button>
                     </div>
                   )}
                 </>
@@ -1632,20 +1657,40 @@ const Home = () => {
                   잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출.
                   캐시로 이미 그린 경우(reportPrimed)엔 재검증 중에도 캐시 체크리스트를 유지. */}
               {(aiLoading || aiStreaming || refreshing) && !reportPrimed ? (
-                <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
+                // 실제 체크리스트 골격(divider + 라벨 + 56px 3행)을 그린다 — 단색 h-44 블록은
+                // 어떤 요소가 올지 전달하지 못하고 실물 전환에서 형태가 튄다.
+                <div className="mt-5 border-t border-border pt-4">
+                  <Skeleton className="h-4 w-24 rounded-full" />
+                  <div className="mt-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex min-h-14 items-center gap-3">
+                        <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+                        <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                        <Skeleton className="h-4 w-24 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               ) : (
               <div className="mt-5 border-t border-border pt-4 pb-0">
                 <div className="flex items-center justify-between">
-                  <p className="text-[14px] font-bold">오늘 챙길 것</p>
+                  <p className="text-[14px] font-semibold">오늘 챙길 것</p>
                   {allDone ? (
-                    <p className="text-xs font-bold text-status-good animate-fade-in">준비 끝 ✓</p>
+                    <p className="flex items-center gap-1 text-[13px] font-semibold text-status-good animate-fade-in">
+                      준비 끝
+                      <Check className="h-4 w-4" strokeWidth={2.5} />
+                    </p>
                   ) : (
-                    <p className="num text-xs text-muted-foreground">
-                      <b className="text-foreground">{checkedCount}</b> / {activeChecklist.length}
+                    <p className="tabular text-[13px] text-muted-foreground">
+                      <b className="font-semibold text-foreground">{checkedCount}</b> / {activeChecklist.length}
                     </p>
                   )}
                 </div>
-                <ul className="mt-1.5">
+                {/* 체크리스트 행 — DESIGN.md 리스트 행 문법으로 정규화:
+                    56px 행(min-h-14) · 24px 체크 원 · 36px 아이콘 컨테이너(rounded-xl) ·
+                    18px 아이콘 · 12px gap · 라벨 16/500. 종전 62px 행·38px 타일·26px 원은
+                    표준에서 2~6px씩 벗어나 있었고, 4개일 때 카드를 불필요하게 늘렸다. */}
+                <ul className="mt-2">
                   {activeChecklist.map((c) => {
                     const on = checked.includes(c.key);
                     // "제목 (사유)" 형태를 제목/사유 두 줄로 분리 — 괄호가 없으면 제목만
@@ -1656,18 +1701,19 @@ const Home = () => {
                       <li key={c.key}>
                         <button
                           onClick={() => toggle(c.key)}
-                          className="flex w-full items-center gap-3 border-b border-border/40 py-3 text-left last:border-b-0"
+                          aria-pressed={on}
+                          className="flex min-h-14 w-full items-center gap-3 border-b border-border/40 py-2 text-left last:border-b-0"
                         >
                           <span
-                            className={`flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card transition-smooth ${
+                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card transition-smooth ${
                               on
                                 ? "border-status-good text-status-good"
                                 : "border-border-control"
                             }`}
                           >
-                            {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                            {on && <Check className="h-4 w-4" strokeWidth={3} />}
                           </span>
-                          <span className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
                             {checklistIcon(c.icon, c.text)}
                           </span>
                           <span className="min-w-0 flex-1">
@@ -1679,7 +1725,7 @@ const Home = () => {
                               {title}
                             </span>
                             {reason && (
-                              <span className="mt-0.5 block text-[12px] text-muted-foreground break-keep">
+                              <span className="mt-1 block text-[13px] text-muted-foreground break-keep">
                                 {reason}
                               </span>
                             )}
