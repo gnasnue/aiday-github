@@ -420,7 +420,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
                 <span class="detail-row__label">판단 근거 자세히 보기</span>
                 <span class="detail-row__sub">지우 체질 · 등원 <span class="num">08:30</span> 기준</span>
               </span>
-              <svg class="ic20 detail-row__chev"><use href="#i-right"/></svg>
+              <svg class="ic20 detail-row__chev"><use href="#i-down"/></svg>
             </button>
 
             <section class="checklist-card">
@@ -536,6 +536,9 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
               <td>15/400/1.66 · <code>muted #6E655D</code> · 아이 이름·준비물만 600/ink · 위 여백 8 · <b>Fill</b> · 2줄(50px) 권장, 3줄까지 허용</td></tr>
             <tr><td><b>4</b></td><td><b>Evidence chips</b><br><span class="mono">evidence-chip</span></td>
               <td>라벨 13/500 <code>muted</code> + 값 13/700 <code>ink</code>(숫자만 tabular) · 면 <code>surface #F3F0ED</code> · h 36 · padding 8·12 · 내부 gap 4 · 칩 간 gap 8 · warn만 값 색 + 4px 도트 · 3개 합 <b>285px</b>(310 안에 1줄 수납)</td></tr>
+            <tr><td></td><td><b>근거 진입 행</b><br><span class="mono">detail-row</span></td>
+              <td><b>링크가 아니라 펼침 행</b>(<code>aria-expanded</code>, chevron ▾ 180° 회전) · 탭하면 히어로 아래에 AI 본문(<code>message</code> 16/400/1.6)과 출처 한 줄(13/400)이 펼쳐진다 · 라벨 15/600 + 보조문 13/400 1줄 고정 · min-h 64 · <code>shadow-soft</code><br>
+              <b>왜 링크가 아닌가</b>: <code>/env</code>로 보내면 AI가 쓴 판단 본문(250자)이 도달할 화면이 없어 <b>사라진다</b>. 현행 홈의 “자세히” 토글이 하던 일을 이 행이 물려받는다 — 위치와 터치 타깃만 정상화하고 동작은 유지한다.</td></tr>
             <tr><td></td><td><b>Card</b><br><span class="mono">hero</span></td>
               <td>350×272(실측) · radius <b>24</b> · padding 20 · <code>shadow-card</code> = <span class="mono">0 1px 3px hsl(28 20% 15%/.05), 0 10px 28px -10px hsl(28 30% 20%/.12)</span> · 외곽 보더 없음</td></tr>
           </tbody>
@@ -612,8 +615,8 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
           <thead><tr><th>상태</th><th>판정 기준(제품 로직)</th><th>tint</th><th>아이콘</th><th>헤드라인 어법</th><th>chip 톤</th></tr></thead>
           <tbody>
             <tr><td><b>normal</b></td><td>주의 등급 지표 0개 — 무난한 날</td><td><code>#F3F0ED</code> surface(웜 뉴트럴)</td><td>cloud-sun · <code>muted</code></td><td>“가볍게 …해주세요” 준비 최소화</td><td>전부 뉴트럴</td></tr>
-            <tr><td><b>caution</b></td><td>1순위 이슈 존재(일교차·강수·꽃가루 높음·미세먼지 나쁨·폭염 등)</td><td><code>#FDF2E9</code> state/caution</td><td>이슈별 아이콘 · <code>warn</code></td><td>“…를 챙겨주세요” 대비 지시</td><td>이슈 지표만 warn + 도트</td></tr>
-            <tr><td><b>safe</b></td><td>야외활동 지수 좋음 — 권유할 기회가 있는 날</td><td><code>#EDF6F0</code> state/safe</td><td>sun · <code>good</code></td><td>“…다녀오세요” 기회 권유</td><td>지수만 good + 도트</td></tr>
+            <tr><td><b>caution</b></td><td>1순위 이슈 존재(일교차·강수·꽃가루 높음·미세먼지 나쁨·폭염 등)</td><td><code>#FDF2E9</code> <code>status-warn-tint</code></td><td>이슈별 아이콘 · <code>warn</code></td><td>“…를 챙겨주세요” 대비 지시</td><td>이슈 지표만 warn + 도트</td></tr>
+            <tr><td><b>safe</b></td><td>야외활동 지수 좋음 — 권유할 기회가 있는 날</td><td><code>#EDF6F0</code> <code>status-good-tint</code></td><td>sun · <code>good</code></td><td>“…다녀오세요” 기회 권유</td><td>지수만 good + 도트</td></tr>
           </tbody>
         </table>
         <p><b>safe 상태의 “좋음” 표기</b> — AI 프롬프트는 등급이 좋음·보통인 지표를 <b>문장으로</b> 언급하지 않는다(<code>report.ts:123</code>, 없는 문제를 만들지 않기 위한 규칙). 여기서 “야외활동 좋음”은 문장이 아니라 <b>권유 결론의 근거 데이터</b>이며, env 화면이 이미 히어로로 노출하는 야외활동 지수와 같은 값이다 — safe 상태에서 이 칩을 빼면 결론의 근거가 사라진다.</p>
@@ -793,7 +796,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
               <span class="detail-row__label">판단 근거 자세히 보기</span>
               <span class="detail-row__sub">지우 체질 · 등원 <span class="num">08:30</span> 기준</span>
             </span>
-            <svg class="ic20 detail-row__chev"><use href="#i-right"/></svg>
+            <svg class="ic20 detail-row__chev"><use href="#i-down"/></svg>
           </button>
           <section class="checklist-card">
             <div class="section-header">
@@ -907,8 +910,8 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
       <div class="sw"><div class="sw__chip" style="background:#FFFFFF;border-bottom:1px solid #F0EDEA"></div><div class="sw__body"><span class="sw__name">card</span><span class="sw__val">0 0% 100% · #FFFFFF</span><span class="sw__use">Hero·체크리스트 면. 외곽 보더 없음</span></div></div>
       <div class="sw"><div class="sw__chip" style="background:#F3F0ED"></div><div class="sw__body"><span class="sw__name">muted (surface)</span><span class="sw__val">27 12% 94% · #F3F0ED</span><span class="sw__use">근거 chip·아이콘 타일·세그먼트 트랙 · <b>normal 상태 pill</b>(색 없음이 곧 “특이사항 없음”)</span></div></div>
       <div class="sw"><div class="sw__chip" style="background:#FFEDDD"></div><div class="sw__body"><span class="sw__name">primary-tint</span><span class="sw__val">28 100% 93% · #FFEDDD</span><span class="sw__use"><b>헤드라인 키프레이즈 하이라이트 밴드</b> · 강조 준비물 타일 1곳 · 피드백 선택</span></div></div>
-      <div class="sw"><div class="sw__chip" style="background:#FDF2E9"></div><div class="sw__body"><span class="sw__name">state/caution <span class="pill pill--new">신규</span></span><span class="sw__val">#FDF2E9 (warn-bg 55%)</span><span class="sw__use">Hero context pill — 주의</span></div></div>
-      <div class="sw"><div class="sw__chip" style="background:#EDF6F0"></div><div class="sw__body"><span class="sw__name">state/safe <span class="pill pill--new">신규</span></span><span class="sw__val">#EDF6F0 (good-bg 55%)</span><span class="sw__use">Hero context pill — 기회</span></div></div>
+      <div class="sw"><div class="sw__chip" style="background:#FDF2E9"></div><div class="sw__body"><span class="sw__name">status-warn-tint <span class="pill pill--new">신규</span></span><span class="sw__val">27 83% 95% · #FDF2E9</span><span class="sw__use">Hero context pill — 주의</span></div></div>
+      <div class="sw"><div class="sw__chip" style="background:#EDF6F0"></div><div class="sw__body"><span class="sw__name">status-good-tint <span class="pill pill--new">신규</span></span><span class="sw__val">140 33% 95% · #EDF6F0</span><span class="sw__use">Hero context pill — 기회</span></div></div>
       <div class="sw"><div class="sw__chip" style="background:#DCEFE2"></div><div class="sw__body"><span class="sw__name">status-good-bg</span><span class="sw__val">139 37% 90% · #DCEFE2</span><span class="sw__use">체크리스트 all-done 카드 면</span></div></div>
     </div>
 
@@ -1041,9 +1044,9 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
         <tr>
           <td><b>DetailEntryRow</b></td>
           <td><code>label</code> Text · <code>sub</code> Text · <code>icon</code> Instance swap</td>
-          <td><code>default / pressed</code></td>
+          <td><code>default / pressed / expanded</code></td>
           <td>Horizontal · gap 12 · padding 12·14·12·12 · <b>Fill</b> W · min-h 64 · 본문 <b>Fill</b>, 타일·chevron <b>Hug</b></td>
-          <td>현행 “자세히” 토글을 행으로 승격 (2026-07-23 리뷰 P1 해소)</td>
+          <td>현행 “자세히” 토글을 행으로 승격 (2026-07-23 리뷰 P1 해소) — <b>펼침 대상은 <code>messageParagraphs</code> + <code>trustLine</code></b></td>
         </tr>
         <tr>
           <td><b>PrepChecklistRow</b></td>
@@ -1106,7 +1109,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
 │        └─ <b>IconButton / share</b>    <i>44×44 · aria "리포트 공유"</i>
 ├─ HomeMain                       <i>Fill V · padding 0·20·8</i>
 │  ├─ <b>HeroDecisionBrief</b>          <i>Fill W · Hug H · radius 24 · shadow-card ← 화면 유일 L2</i>
-│  │  ├─ Hero / ContextPill       <i>Hug · bg state/caution · icon thermometer(warn) + 13·600</i>
+│  │  ├─ Hero / ContextPill       <i>Hug · bg status-warn-tint · icon thermometer(warn) + 13·600</i>
 │  │  ├─ Hero / Headline          <i>Fill · 30·800·-0.032em · &lt;h2&gt; · 강조구간 accent</i>
 │  │  ├─ Hero / SupportingCopy    <i>Fill · 15·400·1.66 muted · 아이 특성 근거</i>
 │  │  └─ Hero / EvidenceRow       <i>H · wrap · gap 6</i>
@@ -1159,7 +1162,7 @@ pre.tree i{font-style:normal;color:var(--doc-muted)}
         <tr><td>Hero radius</td><td>카드 표준 <code>rounded-2xl</code> 20px (DESIGN.md:103)</td><td><b>24px</b> — Hero 단 1곳</td><td>화면당 하나뿐인 L2 표면을 색이 아니라 <b>기하</b>로 구분한다. 다른 카드는 20px 유지.</td></tr>
         <tr><td>Headline 크기</td><td><code>display</code> 26/800/-0.02em (DESIGN.md:22)</td><td><b>display 토큰을 28/800/-0.028em으로 개정</b>(신규 토큰 아님)</td><td>브리프 요구(28~32)의 <b>하한</b>을 택했다. 30~32는 새 토큰이 되어 7단 스케일을 8단으로 늘리지만, 28은 기존 display를 2px 올리는 개정이라 <b>env 야외활동 지수 히어로까지 같은 혜택</b>을 받는다. 페이지당 1회 규칙 유지.</td></tr>
         <tr><td>Hero 본문</td><td><code>body</code> 16/1.6 (DESIGN.md:25)</td><td><b>15/1.66</b></td><td>브리프 요구(14~15, lh 155~170%). 헤드라인 28px과의 대비를 확보하되 <b>13px 이하로는 내리지 않아</b> 2026-07-23 리뷰의 “보조 정보 과소” 지적을 재발시키지 않는다.</td></tr>
-        <tr><td>상태 tint <b>2종</b></td><td>웜 뉴트럴 원칙 · 톤 밴드는 카드 안 1곳 (DESIGN.md:33) · “색 없음이 곧 특이사항 없음”(DESIGN.md:58)</td><td><code>state/caution</code> <code>state/safe</code> 2토큰만 신설(기존 <code>status-*-bg</code>의 55% 농도) · <b>normal은 웜 뉴트럴 <code>muted</code></b></td><td>브리프는 blue tint도 허용했지만 <b>채택하지 않았다</b> — status-neutral 원칙대로 “특이사항 없는 날”은 색이 없어야 한다. 덕분에 신규 토큰이 3→2개로 줄고, 화면에 찬 색(cool hue)이 들어오지 않는다. 적용 범위는 Hero context pill 하나.</td></tr>
+        <tr><td>상태 tint <b>2종</b></td><td>웜 뉴트럴 원칙 · 톤 밴드는 카드 안 1곳 (DESIGN.md:33) · “색 없음이 곧 특이사항 없음”(DESIGN.md:58)</td><td><code>--status-warn-tint</code> <code>--status-good-tint</code> 2토큰만 신설(기존 <code>status-*-bg</code>의 55% 농도) · <b>normal은 웜 뉴트럴 <code>muted</code></b></td><td>브리프는 blue tint도 허용했지만 <b>채택하지 않았다</b> — status-neutral 원칙대로 “특이사항 없는 날”은 색이 없어야 한다. 덕분에 신규 토큰이 3→2개로 줄고, 화면에 찬 색(cool hue)이 들어오지 않는다. 적용 범위는 Hero context pill 하나.</td></tr>
         <tr><td>근거 chip 문법</td><td>상태 칩 = 흰 배경 + 상태색 텍스트 + <code>border-chip</code> + 도트 (DESIGN.md:80)</td><td>Hero 안에서는 <b>뉴트럴 면(<code>muted</code>) + 값 색 + 도트</b>, 보더 없음</td><td>흰 Hero 카드 위에 흰 칩 + 보더를 놓으면 “카드 안 카드”가 되고 브리프의 두꺼운 외곽선 금지와 충돌한다. 면으로 분리하면 보더 0개로 같은 구분을 얻는다. 카드 밖(환경 칩)은 현행 문법 유지.</td></tr>
         <tr><td>아이콘 stroke</td><td>Lucide 1.75 / LineIcon 세트 기본 1.5 (DESIGN.md:109)</td><td><b>1.75 단일화</b></td><td>브리프 요구(동일 stroke·optical size). 두 세트가 섞이면 한 화면에서 굵기가 갈린다.</td></tr>
         <tr><td>강조 타일 선정</td><td>준비물 강조 = <code>isCriticalPrep</code> 긴급도 (DESIGN.md:130)</td><td><b>헤드라인이 지시한 준비물</b> 1개 (없으면 긴급도 첫 항목)</td><td>결론↔실행 연결. hook이 항상 1순위 이슈이므로 두 규칙은 대체로 같은 항목을 고른다 — 어긋날 땐 <b>결론 일치</b>를 우선한다.</td></tr>

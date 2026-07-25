@@ -95,7 +95,9 @@ const HeroDecisionBrief = ({
       {/* 결론 — display 28/800. fallback은 title-lg 20/700으로 낮춘다:
           강한 결론 타입은 "AI가 판단했다"는 신호이고, 규칙 기반 추천이 빌려 쓰면
           신뢰가 오염된다. 같은 이유로 fallback에서는 하이라이트 밴드도 쓰지 않는다. */}
-      <h1
+      {/* h2다 — 페이지의 h1은 헤더의 "○○의 오늘 준비"이고, 이 결론은 그 아래 섹션의 제목이다.
+          h1이 두 개면 스크린리더의 문서 개요가 무너진다. */}
+      <h2
         id="hero-headline"
         className={`text-foreground break-keep ${
           isFallback
@@ -117,7 +119,7 @@ const HeroDecisionBrief = ({
             <span key={i}>{seg.text}</span>
           )
         )}
-      </h1>
+      </h2>
 
       {support && (
         <p className="mt-2 text-[15px] leading-[1.66] text-muted-foreground break-keep">{support}</p>

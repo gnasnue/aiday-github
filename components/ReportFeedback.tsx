@@ -81,7 +81,10 @@ const ReportFeedback = ({
   };
 
   return (
-    <div className="mt-4 border-t border-border px-0.5 pt-3.5">
+    // divider·여백은 이 컴포넌트를 담는 카드(PrepChecklistCard footer)가 소유한다 —
+    // 여기서 또 border-t를 그리면 선이 두 겹이 되고, px-0.5(2px)는 카드 콘텐츠선(x=40)에서
+    // 2px 밀려 위 요소들과 좌측선이 어긋난다(2026-07-23 리뷰 지적).
+    <div>
       <div className="flex items-center justify-between">
         <p className="text-[13px] font-medium text-muted-foreground">
           {rating ? "의견 감사해요" : "이 리포트가 도움이 되었나요?"}

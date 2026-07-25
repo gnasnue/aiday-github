@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, MapPin, ChevronDown, ChevronRight, Check, CircleCheck, Droplets, Umbrella, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
+import { Bell, MapPin, ChevronDown, ChevronRight, List, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +10,16 @@ import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
 import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
 import ReportFeedback from "@/components/ReportFeedback";
+import HeroDecisionBrief, { type HeroIssue } from "@/components/HeroDecisionBrief";
+import PrepChecklistCard from "@/components/PrepChecklistCard";
+import {
+  toBrief,
+  splitHook,
+  splitPrepText,
+  pickEvidence,
+  pickPrimaryPrep,
+  heroState,
+} from "@/lib/hero-brief";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
@@ -127,25 +137,6 @@ const skySlotIcon = (sky: number | null, pty: number | null) => {
 };
 
 // 체크리스트 아이콘: AI가 "☂️ 우산" 형태로 동적 생성하므로 키워드 매핑 + fallback
-const checklistIcon = (icon: string, text: string) => {
-  const s = `${icon} ${text}`;
-  // 색은 부모(아이콘 사각형)의 text-* 를 상속 — 준비물 아이콘은 warn 전용색이 아니다.
-  // 크기는 DESIGN.md "컨테이너 내 18px"로 통일. LineIcon 기본값은 19px이고 다른 화면에서도
-  // 쓰이므로 컴포넌트 기본값을 바꾸지 않고, 여기서 CSS로 덮어써 이 카드만 18px로 맞춘다.
-  const cls = "h-[18px] w-[18px] shrink-0";
-  if (/😷|마스크/.test(s)) return <LineIcon name="mask" className={cls} />;
-  if (/🧣|목수건|목도리/.test(s)) return <LineIcon name="scarf" className={cls} />;
-  if (/🧥|👕|가디건|외투|긴팔/.test(s)) return <LineIcon name="cardigan" className={cls} />;
-  if (/🧢|👒|모자/.test(s)) return <LineIcon name="cap" className={cls} />;
-  if (/타올|수건/.test(s)) return <LineIcon name="towel" className={cls} />;
-  if (/☂|☔|우산|비옷/.test(s)) return <Umbrella size={18} strokeWidth={1.5} className={cls} />;
-  if (/가습기/.test(s)) return <Droplets size={18} strokeWidth={1.5} className={cls} />;
-  if (/🧴|💧|보습|로션|크림|미온수/.test(s)) return <LineIcon name="droplet" className={cls} />;
-  if (/물병|물통|물/.test(s)) return <LineIcon name="bottle" className={cls} />;
-  if (/☀|🕶|자외선|선크림|햇빛/.test(s)) return <LineIcon name="sun" className={cls} />;
-  if (/통풍|여벌|옷/.test(s)) return <LineIcon name="shirt" className={cls} />;
-  return <CircleCheck size={18} strokeWidth={1.5} className={cls} />;
-};
 
 const renderRich = (text: string) => {
   // 줄바꿈(\n)을 기준으로 문단 분리 후, 각 문단 내에서 **bold**/__accent__ 처리
@@ -178,21 +169,6 @@ const renderRich = (text: string) => {
   });
 };
 
-// AI hook(히어로 헤드라인)을 두 줄로 — "조건 — 행동" 또는 "조건, 행동" 형태를 분리.
-// 프롬프트 규칙상 hook은 "[공감] — [행동]" 구조라 대시가 1차 구분자다. 행동절에 쉼표가
-// 섞여도(예: "자외선 매우강함 — 땀도 많은 날, 대비하세요") 대시에서 갈리도록 대시를 먼저 본다.
-// 대시가 없을 때만 쉼표를 폴백 구분자로 쓰고, 둘 다 없으면 한 줄로 두고 자연 줄바꿈에 맡긴다.
-const splitHook = (hook: string): string[] => {
-  const dash = hook.match(/\s+[—–-]\s+/);
-  if (dash && dash.index != null) {
-    return [hook.slice(0, dash.index).trim(), hook.slice(dash.index + dash[0].length).trim()];
-  }
-  const comma = hook.search(/[,，]/);
-  if (comma > 0 && comma < hook.length - 1) {
-    return [hook.slice(0, comma + 1).trim(), hook.slice(comma + 1).trim()];
-  }
-  return [hook];
-};
 
 /* ---- 하루 케어 플랜: 슬롯별 "특이사항" 요약 ---- */
 
@@ -230,6 +206,17 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 
   return warn.length > 0 ? warn : watch.slice(0, 1);
 };
+
+// 준비물 → 그 준비물을 정당화하는 환경 신호. 체크리스트 사유를 만들 때
+// slotNotables()가 낸 특이사항 중 이 신호에 해당하는 것만 골라 쓴다.
+// (매칭 없으면 체감 온도로 — 물통·여벌 옷처럼 더위가 근거인 준비물)
+const PREP_SIGNAL: { match: RegExp; signal: RegExp }[] = [
+  { match: /우산|우비/, signal: /비 소식/ },
+  { match: /마스크|실내놀이/, signal: /미세먼지|꽃가루/ },
+  { match: /선크림|모자/, signal: /자외선/ },
+  { match: /보습|로션|크림/, signal: /건조/ },
+  { match: /방한|목수건|겉옷|가디건|바람막이/, signal: /바람|건조/ },
+];
 
 
 const Home = () => {
@@ -1144,10 +1131,6 @@ const Home = () => {
     return baseChecklist;
   }, [aiChecklist, baseChecklist]);
 
-  // checked에는 목록 교체로 사라진 항목의 key가 남아 있을 수 있다 — 현재 목록과의
-  // 교집합만 센다.
-  const checkedCount = activeChecklist.filter((c) => checked.includes(c.key)).length;
-  const allDone = checkedCount === activeChecklist.length;
 
   // ── 하루 케어 플랜 "지금" 판정 — 슬롯 시각 ±W 밴드 ──────────────────────
   // 종전엔 "지나간 마지막 슬롯"을 무조건 "지금"으로 삼아, 등원~하원 6시간 빈칸 내내
@@ -1238,6 +1221,169 @@ const Home = () => {
     if (curWeather?.humidity != null) items.push({ label: "습도", value: `${curWeather.humidity}%` });
     return items;
   })();
+
+  /* ---- 히어로 Decision Brief 파생 (lib/hero-brief, 유닛 테스트로 고정) ----
+     hook의 "[공감] — [행동]" 구조를 그대로 쓴다 — 조건절은 pill, 행동절은 결론.
+     프롬프트·캐시 스키마 변경이 없다. */
+  const brief = toBrief(aiHook || "");
+
+  // 폴백(규칙 기반)에는 hook이 없다 — 본문 첫 문장을 결론 자리에 넣고 타입을 title(20)로
+  // 낮춘다(HeroDecisionBrief fallback variant). display 28/800은 AI 판단 전용이다.
+  const plainLines = message
+    .split("\n")
+    .map((l) => l.replace(/\*\*|__/g, "").trim())
+    .filter(Boolean);
+
+  // 아이 특성 근거 문장 — 프롬프트 규칙상 체질 연결 문장에는 아이 이름이 들어간다.
+  // 없으면 두 번째 문장(첫 문장은 이슈 서술)으로 폴백한다. 잘라내지 않는다 — 개인화 근거를
+  // 자르면 유료 서비스의 핵심이 사라진다.
+  const supportLine = (() => {
+    const lines = (aiMessage || message)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (!lines.length) return null;
+    return lines.find((l) => l.includes(cur.name)) ?? lines[1] ?? null;
+  })();
+
+  // 판단 기준 슬롯 — 사용자가 입력한 첫 일과(없으면 첫 슬롯). 판단·근거·사유가 모두
+  // 이 슬롯을 가리켜야 한 화면 안에서 서로 어긋나지 않는다.
+  const basisSlot = displaySlots.find((sl) => !sl.isDefault) ?? displaySlots[0] ?? null;
+
+  // 판단 근거 칩 2~3개 — 근거는 기준 슬롯의 실측 지표에서 뽑는다.
+  // badges(weatherData 스칼라)를 쓰지 않는 이유: 시간대별 환경·케어 플랜 카드는 슬롯 값을
+  // 쓰기 때문에, badges로 칩을 만들면 같은 화면에서 "히어로는 특이사항 없음 / 아래 카드는
+  // 자외선 매우강함"처럼 어긋난다(2026-07-21 "홈=판단 / env=근거" 결정이 해소한 문제와 같은 류).
+  // 임계값은 slotNotables()의 경고급 조건과 동일하게 맞춘다 — 둘 중 하나만 바뀌면 안 된다.
+  const nowValue = (label: string) =>
+    nowWeatherItems.find((it) => it.label === label)?.value ?? null;
+  const warnSignals: { label: string; value: string }[] = [];
+  if (basisSlot) {
+    const pop = basisSlot.popWindow ?? basisSlot.pop ?? null;
+    if ((basisSlot.pty != null && basisSlot.pty > 0) || (pop != null && pop >= 60)) {
+      warnSignals.push({ label: "강수", value: pop != null ? `${pop}%` : "예보" });
+    }
+    if (basisSlot.dust === "나쁨" || basisSlot.dust === "매우나쁨") {
+      warnSignals.push({ label: "미세먼지", value: basisSlot.dust });
+    }
+    if (basisSlot.pollen === "높음" || basisSlot.pollen === "매우높음") {
+      warnSignals.push({ label: "꽃가루", value: basisSlot.pollen });
+    }
+    if (basisSlot.uv === "강함" || basisSlot.uv === "매우강함") {
+      warnSignals.push({ label: "자외선", value: basisSlot.uv });
+    }
+    if (basisSlot.wind === "강함") warnSignals.push({ label: "바람", value: "강함" });
+    if (basisSlot.humidity > 0 && basisSlot.humidity <= 40) {
+      warnSignals.push({ label: "습도", value: `${basisSlot.humidity}%` });
+    }
+  }
+  // 1순위는 AI가 정한다 — hook의 조건절(pill 텍스트)이 곧 오늘의 1순위 이슈다
+  // (프롬프트 규칙 5: hook은 1순위 이슈로 쓴다). 그래서 pill 아이콘과 근거 칩 순서를
+  // 이 텍스트에 맞춘다. 맞추지 않으면 "pill은 자외선인데 아이콘은 비"처럼 어긋난다.
+  const ctxIssue = (() => {
+    const ctx = brief.context ?? "";
+    if (!ctx) return null;
+    if (/비|소나기|강수/.test(ctx)) return "강수";
+    if (/미세먼지|황사/.test(ctx)) return "미세먼지";
+    if (/꽃가루/.test(ctx)) return "꽃가루";
+    if (/자외선/.test(ctx)) return "자외선";
+    if (/바람/.test(ctx)) return "바람";
+    if (/건조|습도/.test(ctx)) return "습도";
+    return null;
+  })();
+
+  // 좋음·보통 등급은 칩으로 만들지 않는다("없는 문제를 만들지 않는다"는 리포트 규칙과 같은
+  // 원칙). 결측 지표에 "—"를 그리지도 않는다 — 무근거가 데이터처럼 보이는 게 가장 나쁘다.
+  const evidence = pickEvidence([
+    ...warnSignals.map((w, i) => ({
+      label: w.label,
+      value: w.value,
+      tone: "warn" as const,
+      priority: w.label === ctxIssue ? -1 : i, // AI가 고른 1순위를 맨 앞으로
+    })),
+    { label: "현재", value: nowValue("현재날씨"), priority: 10 },
+    { label: "체감", value: nowValue("체감"), priority: 11 },
+  ]);
+
+  // 상태와 근거는 같은 후보 집합에서 나온다 — 칩에 warn이 없는데 카드가 주의색인(또는 반대인)
+  // 모순이 구조적으로 불가능해진다.
+  // safe(야외활동 권유)는 아직 배선하지 않는다: 홈에는 야외활동 지수 입력(pm25·풍속)이 없어
+  // env와 다른 입력으로 같은 지수를 계산하면 두 화면의 판단이 또 어긋난다.
+  const heroSt = heroState({ hasAiHook: !!aiHook, issueCount: warnSignals.length });
+
+  // context pill 아이콘 — 1순위 이슈를 모양으로 말한다(색이 빠져도 남는 상태 신호).
+  const HERO_ISSUE_BY_LABEL: Record<string, HeroIssue> = {
+    강수: "rain",
+    미세먼지: "dust",
+    꽃가루: "pollen",
+    자외선: "uv",
+    바람: "cold",
+    습도: "temp",
+  };
+  const heroIssue: HeroIssue | undefined =
+    heroSt === "caution"
+      ? HERO_ISSUE_BY_LABEL[ctxIssue ?? warnSignals[0]?.label ?? ""] ?? "temp"
+      : undefined;
+
+  // 준비물 사유 — AI 체크리스트는 "이모지 짧은이름"만 준다(report.ts 출력 규칙). 그래서 사유는
+  // 그 준비물이 필요한 슬롯의 특이사항에서 만든다: "등원 09:00 · 자외선 매우강함".
+  // 규칙 폴백이 "이름 (사유)" 형태를 주면 그것을 그대로 쓴다.
+  // 일과 미입력 슬롯(isDefault)에서는 시각을 쓰지 않는다 — 지어낸 시각에 거짓 정밀도를 얹지 않고,
+  // "기본 시간"임을 텍스트로 노출하는 것도 금지 범주다.
+  const prepReason = (title: string): string => {
+    const canon = canonicalPrep(title);
+    // 준비물마다 "그 물건을 정당화하는 신호"가 다르다. 슬롯의 첫 특이사항을 그냥 쓰면
+    // 선크림 사유가 "비 소식"이 되는 식으로 어긋난다.
+    const signal = PREP_SIGNAL.find((p) => p.match.test(canon))?.signal;
+    // 이 준비물이 실제로 배정된 슬롯을 우선하고, 없으면 판단 기준 슬롯을 쓴다
+    // (AI 체크리스트에는 slotPrep에 없는 항목도 들어온다).
+    const target =
+      displaySlots.find((slot) =>
+        (slotPrep[slot.time] ?? []).some((kw) => canonicalPrep(kw) === canon)
+      ) ?? basisSlot;
+    if (!target) return "";
+    const label = target.isDefault
+      ? careLabel(target.time)
+      : `${careLabel(target.time)} ${target.hour}`;
+    const notables = slotNotables(target, cur?.conditions);
+    const matched = signal ? notables.find((n) => signal.test(n)) : undefined;
+    // 매칭되는 환경 신호가 없으면 체감 온도로 — 물통·여벌 옷처럼 더위가 근거인 준비물에서
+    // "등원 09:00 · 체감 30°"가 실제 이유다. 지어낸 문구를 붙이지 않는다.
+    return matched ? `${label} · ${matched}` : `${label} · 체감 ${target.feels}°`;
+  };
+
+  // 준비물 — 제목/사유 분리 + 강조 1개(헤드라인이 지시한 준비물 → 없으면 긴급 신호 첫 항목).
+  const prepItems = activeChecklist.map((c) => {
+    const { title, reason } = splitPrepText(c.text);
+    return { key: c.key, title, reason: reason || prepReason(title), icon: c.icon };
+  });
+  const criticalPrepKeys = (() => {
+    const keys = new Set<string>();
+    displaySlots.forEach((slot) => {
+      (slotPrep[slot.time] ?? []).forEach((kw) => {
+        if (isCriticalPrep(kw, slot, cur?.conditions)) keys.add(canonicalPrep(kw));
+      });
+    });
+    return keys;
+  })();
+  const primaryPrepKey = pickPrimaryPrep(
+    brief.headline || aiHook || "",
+    prepItems.map((it) => ({
+      key: it.key,
+      title: it.title,
+      critical: criticalPrepKeys.has(canonicalPrep(it.title)),
+    }))
+  );
+
+  // 판단 기준 한 줄 — 접힘 상태에서도 근거의 출처를 보여준다. 일과를 입력하지 않은 프로필
+  // (기본 시간)에서는 시각을 쓰지 않는다 — 기본 시간임을 텍스트로 노출하는 것은 금지 범주다.
+  const basisSub = basisSlot && !basisSlot.isDefault
+    ? `${cur.name} 체질 · ${basisSlot.time.replace("시간", "")} ${basisSlot.hour} 기준`
+    : `${cur.name} 체질 · 실측 데이터 기준`;
+
+  // 로딩 게이트 — 캐시 리포트가 프라임돼 있으면 스켈레톤을 건너뛴다(랜딩 지연 최적화 유지).
+  const briefLoading = (loading || aiLoading || refreshing) && !reportPrimed;
+  const listLoading = (loading || aiLoading || aiStreaming || refreshing) && !reportPrimed;
 
   // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
   // 모바일 네이티브 공유 시트(navigator.share)로 넘긴다. 미지원(주로 데스크톱)이면
@@ -1447,302 +1593,168 @@ const Home = () => {
             </button>
           </div>
 
-          {/* AI message card */}
-          {/* loading(env 미도착)이어도 당일 캐시 리포트가 프라임돼 있으면(reportPrimed) 스켈레톤 대신
-              실카드를 즉시 그린다. 종전엔 loading 단독 게이트라, 캐시된 리포트가 있어도 콜드 초기
-              마운트에서 weather+air 도착(콜드 ~5s) 전까지 env 스켈레톤 뒤에 숨겨졌다(프라임 최적화가
-              초기 로드에서 무력화됨). 카드 내부 "현재 환경 한 줄"은 length>0 조건부라 env 도착 전
-              자동 숨김 → 스테일 env 수치 노출 위험 없음. 캐시가 없는 첫 진입·게스트는 종전대로 스켈레톤. */}
-          {loading && !reportPrimed ? (
-            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card">
-              {/* 스켈레톤은 실카드의 골격을 그대로 따른다 — 헤더 밴드·환경 한 줄·hook 2줄·
-                  divider·체크리스트 3행. 종전 스켈레톤은 실카드에 없는 칩 5개를 그려
-                  로딩→실물 전환에서 없던 요소가 사라지는 잔상을 만들었다. */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 rounded-t-2xl bg-primary-tint px-5 py-3">
-                <Skeleton className="h-3 w-14 rounded-full bg-foreground/[0.06]" />
-                <Skeleton className="h-3 w-36 rounded-full bg-foreground/[0.06]" />
+          {/* 오늘 준비 머리글 — 아이 이름·발행 메타·유틸을 히어로 밖으로 올렸다.
+              종전엔 히어로 카드 상단에 피치 밴드로 얹혀 있었는데, 화면에서 가장 넓은 유채색 면을
+              행동 정보가 0인 chrome에 배정하는 셈이었다. 밴드를 없애면 히어로가 "판단"만 담고
+              결론 앞에 읽을 것이 2겹(조건 → 결론)으로 줄어든다. */}
+          <div className="mt-2 flex items-start justify-between gap-3 pb-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-[20px] font-bold leading-[1.35] tracking-[-0.02em]">
+                {cur.name}의 오늘 준비
+              </h1>
+              {/* 날짜·발행 시각은 .num이 아니라 .tabular — "7월 25일 (금)"은 한글 문장이고
+                  DESIGN.md가 .num(-0.03em)의 한글 사용을 금지한다. 자릿수 정렬만 필요하다. */}
+              <p className="tabular mt-1 text-[13px] font-medium leading-[1.45] text-muted-foreground break-keep">
+                {aiError ? "기본 추천" : "AI 판단"} · {reportMeta}
+              </p>
+            </div>
+            {/* 새로고침·공유 — 44px 터치 타깃 + Lucide 20/1.75.
+                -mr-3으로 아이콘 광학 우측선을 프레임 콘텐츠선(20px)에 맞춘다. */}
+            <div className="-mr-3 -mt-2 flex shrink-0 items-center text-muted-foreground">
+              <button
+                onClick={refreshReport}
+                disabled={aiLoading || refreshing}
+                aria-label="리포트 새로고침"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+              >
+                <RefreshCw className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                aria-label="공유"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 hover:text-foreground disabled:opacity-40"
+              >
+                {sharing ? (
+                  <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
+                ) : (
+                  <Share2 className="h-5 w-5" strokeWidth={1.75} />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* AI 판단 브리프 — 조건 pill → 결론(28/800) → 체질 근거 → 판단 근거 칩.
+              화면에서 유일하게 radius 24 + shadow-card를 쓰는 표면이다(L2 1곳 규칙).
+              캐시 리포트가 프라임돼 있으면(reportPrimed) 스켈레톤을 건너뛰고 즉시 실카드를 그린다. */}
+          {briefLoading ? (
+            <section className="rounded-3xl bg-card p-5 shadow-card" aria-busy="true">
+              {/* 실카드 골격 그대로 — pill → 결론 2줄 → 근거 문장 2줄 → 칩 3개.
+                  실물과 높이가 같아야 로딩→실물 전환에서 레이아웃이 튀지 않는다. */}
+              <Skeleton className="h-9 w-52 rounded-full" />
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-8 w-4/5 rounded-full" />
+                <Skeleton className="h-8 w-3/5 rounded-full" />
               </div>
-              <Skeleton className="h-3.5 w-11/12 rounded-full" />
-              <div className="mt-3 space-y-2">
-                <Skeleton className="h-7 w-4/5 rounded-full" />
-                <Skeleton className="h-7 w-3/5 rounded-full" />
+              <div className="mt-4 space-y-2">
+                <Skeleton className="h-4 w-full rounded-full" />
+                <Skeleton className="h-4 w-4/6 rounded-full" />
               </div>
-              <div className="mt-5 border-t border-border pt-4">
-                <Skeleton className="h-4 w-24 rounded-full" />
-                <div className="mt-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex min-h-14 items-center gap-3">
-                      <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
-                      <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-                      <Skeleton className="h-4 w-24 rounded-full" />
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-4 flex gap-2">
+                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-20 rounded-full" />
+                <Skeleton className="h-9 w-24 rounded-full" />
               </div>
             </section>
           ) : (
-            <section className="mt-4 rounded-2xl bg-card p-5 shadow-card animate-fade-up">
-              {/* 카드 헤더 — 피치(primary-tint) 풀-블리드 띠. 화면당 하나뿐인 히어로 카드를
-                  구분하고 "AI 리포트"임을 앵커링. 아이콘 타일과 같은 브랜드 웜톤으로 통일(크림 미사용).
-                  리포트 발행 머리글(masthead) 문법: eyebrow 토큰(11/700/+0.14em) + 발행 시각.
-                  라벨을 14px/bold에서 eyebrow로 내려 카드의 주인공이 결론(hook)임을 분명히 한다.
-                  eyebrow 색은 foreground — primary-tint(#FFEDDD) 위에서 14.1:1. accent(#C2540A)는
-                  같은 배경에서 3.84:1로 AA(4.5:1) 미달이라 쓰지 않는다(실측 확인). 11px은
-                  large text가 아니므로 4.5:1 기준이 적용된다.
-                  날짜는 .num(네거티브 자간)이 아니라 .tabular — "7월 25일 (토)"는 한글 문장이고
-                  DESIGN.md가 .num의 한글 사용을 금지한다. 자릿수 정렬만 필요하다.
-                  유틸 버튼은 44px 터치 타깃 + Lucide 20px/1.75. -my-3으로 밴드 높이(44px)는 유지하고,
-                  -mr-3으로 아이콘 우측 광학선을 카드 콘텐츠선(20px)에 맞춘다. */}
-              <div className="-mx-5 -mt-5 mb-4 flex items-center gap-3 rounded-t-2xl bg-primary-tint px-5 py-3">
-                <span className="eyebrow shrink-0 text-foreground">AI 리포트</span>
-                <span className="tabular min-w-0 flex-1 truncate text-[13px] font-medium text-muted-foreground">
-                  {aiError && "기본 추천 · "}
-                  {reportMeta}
+            <HeroDecisionBrief
+              state={heroSt}
+              context={brief.context}
+              headline={brief.headline || plainLines[0] || ""}
+              prepNames={prepItems.map((it) => it.title)}
+              support={supportLine ? renderRich(supportLine) : null}
+              evidence={evidence}
+              issue={heroIssue}
+              notice={
+                reportProvisional
+                  ? "전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요"
+                  : undefined
+              }
+              onRetry={heroSt === "fallback" ? refreshReport : undefined}
+              retrying={aiLoading || refreshing}
+            />
+          )}
+
+          {/* AI 리포트 생성 한도(429) 안내 — 토스트는 몇 초 뒤 사라지므로, 재방문해도
+              보이도록 영구 배너로 둔다. 게스트만 가입 유도 CTA를 붙인다. */}
+          {reportLimitReached && (
+            <div className="mt-2 rounded-2xl bg-primary-tint p-4">
+              <p className="text-[13px] leading-[1.5] text-foreground break-keep">
+                {reportLimitReached.isGuest
+                  ? "오늘의 체험 횟수를 모두 사용했어요. 가입하면 계속 이용할 수 있어요"
+                  : "오늘의 브리핑 생성 한도에 도달했어요. 내일 다시 이용할 수 있어요"}
+              </p>
+              {reportLimitReached.isGuest && (
+                <Button size="sm" className="mt-2" onClick={() => router.push("/signup")}>
+                  무료로 시작하기
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* 판단 근거 — 링크가 아니라 펼침 행이다. /env로 보내면 AI가 쓴 판단 본문(250자)이
+              도달할 화면이 없어 사라진다. 종전 "자세한 리포트" 토글이 하던 일을 이 행이 물려받고,
+              위치(히어로 바로 아래 8px = 같은 덩어리)와 터치 타깃(64px)만 정상화한다.
+              보조문은 접힘 상태에서도 "무엇을 근거로 판단했는지"를 보여준다 — 종전 trust line은
+              펼쳤을 때만 렌더돼 대부분의 사용자가 한 번도 보지 못했다. */}
+          {!listLoading && (
+            <>
+              <button
+                onClick={() => setReportExpanded((v) => !v)}
+                aria-expanded={reportExpanded}
+                className="mt-2 flex min-h-16 w-full items-center gap-3 rounded-[18px] bg-card p-3 text-left shadow-soft transition-smooth active:bg-muted"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
+                  <List className="h-[18px] w-[18px]" strokeWidth={1.75} />
                 </span>
-                <div className="-my-3 -mr-3 flex shrink-0 items-center text-foreground">
-                  <button
-                    onClick={refreshReport}
-                    disabled={aiLoading || refreshing}
-                    aria-label="리포트 새로고침"
-                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 disabled:opacity-40"
-                  >
-                    <RefreshCw className={`h-5 w-5 ${aiLoading || refreshing ? "animate-spin" : ""}`} strokeWidth={1.75} />
-                  </button>
-                  <button
-                    onClick={handleShare}
-                    disabled={sharing}
-                    aria-label="공유"
-                    className="flex h-11 w-11 items-center justify-center rounded-full transition-smooth hover:bg-foreground/5 disabled:opacity-40"
-                  >
-                    {sharing ? (
-                      <RefreshCw className="h-5 w-5 animate-spin" strokeWidth={1.75} />
-                    ) : (
-                      <Share2 className="h-5 w-5" strokeWidth={1.75} />
-                    )}
-                  </button>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-semibold tracking-[-0.01em]">
+                    {reportExpanded ? "판단 근거 접기" : "판단 근거 자세히 보기"}
+                  </span>
+                  <span className="block truncate text-[13px] text-muted-foreground">{basisSub}</span>
+                </span>
+                <ChevronDown
+                  className={`h-5 w-5 shrink-0 text-faint transition-transform ${reportExpanded ? "rotate-180" : ""}`}
+                  strokeWidth={1.75}
+                />
+              </button>
+              {reportExpanded && (
+                <div className="mt-2 space-y-3 rounded-2xl bg-card p-5 shadow-soft animate-fade-up">
+                  {messageParagraphs}
+                  {trustLine}
                 </div>
+              )}
+            </>
+          )}
+
+          {/* 오늘 챙길 것 — 히어로 밖 L1 카드. 리포트가 정착하기 전(스트리밍 포함)까지는
+              스켈레톤을 유지해 규칙 폴백이 잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. */}
+          {listLoading ? (
+            <section className="mt-6 rounded-2xl bg-card p-5 shadow-soft" aria-busy="true">
+              <div className="flex items-baseline justify-between">
+                <Skeleton className="h-5 w-24 rounded-full" />
+                <Skeleton className="h-4 w-10 rounded-full" />
               </div>
-
-              {/* AI 리포트 생성 한도(429) 안내 — 토스트는 몇 초 뒤 사라지므로, 재방문해도
-                  보이도록 카드 안에 영구 배너로 둔다. 게스트만 가입 유도 CTA를 붙인다
-                  (로그인 사용자는 가입 유도가 의미 없으므로 한도 안내만). */}
-              {reportLimitReached && (
-                <div className="mb-3 rounded-xl bg-primary-tint p-3">
-                  <p className="text-[13px] leading-[1.5] text-foreground break-keep">
-                    {reportLimitReached.isGuest
-                      ? "오늘의 체험 횟수를 모두 사용했어요. 가입하면 계속 이용할 수 있어요"
-                      : "오늘의 브리핑 생성 한도에 도달했어요. 내일 다시 이용할 수 있어요"}
-                  </p>
-                  {reportLimitReached.isGuest && (
-                    <Button
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => router.push("/signup")}
-                    >
-                      무료로 시작하기
-                    </Button>
-                  )}
-                </div>
-              )}
-
-              {/* 잠정본 안내 — 새벽(00~06시) 생성 리포트에만 노출되는 trust line.
-                  면책이 아니라 "앱이 아침에 알아서 갱신한다"는 관리 능력의 신호로 쓴다. */}
-              {reportProvisional && (
-                <p className="mb-2 text-[13px] leading-[1.5] text-muted-foreground break-keep">
-                  전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요
-                </p>
-              )}
-
-              {/* 현재 환경 한 줄 — hook 위에 오늘의 실측 컨텍스트. 결론(hook)이 주인공이 되도록
-                  조용한 그레이로 물러난다. 크기는 caption 13 (12px은 v3 7단 스케일 밖).
-                  라벨/값 구분을 색(faint→muted)이 아니라 굵기(400→500)로 바꿨다:
-                  faint(#9C938A)는 흰 카드 위에서 3.02:1로 WCAG AA(4.5:1) 미달이고(실측),
-                  라벨은 장식이 아니라 의미 있는 본문이라 4.5:1이 적용된다. muted-foreground는
-                  5.70:1로 통과한다. 둘 다 muted 계열에 머물러 hook 우위는 그대로다.
-                  ※ 구분자(·)만 faint 유지 — 순수 장식 글리프. */}
-              {nowWeatherItems.length > 0 && (
-                <p className="text-[13px] leading-[1.5] text-muted-foreground break-keep">
-                  {nowWeatherItems.map((it, i) => (
-                    <span key={it.label}>
-                      {i > 0 && <span className="text-faint" aria-hidden="true"> · </span>}
-                      {/* 라벨+값을 한 덩어리로 묶어 줄바꿈은 구분자(·)에서만 일어나게 한다.
-                          묶지 않으면 "습도 / 84%"처럼 지표 중간이 끊겨 읽는 리듬이 깨진다. */}
-                      <span className="whitespace-nowrap">
-                        <span>{it.label} </span>
-                        <span
-                          className={`font-medium ${/\d/.test(it.value) ? "num" : ""}`}
-                        >
-                          {it.value}
-                        </span>
-                      </span>
-                    </span>
-                  ))}
-                </p>
-              )}
-
-              {/* hook + message — 로딩 중엔 skeleton (단, 캐시로 이미 그린 경우엔 유지).
-                  refreshing(수동 새로고침의 env 재조회 구간)도 포함 — 이때 aiLoading은 아직 false다. */}
-              {(aiLoading || refreshing) && !reportPrimed ? (
-                <div className="mt-3 space-y-2">
-                  <Skeleton className="h-7 w-4/5 rounded-full" />
-                  <Skeleton className="h-7 w-3/5 rounded-full" />
-                </div>
-              ) : (
-                <>
-                  {/* hook — 화면 전체의 히어로. 이 한 문장이 아침의 결론.
-                      display 26/800/-0.02em은 v3 규격 그대로 유지(페이지당 1회).
-                      토글은 <h1> 밖으로 분리했다: 종전엔 버튼이 heading 안에 있어
-                      (1) 접근성 heading 이름에 "자세히"가 섞이고
-                      (2) 버튼 폭이 hook 마지막 줄의 줄바꿈 위치를 결정했다.
-                      분리하면 hook이 카드 폭 전체를 온전히 쓰고 결론 문장이 먼저 확정된다. */}
-                  {aiHook && (
-                    <h1 className="mt-3 text-[26px] font-extrabold leading-[1.32] tracking-[-0.02em] text-foreground break-keep">
-                      {splitHook(aiHook).map((ln, i) => (
-                        <span key={i} className="block">
-                          {ln}
-                        </span>
-                      ))}
-                    </h1>
-                  )}
-                  {/* message — 상세 설명(리포트 본문).
-                      · 스트리밍 중 본문이 아직 안 온 구간엔 스켈레톤.
-                      · hook이 있으면 랜딩 시 본문을 접어두고 [자세한 리포트 ▼]로 펼친다
-                        (바쁜 부모가 hook 한 문장만 먼저 보게 하는 게 목적).
-                      · hook이 없는 폴백(규칙 기반 기본 추천)에선 접을 히어로가 없으므로 본문을 바로 노출. */}
-                  {aiStreaming && !aiMessage ? (
-                    <div className="mt-3 space-y-2">
-                      <Skeleton className="h-4 w-full rounded-full" />
-                      <Skeleton className="h-4 w-5/6 rounded-full" />
-                      <Skeleton className="h-4 w-4/6 rounded-full" />
-                    </div>
-                  ) : aiHook ? (
-                    reportExpanded && (
-                      <div className="mt-3 space-y-3 animate-fade-up">
-                        {messageParagraphs}
-                        {trustLine}
-                      </div>
-                    )
-                  ) : (
-                    <div className="mt-3 space-y-3">
-                      {messageParagraphs}
-                      {trustLine}
-                    </div>
-                  )}
-                  {/* 상세 토글 — heading 밖의 독립 컨트롤. 44px 세로 타깃(min-h-11)을 확보하고
-                      -mx-2/px-2로 히트영역만 넓혀 텍스트 좌측선은 카드 콘텐츠선(x=40)에 유지한다.
-                      우측 정렬로 hook과 경쟁하지 않는 조용한 유틸 위치를 지킨다.
-                      본문이 준비된 뒤에만 노출 — 스트리밍 중엔 토글 없이 hook만. */}
-                  {aiHook && !(aiStreaming && !aiMessage) && (
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => setReportExpanded((v) => !v)}
-                        aria-expanded={reportExpanded}
-                        className="-mx-2 flex min-h-11 items-center gap-1 rounded-lg px-2 text-[14px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
-                      >
-                        {reportExpanded ? "접기" : "자세한 리포트"}
-                        <ChevronDown
-                          className={`h-4 w-4 transition-transform ${reportExpanded ? "rotate-180" : ""}`}
-                          strokeWidth={2}
-                        />
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* 오늘 챙길 것 — 체크박스 + 아이콘 사각형 + 제목/사유 2줄.
-                  리포트가 정착(hook·message·checklist 도착)하기 전까지는 스켈레톤 유지.
-                  aiLoading은 hook 도착 즉시 false가 되므로, 본문·체크리스트가 아직 없는
-                  스트리밍 구간(aiStreaming)까지 함께 봐야 규칙 폴백(추천 이유 2줄·0/3)이
-                  잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. 에러 시엔 폴백을 정상 노출.
-                  캐시로 이미 그린 경우(reportPrimed)엔 재검증 중에도 캐시 체크리스트를 유지. */}
-              {(aiLoading || aiStreaming || refreshing) && !reportPrimed ? (
-                // 실제 체크리스트 골격(divider + 라벨 + 56px 3행)을 그린다 — 단색 h-44 블록은
-                // 어떤 요소가 올지 전달하지 못하고 실물 전환에서 형태가 튄다.
-                <div className="mt-5 border-t border-border pt-4">
-                  <Skeleton className="h-4 w-24 rounded-full" />
-                  <div className="mt-2">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <div key={i} className="flex min-h-14 items-center gap-3">
-                        <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
-                        <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-                        <Skeleton className="h-4 w-24 rounded-full" />
-                      </div>
-                    ))}
+              <div className="mt-2">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="flex min-h-14 items-center gap-3">
+                    <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+                    <Skeleton className="h-4 w-24 rounded-full" />
                   </div>
-                </div>
-              ) : (
-              <div className="mt-5 border-t border-border pt-4 pb-0">
-                <div className="flex items-center justify-between">
-                  <p className="text-[14px] font-semibold">오늘 챙길 것</p>
-                  {allDone ? (
-                    <p className="flex items-center gap-1 text-[13px] font-semibold text-status-good animate-fade-in">
-                      준비 끝
-                      <Check className="h-4 w-4" strokeWidth={2.5} />
-                    </p>
-                  ) : (
-                    <p className="tabular text-[13px] text-muted-foreground">
-                      <b className="font-semibold text-foreground">{checkedCount}</b> / {activeChecklist.length}
-                    </p>
-                  )}
-                </div>
-                {/* 체크리스트 행 — DESIGN.md 리스트 행 문법으로 정규화:
-                    56px 행(min-h-14) · 24px 체크 원 · 36px 아이콘 컨테이너(rounded-xl) ·
-                    18px 아이콘 · 12px gap · 라벨 16/500. 종전 62px 행·38px 타일·26px 원은
-                    표준에서 2~6px씩 벗어나 있었고, 4개일 때 카드를 불필요하게 늘렸다. */}
-                <ul className="mt-2">
-                  {activeChecklist.map((c) => {
-                    const on = checked.includes(c.key);
-                    // "제목 (사유)" 형태를 제목/사유 두 줄로 분리 — 괄호가 없으면 제목만
-                    const m = c.text.match(/^(.*?)\s*[（(](.+?)[)）]\s*$/);
-                    const title = m ? m[1].trim() : c.text;
-                    const reason = m ? m[2].trim() : "";
-                    return (
-                      <li key={c.key}>
-                        <button
-                          onClick={() => toggle(c.key)}
-                          aria-pressed={on}
-                          className="flex min-h-14 w-full items-center gap-3 border-b border-border/40 py-2 text-left last:border-b-0"
-                        >
-                          <span
-                            className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[1.5px] bg-card transition-smooth ${
-                              on
-                                ? "border-status-good text-status-good"
-                                : "border-border-control"
-                            }`}
-                          >
-                            {on && <Check className="h-4 w-4" strokeWidth={3} />}
-                          </span>
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent">
-                            {checklistIcon(c.icon, c.text)}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span
-                              className={`block text-[16px] font-medium tracking-[-0.01em] ${
-                                on ? "text-muted-foreground" : "text-foreground"
-                              }`}
-                            >
-                              {title}
-                            </span>
-                            {reason && (
-                              <span className="mt-1 block text-[13px] text-muted-foreground break-keep">
-                                {reason}
-                              </span>
-                            )}
-                          </span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                ))}
               </div>
-              )}
-
-              {/* 리포트 유용성 평가 — 체크리스트와 같은 정착 조건에서만 노출(스켈레톤 중 숨김) */}
-              {!((aiLoading || aiStreaming || refreshing) && !reportPrimed) && (
-                <ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />
-              )}
             </section>
+          ) : (
+            <div className="mt-6">
+              <PrepChecklistCard
+                items={prepItems}
+                checkedKeys={checked}
+                onToggle={toggle}
+                primaryKey={primaryPrepKey}
+                footer={<ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />}
+              />
+            </div>
           )}
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}

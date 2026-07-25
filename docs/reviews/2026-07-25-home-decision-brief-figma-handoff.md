@@ -15,7 +15,7 @@ Figma 컴포넌트명 = 시안 CSS 클래스명 = React 컴포넌트명을 하�
 |---|---|---|---|
 | 히어로 | `HeroDecisionBrief` | `.hero` | `components/HeroDecisionBrief.tsx` (신규) |
 | 근거 칩 | `EvidenceChip` | `.evidence-chip` | 같은 파일 내 서브 컴포넌트 |
-| 근거 진입 | `DetailEntryRow` | `.detail-row` | 홈 → `/env` 링크 행 |
+| 근거 진입 | `DetailEntryRow` | `.detail-row` | 히어로 아래 **상세 펼침 행**(AI 본문 + 출처) |
 | 준비물 행 | `PrepChecklistRow` | `.checklist__row` | 현행 체크리스트 `li` 분리 |
 | 피드백 | `FeedbackRow` | `.feedback` | `components/ReportFeedback.tsx` |
 
@@ -180,7 +180,7 @@ Border        상단 border/hairline 1px (첫 행은 없음)
 | `ProfileSegment` | H · Hug · gap 2 · padding 4 · 트랙 `bg/surface` radius 999 | 탭 수 × `activeIndex` | 활성 탭만 `bg/card` + `Elevation/L1` |
 | `IconButton` | 44×44 고정 · 아이콘 20 중앙 | `default / hover / pressed / disabled` | `aria-label` 필수(새로고침·공유) |
 | `LocationButton` | H · Hug · min-h 44 · gap 3 | `default / locating` | pin 14 + 라벨 13 + chevron 14 |
-| `DetailEntryRow` | H · Fill W · min-h 64 · gap 12 · padding 12/14/12/12 | `default / pressed` | 타일·chevron Hug, 본문 Fill |
+| `DetailEntryRow` | H · Fill W · min-h 64 · gap 12 · padding 12/14/12/12 | `default / pressed / expanded` | 타일·chevron Hug, 본문 Fill. **링크가 아니라 펼침 행** — chevron ▾ 180° 회전, `aria-expanded`. 펼치면 아래에 `message`(16/400/1.6) + 출처(13/400)가 붙는다. `/env`로 보내면 AI 본문이 도달할 화면이 없어 사라진다 |
 | `SectionHeader` | H · Fill W · baseline | `meta = counter / done / none` | 타이틀 Fill, 메타 Hug |
 | `FeedbackRow` | H · Fill W · space-between · padding-top 14 | `idle / rated-up / rated-down / sent` | 상단 hairline, 버튼 36 |
 | `BottomNav` | H · Fill W · space-around · padding 8/4/10 | 5탭 × active | 활성 `icon/brand` |
