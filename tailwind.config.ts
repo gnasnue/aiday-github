@@ -29,6 +29,9 @@ export default {
           "neutral-dot": "hsl(var(--status-neutral-dot))",
           warn: "hsl(var(--status-warn))",
           "warn-bg": "hsl(var(--status-warn-bg))",
+          // 히어로 context pill 전용 최연한 tint (globals.css 주석 참조)
+          "warn-tint": "hsl(var(--status-warn-tint))",
+          "good-tint": "hsl(var(--status-good-tint))",
           bad: "hsl(var(--status-bad))",
           "bad-bg": "hsl(var(--status-bad-bg))",
           info: "hsl(var(--status-info))",

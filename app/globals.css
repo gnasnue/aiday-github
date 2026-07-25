@@ -68,6 +68,14 @@
     --status-info: 214 60% 40%;
     --status-info-bg: 212 55% 96%;
 
+    /* --- 상태 tint: 히어로 context pill 전용 (2026-07-25 Decision Brief 승인) ---
+       *-bg를 흰 카드 면 위에서 55% 농도로 내린 값. 새 hue를 만들지 않고 기존 semantic
+       색만 옅게 쓴다. 적용 범위는 Hero의 context pill 한 곳으로 한정하며, 카드 면·밴드
+       전체를 물들이지 않는다(카드 = 순백 유지). 평상(normal)은 tint 없이 `muted` —
+       "색 없음이 곧 특이사항 없음"(status-neutral 원칙). */
+    --status-warn-tint: 27 83% 95%;      /* #FDF2E9 */
+    --status-good-tint: 140 33% 95%;     /* #EDF6F0 */
+
     /* --- Borders: 칩·컨트롤 전용 (일반 --border보다 한 단계 진함) --- */
     --border-chip: 35 32% 87%;           /* #e8dfd2 — 환경 칩·콜아웃 칩 보더 */
     --border-control: 35 28% 83%;        /* #e0d6c8 — 체크박스 unchecked·"+ 추가" dashed 보더 */
@@ -130,6 +138,8 @@
     --status-bad-bg: 4 40% 15%;
     --status-info: 214 70% 65%;
     --status-info-bg: 214 35% 15%;
+    --status-warn-tint: 20 25% 14%;
+    --status-good-tint: 140 17% 14%;
     --border-chip: 26 12% 24%;
     --border-control: 26 12% 28%;
     --avatar-bg: 146 20% 22%;
