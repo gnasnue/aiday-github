@@ -82,16 +82,38 @@ export function prepNeedles(name: string): string[] {
 }
 
 /**
+ * hook이 준비물 이름 대신 쓰는 **행동 목적어**.
+ *
+ * hook은 25자 제한이라 물건 이름을 행동으로 압축하는 일이 잦다 — "선크림·모자 챙기세요"가
+ * "그늘 필수예요"가 되는 식이다. 준비물 명사만 찾으면 이런 hook에서는 강조가 사라져,
+ * 화면의 시그니처(결론 안의 행동 토큰)가 대부분의 날에 보이지 않는다.
+ *
+ * 다만 아무 단어나 강조하면 "없는 행동"을 강조하게 되므로, **대응 준비물이 체크리스트에
+ * 실제로 있을 때만** 그 목적어를 후보로 인정한다(requires).
+ */
+const ACTION_ALIAS: { object: string; requires: RegExp }[] = [
+  { object: "그늘", requires: /선크림|모자/ },
+  { object: "실내", requires: /실내놀이|마스크/ },
+  { object: "여벌", requires: /여벌 옷/ },
+  { object: "한 겹", requires: /겉옷|가디건|바람막이/ },
+  { object: "코 세척", requires: /마스크/ },
+];
+
+/**
  * 헤드라인에서 강조할 준비물 구간을 찾아 세그먼트로 쪼갠다.
  *
  * hook은 마크업 없는 평문이라(report.ts 출력 규칙) 강조 구간을 AI가 주지 않는다.
  * 그래서 체크리스트의 준비물 명사를 hook 안에서 부분 문자열로 매칭한다.
  * - 긴 이름을 먼저 시도한다: "얇은 겉옷"이 있으면 "겉옷"보다 우선(부분 겹침 방지)
  * - 표준명(canonicalPrep)과 원본 표기를 모두 후보로 넣는다 — hook은 표준화되지 않는다
- * - 매칭이 없으면 강조 없이 전체를 한 세그먼트로 돌려준다(억지 강조 금지)
+ * - 준비물 이름이 없으면 **행동 목적어**(ACTION_ALIAS)도 본다 — 대응 준비물이 목록에 있을 때만
+ * - 그래도 매칭이 없으면 강조 없이 전체를 한 세그먼트로 돌려준다(억지 강조 금지).
+ *   "야외활동 짧게 해요"처럼 목적어가 아예 없는 결론도 있고, 그때는 강조하지 않는 것이 맞다
  */
 export function highlightHeadline(headline: string, prepNames: string[]): HeadlineSegment[] {
-  const candidates = Array.from(new Set(prepNames.flatMap(prepNeedles))).sort(
+  const canon = prepNames.map((n) => canonicalPrep(n)).join(" ");
+  const aliases = ACTION_ALIAS.filter((a) => a.requires.test(canon)).map((a) => a.object);
+  const candidates = Array.from(new Set([...prepNames.flatMap(prepNeedles), ...aliases])).sort(
     (a, b) => b.length - a.length
   );
 

@@ -85,6 +85,32 @@ describe("highlightHeadline — 강조 구간은 준비물 명사 매칭으로�
     const segs = highlightHeadline("얇게 입히고 겉옷을 챙겨주세요", ["얇은 겉옷", "물통"]);
     expect(segs.filter((s) => s.emphasis).map((s) => s.text)).toEqual(["겉옷"]);
   });
+
+  // hook은 25자 제한 때문에 물건 이름을 행동으로 압축한다("선크림·모자" → "그늘").
+  // 이걸 인정하지 않으면 실제 hook 대부분에서 강조가 사라진다(라이브 관측: 4개 중 1개만 매칭).
+  it("행동 목적어도 매칭한다 — hook '그늘' ↔ 체크리스트 선크림·모자", () => {
+    const segs = highlightHeadline("그늘 위주로 짧게", ["선크림", "모자"]);
+    expect(segs.filter((s) => s.emphasis).map((s) => s.text)).toEqual(["그늘"]);
+  });
+
+  it("행동 목적어는 대응 준비물이 목록에 있을 때만 인정한다 — 없는 행동을 강조하지 않는다", () => {
+    const segs = highlightHeadline("그늘 위주로 짧게", ["우산", "물통"]);
+    expect(segs.every((s) => !s.emphasis)).toBe(true);
+  });
+
+  it("'실내'는 실내놀이·마스크가 있을 때만", () => {
+    expect(
+      highlightHeadline("오늘은 실내가 좋아요", ["실내놀이"]).filter((s) => s.emphasis).map((s) => s.text)
+    ).toEqual(["실내"]);
+    expect(
+      highlightHeadline("오늘은 실내가 좋아요", ["물통"]).every((s) => !s.emphasis)
+    ).toBe(true);
+  });
+
+  it("목적어가 없는 결론은 강조하지 않는다 — 억지 강조 금지", () => {
+    const segs = highlightHeadline("야외활동 짧게 해요", ["선크림", "모자", "물통"]);
+    expect(segs).toEqual([{ text: "야외활동 짧게 해요", emphasis: false }]);
+  });
 });
 
 describe("prepNeedles — 매칭 후보 생성", () => {
