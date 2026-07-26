@@ -247,9 +247,6 @@ export type EvidenceCandidate = {
   tone?: EvidenceTone;
   /** 낮을수록 먼저. 같은 tone 안에서의 순서 */
   priority: number;
-  /** tone과 무관하게 맨 앞에 고정한다 — "지금 몇 도"는 부모가 가장 먼저 확인하는 값이라
-   *  주의 신호보다 앞에 둔다(읽는 순서 = 현재 상태 → 무엇이 문제인지). */
-  pin?: boolean;
 };
 
 export const EVIDENCE_MAX = 3;
@@ -275,11 +272,9 @@ export function pickEvidence(candidates: EvidenceCandidate[]): Evidence[] {
       value: (c.value as string).trim(),
       tone: c.tone ?? "neutral",
       priority: c.priority,
-      pin: c.pin,
     }));
 
   const ranked = alive.sort((a, b) => {
-    if (!!a.pin !== !!b.pin) return a.pin ? -1 : 1; // 고정 칩이 언제나 맨 앞
     const aIssue = a.tone === "neutral" ? 1 : 0;
     const bIssue = b.tone === "neutral" ? 1 : 0;
     if (aIssue !== bIssue) return aIssue - bIssue;

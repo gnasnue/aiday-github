@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation"; ;
-import { Bell, MapPin, ChevronDown, ChevronRight, List, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
+import { Bell, MapPin, ChevronDown, ChevronRight, Sun, Cloud, CloudSun, CloudRain, CloudSnow, RefreshCw, Share2 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,7 +10,10 @@ import { toast } from "sonner";
 import LineIcon from "@/components/LineIcon";
 import ShareReportCard, { type ShareReportData } from "@/components/ShareReportCard";
 import ReportFeedback from "@/components/ReportFeedback";
-import HeroDecisionBrief, { type HeroIssue } from "@/components/HeroDecisionBrief";
+import HeroDecisionBrief, {
+  type HeroIssue,
+  type HeroNowWeather,
+} from "@/components/HeroDecisionBrief";
 import PrepChecklistCard from "@/components/PrepChecklistCard";
 import {
   toBrief,
@@ -130,8 +133,9 @@ const badgeTone = (tone: "ok" | "warn"): StatusTone => (tone === "warn" ? "warn"
 
 // 시간대별 카드 아이콘: 실제 예보의 SKY/PTY를 반영해 슬롯마다 다르게 표시
 // SKY 1=맑음 3=구름많음 4=흐림 / PTY 0=없음 1=비 2=비/눈 3=눈 4=소나기
-const skySlotIcon = (sky: number | null, pty: number | null) => {
-  const props = { size: 24, strokeWidth: 1.5, className: "text-muted-foreground" } as const;
+// size는 히어로 우상단(32) 재사용을 위한 것 — 두 카드가 같은 함수를 써야 같은 하늘을 그린다
+const skySlotIcon = (sky: number | null, pty: number | null, size = 24) => {
+  const props = { size, strokeWidth: 1.5, className: "text-muted-foreground" } as const;
   if (pty && pty > 0) return pty === 3 ? <CloudSnow {...props} /> : <CloudRain {...props} />;
   if (sky === 1) return <Sun {...props} />;
   if (sky === 4) return <Cloud {...props} />;
@@ -1090,18 +1094,6 @@ const Home = () => {
 
   const message = aiMessage || fallbackMessage;
 
-  // 리포트 본문 문단 — 펼침 영역과 hook 없는 폴백에서 공통으로 재사용.
-  // v3 body 규격(16/400/1.6)으로 읽는다: 접힘이 기본이라 랜딩 높이에는 영향이 없고,
-  // 펼쳤을 때는 "읽는 리포트"가 되어야 하므로 14px·foreground/80(스케일 밖 반투명)을 버렸다.
-  const messageParagraphs = message
-    .split("\n")
-    .filter(Boolean)
-    .map((line, i) => (
-      <p key={i} className="text-[16px] leading-[1.6] text-foreground break-keep">
-        {renderRich(line)}
-      </p>
-    ));
-
   // 신뢰 라인 — 누구 기준으로, 무엇을 근거로 판단했는지. 리포트 본문(message) 최하단에 붙는다.
   // caption 13으로 복귀 — 11px은 DESIGN.md에서 eyebrow 전용이고 본문 캡션에는 금지다.
   const trustLine = cur ? (
@@ -1210,20 +1202,6 @@ const Home = () => {
   // 캡션은 자연히 사라진다. "언제 보라"가 아니라 "앱이 알아서 갱신한다"를 전달하는 문구.
   const reportProvisional = reportTs != null && isProvisionalReport(reportTs);
 
-  // AI 리포트 hook 위 현재 환경 한 줄 — 현재날씨·체감·강수·미세먼지·습도 (있는 값만).
-  // 라벨(옅게)+값(진하게) 쌍으로 렌더해 한 줄에서 각 지표가 바로 스캔되게 한다.
-  const nowWeatherItems = (() => {
-    const items: { label: string; value: string }[] = [];
-    // 실측(curWeather·weatherData)이 있는 값만 노출 — mock·추정값 폴백 없음
-    const t = curWeather?.temperature ?? weatherData?.temp ?? null;
-    if (t != null) items.push({ label: "현재날씨", value: `${t}°` });
-    if (curWeather?.feelsLike != null) items.push({ label: "체감", value: `${curWeather.feelsLike}°` });
-    if (curWeather?.pop != null) items.push({ label: "강수", value: `${curWeather.pop}%` });
-    if (weatherData?.dustLevel) items.push({ label: "미세먼지", value: weatherData.dustLevel });
-    if (curWeather?.humidity != null) items.push({ label: "습도", value: `${curWeather.humidity}%` });
-    return items;
-  })();
-
   /* ---- 히어로 Decision Brief 파생 (lib/hero-brief, 유닛 테스트로 고정) ----
      hook의 "[공감] — [행동]" 구조를 그대로 쓴다 — 조건절은 pill, 행동절은 결론.
      프롬프트·캐시 스키마 변경이 없다. */
@@ -1248,6 +1226,20 @@ const Home = () => {
     return lines.find((l) => l.includes(cur.name)) ?? lines[1] ?? null;
   })();
 
+  // 상세 본문 문단 — v3 body 규격(16/400/1.6). 접힘이 기본이라 랜딩 높이에 영향이 없고,
+  // 펼쳤을 때는 "읽는 리포트"가 되어야 하므로 14px·foreground/80(스케일 밖 반투명)을 버렸다.
+  // 히어로 근거 문장으로 이미 쓴 줄은 제외한다 — 상세가 같은 카드 안으로 들어온 뒤로는
+  // 같은 문장이 네 줄 아래 또 나오면 "복사해 붙인 글"처럼 읽힌다(2026-07-26).
+  const detailParagraphs = message
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && l !== supportLine)
+    .map((line, i) => (
+      <p key={i} className="text-[16px] leading-[1.6] text-foreground break-keep">
+        {renderRich(line)}
+      </p>
+    ));
+
   // 판단 기준 슬롯 — 사용자가 입력한 첫 일과(없으면 첫 슬롯). 판단·근거·사유가 모두
   // 이 슬롯을 가리켜야 한 화면 안에서 서로 어긋나지 않는다.
   const basisSlot = displaySlots.find((sl) => !sl.isDefault) ?? displaySlots[0] ?? null;
@@ -1257,8 +1249,6 @@ const Home = () => {
   // 쓰기 때문에, badges로 칩을 만들면 같은 화면에서 "히어로는 특이사항 없음 / 아래 카드는
   // 자외선 매우강함"처럼 어긋난다(2026-07-21 "홈=판단 / env=근거" 결정이 해소한 문제와 같은 류).
   // 임계값은 slotNotables()의 경고급 조건과 동일하게 맞춘다 — 둘 중 하나만 바뀌면 안 된다.
-  const nowValue = (label: string) =>
-    nowWeatherItems.find((it) => it.label === label)?.value ?? null;
   const warnSignals: { label: string; value: string }[] = [];
   if (basisSlot) {
     const pop = basisSlot.popWindow ?? basisSlot.pop ?? null;
@@ -1296,17 +1286,17 @@ const Home = () => {
 
   // 좋음·보통 등급은 칩으로 만들지 않는다("없는 문제를 만들지 않는다"는 리포트 규칙과 같은
   // 원칙). 결측 지표에 "—"를 그리지도 않는다 — 무근거가 데이터처럼 보이는 게 가장 나쁘다.
-  const evidence = pickEvidence([
-    ...warnSignals.map((w, i) => ({
+  // 현재·체감 기온은 칩이 아니라 우상단 기준값 블록이 담당한다(2026-07-26). 칩은 "판단에 쓴
+  // 이슈 신호"만 남는다 — 신호가 1개뿐인 날은 pill이 이미 그 이슈를 말하므로 칩 행이 사라진다
+  // (pickEvidence의 최소 2개 규칙).
+  const evidence = pickEvidence(
+    warnSignals.map((w, i) => ({
       label: w.label,
       value: w.value,
       tone: "warn" as const,
       priority: w.label === ctxIssue ? -1 : i, // AI가 고른 1순위를 맨 앞으로
-    })),
-    // "지금 몇 도"는 부모가 가장 먼저 확인하는 값이라 주의 신호보다 앞에 고정한다
-    { label: "현재", value: nowValue("현재날씨"), priority: 10, pin: true },
-    { label: "체감", value: nowValue("체감"), priority: 11 },
-  ]);
+    }))
+  );
 
   // 상태와 근거는 같은 후보 집합에서 나온다 — 칩에 warn이 없는데 카드가 주의색인(또는 반대인)
   // 모순이 구조적으로 불가능해진다.
@@ -1378,11 +1368,18 @@ const Home = () => {
     }))
   );
 
-  // 판단 기준 한 줄 — 접힘 상태에서도 근거의 출처를 보여준다. 일과를 입력하지 않은 프로필
-  // (기본 시간)에서는 시각을 쓰지 않는다 — 기본 시간임을 텍스트로 노출하는 것은 금지 범주다.
-  const basisSub = basisSlot && !basisSlot.isDefault
-    ? `${cur.name} 체질 · ${basisSlot.time.replace("시간", "")} ${basisSlot.hour} 기준`
-    : `${cur.name} 체질 · 실측 데이터 기준`;
+  // 히어로 우상단 기준값 — 조회 시점의 하늘·현재·체감. 실측 기온이 없으면 블록을 그리지 않는다
+  // (추정값을 실측인 척 보여주지 않는다는 2026-07 무표기 폴백 결론). 아이콘은 시간대별 환경
+  // 카드와 같은 skySlotIcon을 써서 두 카드의 하늘이 어긋나지 않게 한다.
+  const nowTemp = curWeather?.temperature ?? weatherData?.temp ?? null;
+  const heroNow: HeroNowWeather | null =
+    nowTemp != null
+      ? {
+          icon: skySlotIcon(curWeather?.sky ?? null, curWeather?.pty ?? null, 32),
+          temp: `${nowTemp}°`,
+          feels: curWeather?.feelsLike != null ? `${curWeather.feelsLike}°` : null,
+        }
+      : null;
 
   // 로딩 게이트 — 캐시 리포트가 프라임돼 있으면 스켈레톤을 건너뛴다(랜딩 지연 최적화 유지).
   const briefLoading = (loading || aiLoading || refreshing) && !reportPrimed;
@@ -1650,21 +1647,31 @@ const Home = () => {
               캐시 리포트가 프라임돼 있으면(reportPrimed) 스켈레톤을 건너뛰고 즉시 실카드를 그린다. */}
           {briefLoading ? (
             <section className="rounded-3xl bg-card p-5 shadow-card" aria-busy="true">
-              {/* 실카드 골격 그대로 — pill → 결론 2줄 → 근거 문장 2줄 → 칩 3개.
-                  실물과 높이가 같아야 로딩→실물 전환에서 레이아웃이 튀지 않는다. */}
-              <Skeleton className="h-9 w-52 rounded-full" />
+              {/* 실카드 골격 그대로 — (pill + 우상단 기준값) → 결론 2줄 → 근거 문장 3줄
+                  → 자세히 → 칩 2개. 실물과 높이가 같아야 로딩→실물 전환에서 레이아웃이 튀지 않는다. */}
+              <div className="flex items-start justify-between gap-2">
+                <Skeleton className="h-9 w-44 rounded-full" />
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-4 w-14 rounded-full" />
+                  <Skeleton className="h-3 w-12 rounded-full" />
+                </div>
+              </div>
               <div className="mt-4 space-y-2">
                 <Skeleton className="h-8 w-4/5 rounded-full" />
                 <Skeleton className="h-8 w-3/5 rounded-full" />
               </div>
               <div className="mt-4 space-y-2">
                 <Skeleton className="h-4 w-full rounded-full" />
-                <Skeleton className="h-4 w-4/6 rounded-full" />
+                <Skeleton className="h-4 w-full rounded-full" />
+                <Skeleton className="h-4 w-3/6 rounded-full" />
+              </div>
+              <div className="mt-3 flex justify-end">
+                <Skeleton className="h-5 w-14 rounded-full" />
               </div>
               <div className="mt-4 flex gap-2">
                 <Skeleton className="h-9 w-24 rounded-full" />
-                <Skeleton className="h-9 w-20 rounded-full" />
-                <Skeleton className="h-9 w-24 rounded-full" />
+                <Skeleton className="h-9 w-28 rounded-full" />
               </div>
             </section>
           ) : (
@@ -1673,7 +1680,25 @@ const Home = () => {
               context={brief.context}
               headline={brief.headline || plainLines[0] || ""}
               prepNames={prepItems.map((it) => it.title)}
+              now={heroNow}
               support={supportLine ? renderRich(supportLine) : null}
+              detail={
+                heroSt === "fallback" ? null : (
+                  <>
+                    {detailParagraphs}
+                    {/* 잠정본 안내 — 결론 옆이 아니라 이 상세 안. 조건과 결론 사이에 읽을 것을
+                        늘리지 않고, 성격도 "판단"이 아니라 출처·시점 정보다. */}
+                    {reportProvisional && (
+                      <p className="text-[13px] leading-[1.5] text-muted-foreground break-keep">
+                        전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요
+                      </p>
+                    )}
+                    {trustLine}
+                  </>
+                )
+              }
+              detailOpen={reportExpanded}
+              onToggleDetail={() => setReportExpanded((v) => !v)}
               evidence={evidence}
               issue={heroIssue}
               onRetry={heroSt === "fallback" ? refreshReport : undefined}
@@ -1698,51 +1723,8 @@ const Home = () => {
             </div>
           )}
 
-          {/* 판단 근거 — 링크가 아니라 펼침 행이다. /env로 보내면 AI가 쓴 판단 본문(250자)이
-              도달할 화면이 없어 사라진다. 종전 "자세한 리포트" 토글이 하던 일을 이 행이 물려받고,
-              위치(히어로 바로 아래 8px = 같은 덩어리)와 터치 타깃(64px)만 정상화한다.
-              보조문은 접힘 상태에서도 "무엇을 근거로 판단했는지"를 보여준다 — 종전 trust line은
-              펼쳤을 때만 렌더돼 대부분의 사용자가 한 번도 보지 못했다. */}
-          {!listLoading && (
-            /* 진입 행 + 펼침 본문을 하나의 표면으로 묶는다 — 카드를 둘로 나누면 펼쳤을 때
-               "다른 카드가 하나 더 생긴" 것처럼 보인다. 그림자는 이 컨테이너만 갖고,
-               둘 사이는 헤어라인 divider로만 구분한다. */
-            <div className="mt-2 rounded-[18px] bg-card shadow-soft">
-              <button
-                onClick={() => setReportExpanded((v) => !v)}
-                aria-expanded={reportExpanded}
-                className="flex min-h-16 w-full items-center gap-3 rounded-[18px] p-3 text-left transition-smooth active:bg-muted"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-                  <List className="h-[18px] w-[18px]" strokeWidth={1.75} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[15px] font-semibold tracking-[-0.01em]">
-                    {reportExpanded ? "AI 리포트 접기" : "AI 리포트 자세히 보기"}
-                  </span>
-                  <span className="block truncate text-[13px] text-muted-foreground">{basisSub}</span>
-                </span>
-                <ChevronDown
-                  className={`h-5 w-5 shrink-0 text-faint transition-transform ${reportExpanded ? "rotate-180" : ""}`}
-                  strokeWidth={1.75}
-                />
-              </button>
-              {reportExpanded && (
-                <div className="space-y-3 border-t border-border px-3 pb-4 pt-4 animate-fade-up">
-                  {messageParagraphs}
-                  {/* 잠정본 안내 — 히어로가 아니라 이 상세 안에 둔다. 결론 옆에 붙으면 조건과
-                      결론 사이에 읽을 것이 한 겹 늘고, 성격도 "판단"이 아니라 출처·시점 정보라
-                      trust line과 같은 묶음에 있는 것이 맞다. */}
-                  {reportProvisional && (
-                    <p className="text-[13px] leading-[1.5] text-muted-foreground break-keep">
-                      전날 밤 예보 기준이에요 — 아침 6시 이후 당일 예보로 자동 갱신돼요
-                    </p>
-                  )}
-                  {trustLine}
-                </div>
-              )}
-            </div>
-          )}
+          {/* 상세(리포트 본문·출처)는 히어로 카드 안 "자세히" CTA로 들어간다(2026-07-26).
+              별도 진입 카드를 두면 표면이 둘이 되고, 펼쳤을 때 카드가 하나 더 생긴 것처럼 보였다. */}
 
           {/* 오늘 챙길 것 — 히어로 밖 L1 카드. 리포트가 정착하기 전(스트리밍 포함)까지는
               스켈레톤을 유지해 규칙 폴백이 잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. */}

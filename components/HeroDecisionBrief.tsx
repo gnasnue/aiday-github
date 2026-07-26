@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { RefreshCw, Thermometer, Wind } from "lucide-react";
+import { ChevronDown, RefreshCw, Thermometer, Wind } from "lucide-react";
 import LineIcon from "@/components/LineIcon";
 import { headlineLines, type Evidence, type HeroState } from "@/lib/hero-brief";
 
@@ -41,6 +41,16 @@ const DEFAULT_ICON: Record<HeroState, ReactNode> = {
   fallback: <LineIcon name="cloudsun" size={16} className="shrink-0" />,
 };
 
+/** 우상단 현재 기준값 — "지금 어떤가"를 판단 카드 안에서 확인용으로 보여준다 */
+export type HeroNowWeather = {
+  /** 조회 시점 하늘 상태 아이콘. 시간대별 환경 카드와 같은 소스를 써야 두 카드의 하늘이 같다 */
+  icon: ReactNode;
+  /** 현재 기온. 실측이 없으면 블록 자체를 그리지 않는다(추정값 폴백 금지) */
+  temp: string;
+  /** 체감 온도. 없으면 이 줄만 생략한다 */
+  feels?: string | null;
+};
+
 export type HeroDecisionBriefProps = {
   state: HeroState;
   /** 조건절. null이면 pill을 그리지 않는다 */
@@ -49,8 +59,14 @@ export type HeroDecisionBriefProps = {
   headline: string;
   /** 헤드라인 강조 구간 매칭에 쓰는 준비물 이름들(체크리스트와 같은 소스) */
   prepNames?: string[];
+  /** 조회 시점 기준값(우상단). null이면 블록을 그리지 않는다 */
+  now?: HeroNowWeather | null;
   /** 아이 특성 근거 1~2문장. renderRich 결과를 넣을 수 있게 ReactNode */
   support?: ReactNode;
+  /** 상세(리포트 본문·출처)를 펼쳐 담는다. 없으면 자세히 CTA를 그리지 않는다 */
+  detail?: ReactNode;
+  detailOpen?: boolean;
+  onToggleDetail?: () => void;
   /** 판단 근거 2~3개. 빈 배열이면 근거 행을 그리지 않는다 */
   evidence?: Evidence[];
   /** caution 상태에서 이슈 종류를 지정한다. 미지정 시 상태 기본 아이콘 */
@@ -65,7 +81,11 @@ const HeroDecisionBrief = ({
   context,
   headline,
   prepNames = [],
+  now,
   support,
+  detail,
+  detailOpen = false,
+  onToggleDetail,
   evidence = [],
   issue,
   onRetry,
@@ -85,13 +105,40 @@ const HeroDecisionBrief = ({
       {/* 조건 배지 — 이 카드는 판단만 담는다. 새로고침·공유 같은 유틸은 카드 밖
           페이지 헤더 우측에 둔다(리포트를 다시 받는 조작은 화면 전체의 유틸이고,
           결론 옆에 컨트롤이 붙으면 조건→결론으로 가는 시선이 한 번 끊긴다). */}
-      {context && (
-        <p
-          className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
-        >
-          {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
-          <span>{context}</span>
-        </p>
+      {(context || now) && (
+        // 좌: 무엇이 문제인가(판단의 조건) / 우: 지금 어떤가(판단의 기준값).
+        // 기준값을 우상단 보조 위계(17px)에 두면 결론(28px)과 경쟁하지 않는다 — 수치를
+        // 화면 중앙에 크게 놓는 날씨 앱과 다른 점이 이 위계다.
+        // 같은 값을 근거 칩에 중복해 넣지 않는다: 한 카드에서 같은 지표가 두 번, 그것도
+        // 다른 값(현재 30° / 체감 32°)으로 보이면 어느 쪽이 판단 근거인지 흐려진다.
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            {context && (
+              <p
+                className={`inline-flex max-w-full items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold leading-[1.35] tracking-[-0.01em] text-foreground break-keep ${PILL[state]}`}
+              >
+                {issue ? ISSUE_ICON[issue] : DEFAULT_ICON[state]}
+                <span>{context}</span>
+              </p>
+            )}
+          </div>
+          {now && (
+            <div className="flex shrink-0 flex-col items-end">
+              {/* 하늘 아이콘은 장식 — 조건은 pill 텍스트가, 값은 아래 두 줄이 말한다 */}
+              <span aria-hidden="true">{now.icon}</span>
+              <p className="mt-1.5 flex items-baseline gap-1 leading-none">
+                <span className="text-[13px] font-medium text-muted-foreground">현재</span>
+                <span className="num text-[17px] font-bold text-foreground">{now.temp}</span>
+              </p>
+              {now.feels && (
+                <p className="mt-1.5 flex items-baseline gap-1 text-[13px] leading-none text-muted-foreground">
+                  <span className="font-medium">체감</span>
+                  <span className="num font-semibold">{now.feels}</span>
+                </p>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {/* 결론 — display 28/800. fallback은 title-lg 20/700으로 낮춘다:
@@ -131,8 +178,41 @@ const HeroDecisionBrief = ({
         <p className="mt-2 text-[15px] leading-[1.66] text-muted-foreground break-keep">{support}</p>
       )}
 
-      {/* 잠정본·출처 같은 시점 정보는 이 카드에 두지 않는다 — 조건과 결론 사이에 읽을 것을
-          늘리고, 성격도 "판단"이 아니라 근거다. 상세 펼침 영역의 trust line 옆에 놓는다. */}
+      {/* 상세 진입 — 근거 문장 끝 오른쪽. 별도 카드로 두면 "판단 카드 + 진입 카드" 두 표면이
+          되고, 펼쳤을 때 카드가 하나 더 생긴 것처럼 보인다. 문장 안 인라인 링크가 아니라
+          독립 행인 이유는 터치 타깃(44px) — 15px 본문 안에 링크를 박으면 오조작이 난다. */}
+      {detail && onToggleDetail && (
+        <div className="-mb-2 -mr-2 flex justify-end">
+          <button
+            type="button"
+            onClick={onToggleDetail}
+            aria-expanded={detailOpen}
+            aria-controls="hero-detail"
+            // 보이는 글자("자세히")를 포함하는 이름 — 음성 제어에서 화면의 말과 조작이 어긋나지
+            // 않게 한다(WCAG 2.5.3). "무엇을" 자세히 보는지는 시각적으로 위치가 말해준다.
+            aria-label={detailOpen ? "AI 리포트 접기" : "AI 리포트 자세히 보기"}
+            className="flex min-h-11 items-center gap-0.5 rounded-xl px-2 text-[14px] font-semibold text-muted-foreground transition-smooth active:bg-muted"
+          >
+            {detailOpen ? "접기" : "자세히"}
+            <ChevronDown
+              className={`h-4 w-4 transition-transform ${detailOpen ? "rotate-180" : ""}`}
+              strokeWidth={2}
+            />
+          </button>
+        </div>
+      )}
+
+      {/* 펼침 본문은 버튼 바로 아래 — 데이터 칩은 그 뒤에 남는다. 접힘·펼침 어느 상태에서도
+          "칩이 마지막"이라는 순서(판단은 끝났고 근거는 확인용)가 유지된다.
+          잠정본·출처 같은 시점 정보도 여기 담긴다 — 조건과 결론 사이에 읽을 것을 늘리지 않는다. */}
+      {detail && detailOpen && (
+        <div
+          id="hero-detail"
+          className="mt-4 space-y-3 border-t border-border pt-4 animate-fade-up"
+        >
+          {detail}
+        </div>
+      )}
 
       {evidence.length > 0 && (
         <ul className="mt-4 flex flex-wrap gap-2">
