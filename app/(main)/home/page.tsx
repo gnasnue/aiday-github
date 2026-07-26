@@ -1671,10 +1671,14 @@ const Home = () => {
                   → 자세히 → 칩 2개. 실물과 높이가 같아야 로딩→실물 전환에서 레이아웃이 튀지 않는다. */}
               <div className="flex items-start justify-between gap-2">
                 <Skeleton className="h-9 w-44 rounded-full" />
-                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                {/* 기준값 자리표시자도 실카드와 같은 가로 배치 — 세로로 두면 스켈레톤만
+                    78px가 되어 로딩→실물 전환에서 결론이 40px 위로 튄다. */}
+                <div className="flex shrink-0 items-center gap-2">
                   <Skeleton className="h-8 w-8 rounded-full" />
-                  <Skeleton className="h-4 w-14 rounded-full" />
-                  <Skeleton className="h-3 w-12 rounded-full" />
+                  <div className="flex flex-col items-end gap-1.5">
+                    <Skeleton className="h-4 w-14 rounded-full" />
+                    <Skeleton className="h-3 w-12 rounded-full" />
+                  </div>
                 </div>
               </div>
               <div className="mt-4 space-y-2">
