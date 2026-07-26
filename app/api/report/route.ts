@@ -372,10 +372,12 @@ export async function POST(req: NextRequest) {
 
   // 일과 미입력이면 데이터 첫 줄에 명시한다 — "등원·하원을 지어내지 마라"는 규칙·예시만으로는
   // 모델이 하원 등을 계속 발화했다(2026-07-20 eval S12). 주말 처리와 같은 원칙: 지시보다 입력.
+  // 헤더에 "등원·하원" 단어 자체를 두지 않는다 — v25의 근거 문장(문장2) 압력이 이 문구를
+  // "등원·하원 시각이 없어서"로 되읽는 회귀를 만들었다 (2026-07-27 eval S12).
   const scheduleSummary = scheduleLines.length
     ? scheduleLines.join("\n")
     : hourly.length
-      ? "(일과 미입력 — 등원·하원 시각을 알 수 없음. 아침/낮/저녁 시간대로만 안내)\n" +
+      ? "(일과 미입력 — 아침/낮/저녁 시간대로만 안내)\n" +
         hourly.map((s) => `- ${s.hour}: ${s.temp}°C, ${skyLabel(s.sky)}${rainSignal(s.pty, s.pop)}`).join("\n")
       : `기온 ${weather.temperature ?? "?"}°C, ${skyLabel(weather.sky)}, 습도 ${weather.humidity ?? "?"}%${rainSignal(weather.pty, weather.pop)}`;
 

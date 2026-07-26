@@ -88,6 +88,7 @@ const uv = (peak, peakHour = 12) => {
 const pollen = (max) => ({ oak: max, pine: Math.max(0, max - 1), weed: Math.max(0, max - 2) });
 
 const SCHEDULE_FULL = { goSchool: "08:30", outdoorStart: "11:00", outdoorEnd: "12:30", leaveSchool: "16:00" };
+const SCHEDULE_COMMUTE = { goSchool: "08:30", leaveSchool: "17:00" };
 
 // ── 시나리오 정의 ──────────────────────────────────────────────
 // focus: 이 시나리오가 검증하려는 것. expects: 사람이 MD를 읽고 판정할 기대 기준.
@@ -262,6 +263,70 @@ export const SCENARIOS = [
       pollen: pollen(1),
     },
   },
+  // ── E-AHA: 판단 깊이("비서 테스트") 회귀 케이스 — 프롬프트 v25 (2026-07-27 핸드오프) ──
+  // mustMatch: message+checklist 결합 텍스트에 전부 매치해야 하는 키워드군(AND).
+  // mustNotMatch: 하나라도 매치하면 FAIL. 상호작용·시점 교차·실행 디테일이 실제 문장으로
+  // 드러나는지를 기계 판정한다 — 표현 자체는 자유, 키워드는 판단 유형의 흔적만 잡는다.
+  {
+    id: "E-AHA-1",
+    title: "aha 시점 교차 — 알레르기 × 아침 비 → 하원 맑음 × 꽃가루 높음",
+    focus: "비가 꽃가루를 씻었다가 그친 뒤 재비산 — 우산은 등원, 마스크는 하원",
+    expects: ["우산은 등원길", "마스크는 하원·오후 대비로 시점 교차", "그친 뒤 재비산 메커니즘"],
+    mustMatch: [/우산/, /하원|오후/, /마스크/, /그친|다시|마르/],
+    payload: {
+      evalDate: WEEKDAY,
+      child: { name: "유나", age: "6세", gender: "female", conditions: ["알레르기"], cold: "normal", hot: "normal", sweat: "normal", schedule: SCHEDULE_COMMUTE },
+      weather: weather({ "06:00": { temp: 21, sky: 4, pty: 1, pop: 70, humidity: 90 }, "09:00": { temp: 22, sky: 4, pty: 1, pop: 60, humidity: 90 }, "12:00": { temp: 25, sky: 3, pop: 30, humidity: 75 }, "15:00": { temp: 26, pop: 10, humidity: 60 }, "18:00": { temp: 25, pop: 0, humidity: 55 } }),
+      air: air(1, 1),
+      uv: uv(3, 13),
+      pollen: pollen(2),
+    },
+  },
+  {
+    id: "E-AHA-2",
+    title: "aha 지표 상호작용 — 피부 민감·땀 매우 많음 × 32°C 습도 85%",
+    focus: "더위 자체가 아니라 증발 못 한 땀·젖은 옷이 문제 — 처방은 갈아입히기",
+    expects: ["기온×습도 결합 해석", "젖은 옷·땀 메커니즘", "여벌·갈아입히기 실행"],
+    mustMatch: [/여벌/, /젖|땀/, /갈아입|상의/],
+    payload: {
+      evalDate: WEEKDAY,
+      child: { name: "리아", age: "4세", gender: "female", conditions: ["아토피"], cold: "normal", hot: "normal", sweat: "very-much", schedule: { outdoorStart: "11:00", outdoorEnd: "12:30" } },
+      weather: weather({ "06:00": { temp: 26, humidity: 85 }, "09:00": { temp: 29, humidity: 85 }, "12:00": { temp: 32, humidity: 85 }, "15:00": { temp: 32, humidity: 80 }, "18:00": { temp: 29, humidity: 80 } }),
+      air: air(1, 1),
+      uv: uv(4, 13),
+      pollen: pollen(1),
+    },
+  },
+  {
+    id: "E-AHA-3",
+    title: "aha 판단 원리 — 추위 많이 탐 × 등원 12°C → 하원 22°C",
+    focus: "되돌림 비대칭: 옷 기준은 낮 최고가 아니라 아이가 바깥에 서는 등원 기온",
+    expects: ["등원·아침 기온이 기준", "한 겹 더/기준을 명시", "지퍼·벗기기 실행 디테일"],
+    mustMatch: [/등원|아침/, /기준|맞춰|한 겹|되돌리|안 입힌/, /지퍼|벗기/],
+    payload: {
+      evalDate: WEEKDAY,
+      child: { name: "건우", age: "5세", gender: "male", conditions: [], cold: "very-much", hot: "normal", sweat: "normal", schedule: SCHEDULE_COMMUTE },
+      weather: weather({ "06:00": { temp: 11 }, "09:00": { temp: 12 }, "12:00": { temp: 19 }, "15:00": { temp: 23 }, "18:00": { temp: 22 }, "21:00": { temp: 17 } }),
+      air: air(1, 1),
+      uv: uv(4, 13),
+      pollen: pollen(1),
+    },
+  },
+  {
+    id: "E-AHA-4",
+    title: "aha 음성 대조 — 무특이 × 전 지표 좋음·보통 (억지 aha 금지)",
+    focus: "aha 압박이 무난한 날 억지 통찰·안심 문장을 만들지 않는가",
+    expects: ["안심 문장 없음", "없는 문제를 만들지 않음", "가볍게 보내는 결론"],
+    mustNotMatch: [/괜찮|필수 아니|안심/],
+    payload: {
+      evalDate: WEEKDAY,
+      child: { name: "다온", age: "6세", gender: "male", conditions: [], cold: "normal", hot: "normal", sweat: "normal", schedule: SCHEDULE_FULL },
+      weather: weather({ "06:00": { temp: 20 }, "09:00": { temp: 22 }, "12:00": { temp: 25 }, "15:00": { temp: 26 }, "18:00": { temp: 24 }, "21:00": { temp: 21 } }),
+      air: air(1, 1),
+      uv: uv(4, 13),
+      pollen: pollen(1),
+    },
+  },
 ];
 
 // ── SSE 응답 파싱 ──────────────────────────────────────────────
@@ -290,6 +355,19 @@ export const runChecks = (s, r) => {
 
   add("message 존재", !!r.message, `${r.message?.length ?? 0}자`);
   add("message ≤ 250자", (r.message?.length ?? 0) <= 250, `${r.message?.length ?? 0}자`);
+  // message 3문장 역할 구조 (프롬프트 v25) — 홈 히어로가 message를 \n으로 나눠 "아이 이름이
+  // 든 첫 줄"을 근거(support)로 발췌한다(app/(main)/home/page.tsx supportLine). 줄 수와
+  // 이름 위치가 화면 계약: 1줄=판단, 2줄=이 아이의 근거(이름은 여기에만), 3줄=실행.
+  const msgLines = (r.message ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+  add("message 3줄 역할 구조", msgLines.length === 3, `${msgLines.length}줄`);
+  const nameAt = msgLines
+    .map((l, i) => (l.includes(s.payload.child.name) ? i + 1 : 0))
+    .filter(Boolean);
+  add(
+    "이름은 2번째 줄에만",
+    nameAt.length === 1 && nameAt[0] === 2,
+    nameAt.length ? `줄 ${nameAt.join(",")}` : "이름 없음"
+  );
   add("hook ≤ 40자", (r.hook?.length ?? 0) <= 40, `${r.hook?.length ?? 0}자: ${r.hook}`);
   // hook 두 절 계약 — 홈 히어로가 앞 절은 작은 배지(13/600), 뒤 절은 큰 결론(28/800)으로
   // 나눠 렌더한다(lib/hero-brief.ts toBrief). 절이 하나뿐이거나 한쪽이 뭉툭하면 화면에서
@@ -299,12 +377,15 @@ export const runChecks = (s, r) => {
     : ["", (r.hook ?? "").trim()];
   add("hook 2절 구조(대시 구분)", !!hookCond, `조건 "${hookCond}" / 행동 "${hookAct}"`);
   // 앞 절 = 1순위 지표명 + 등급·수치. 주의 지표가 없는 날은 "모처럼 무난한 날"류를 허용한다.
-  const METRIC = /미세먼지|초미세먼지|꽃가루|자외선|강수|소나기|비|일교차|폭염|한파|습도|바람|기온|도/;
+  // 예외: 강수확률 40~59%는 우산 절제 규칙이 hook 수치를 금지하므로(수치는 입력에도 없음)
+  // "비 소식"류 무수치 강수 언급이 규칙이 정한 유일한 표기다 — 유효한 조건절로 인정한다.
+  const METRIC = /미세먼지|초미세먼지|통합대기|꽃가루|자외선|강수|소나기|비|일교차|폭염|한파|습도|바람|기온|도/;
   const GRADE = /좋음|보통|나쁨|매우나쁨|높음|매우높음|낮음|강함|매우강함|폭염|한파|건조/;
-  const CALM = /무난|특이사항|걱정할/;
+  const CALM = /무난|특이사항|걱정할|맑|화창|쾌적/;
+  const RAIN_SOFT = /(비|소나기)\s*(소식|올 수도)/;
   add(
     "① 조건절 = 지표 + 등급·수치",
-    CALM.test(hookCond) || (METRIC.test(hookCond) && (/\d/.test(hookCond) || GRADE.test(hookCond))),
+    CALM.test(hookCond) || RAIN_SOFT.test(hookCond) || (METRIC.test(hookCond) && (/\d/.test(hookCond) || GRADE.test(hookCond))),
     hookCond
   );
   // 뒤 절만 읽어도 할 일이 성립해야 한다 — 12자 미만은 "우산 챙겨요"처럼 뭉툭해진다.
@@ -360,9 +441,22 @@ export const runChecks = (s, r) => {
   const prepKws = [...new Set(Object.values(r.prep ?? {}).flat())];
   const prepMissing = prepKws.filter((kw) => !inText(canonOf(kw), checklistText));
   add("prep ⊆ checklist", prepMissing.length === 0, prepMissing.join(", "));
+  // E-AHA 판단 깊이 키워드군 — 시나리오가 지정한 판단 유형(상호작용·시점 교차·실행 디테일)의
+  // 흔적이 message+checklist 결합 텍스트에 있는지 AND 판정 (2026-07-27 핸드오프 §4).
+  const kwText = `${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
+  for (const re of s.mustMatch ?? []) add(`키워드군 /${re.source}/`, re.test(kwText), "");
+  for (const re of s.mustNotMatch ?? []) {
+    const m = kwText.match(re);
+    add(`금지어 /${re.source}/ 없음`, !m, m ? `"${m[0]}"` : "");
+  }
 
   if (isInfant) {
-    const masked = (r.checklist ?? []).some((c) => /마스크/.test(c)) || /마스크(를|도)? (꼭 )?(착용|챙|씌|권)/.test(r.message ?? "");
+    // "마스크를 쓰기/씌우기 어려운 나이라" 같은 부정 설명은 권유가 아니다(few-shot 예시 5의
+    // 승인된 표현) — 권유 동사 매치에서 제외해 오탐을 막는다.
+    const maskAdvised =
+      /마스크(를|도)? (꼭 )?(착용|챙|씌|권)/.test(r.message ?? "") &&
+      !/마스크를? (쓰|씌우)기 (어렵|어려|힘들)/.test(r.message ?? "");
+    const masked = (r.checklist ?? []).some((c) => /마스크/.test(c)) || maskAdvised;
     add("24개월 미만 마스크 미권장", !masked);
   }
   if (isWeekendScenario || noSchedule) {
