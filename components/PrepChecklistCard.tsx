@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import PrepIcon from "@/components/PrepIcon";
 
-// 오늘 챙길 것 — 히어로 아래 L1 카드. 히어로보다 약해야 하므로 shadow-soft + radius 20을
-// 쓰고, 행 구분은 hairline divider 하나뿐이다.
+// 오늘 챙길 것 — 기본은 독립 L1 카드(shadow-soft + radius 20, 행 구분은 hairline 하나).
+// 홈에서는 `embedded`로 히어로 카드 안 섹션이 된다(자체 표면 없음 = 카드 안 카드 금지 준수).
 // 명세: docs/reviews/2026-07-25-home-decision-brief-design.html (§4 체크리스트 상태)
 //
 // 강조 타일은 **화면당 1개** — 헤드라인이 지시한 준비물(lib/hero-brief pickPrimaryPrep).
@@ -30,6 +30,8 @@ export type PrepChecklistCardProps = {
   title?: string;
   /** 피드백 행 등 카드 하단 슬롯 — divider 뒤에 놓인다 */
   footer?: ReactNode;
+  /** 상위 카드 안 섹션으로 렌더한다 — 표면(radius·shadow·bg·padding)을 갖지 않는다 */
+  embedded?: boolean;
 };
 
 const PrepChecklistCard = ({
@@ -39,15 +41,23 @@ const PrepChecklistCard = ({
   primaryKey = null,
   title = "오늘 챙길 것",
   footer,
+  embedded = false,
 }: PrepChecklistCardProps) => {
   const doneCount = items.filter((it) => checkedKeys.includes(it.key)).length;
   const allDone = items.length > 0 && doneCount === items.length;
 
   return (
+    // embedded에서는 완료 배경 tint를 쓰지 않는다 — 히어로는 화면의 유일한 L2 표면인데
+    // 그 일부만 색면이 되면 "카드가 두 개"로 다시 읽힌다. 완료 신호는 카운터가
+    // "준비 끝"(status-good)으로 바뀌는 것으로 남긴다.
     <section
-      className={`rounded-2xl p-5 pb-2 shadow-soft transition-colors duration-300 ${
-        allDone ? "bg-status-good-bg" : "bg-card"
-      }`}
+      className={
+        embedded
+          ? ""
+          : `rounded-2xl p-5 pb-2 shadow-soft transition-colors duration-300 ${
+              allDone ? "bg-status-good-bg" : "bg-card"
+            }`
+      }
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-[17px] font-bold tracking-[-0.015em]">{title}</h2>

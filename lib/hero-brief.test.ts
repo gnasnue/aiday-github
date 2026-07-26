@@ -214,13 +214,12 @@ describe("pickEvidence — 근거 chip 2~3개", () => {
     expect(pickEvidence([{ label: "현재", value: null, priority: 1 }])).toEqual([]);
   });
 
-  it("pin 칩은 주의 신호보다 앞에 온다 — 현재 기온을 가장 먼저 읽는다", () => {
+  it("이슈 신호는 priority 순으로 — AI가 고른 1순위(-1)가 맨 앞", () => {
     const picked = pickEvidence([
-      { label: "자외선", value: "매우강함", tone: "warn", priority: 0 },
-      { label: "현재", value: "28°", priority: 10, pin: true },
-      { label: "강수", value: "60%", tone: "warn", priority: 1 },
+      { label: "강수", value: "60%", tone: "warn", priority: 0 },
+      { label: "자외선", value: "매우강함", tone: "warn", priority: -1 },
     ]);
-    expect(picked.map((e) => e.label)).toEqual(["현재", "자외선", "강수"]);
+    expect(picked.map((e) => e.label)).toEqual(["자외선", "강수"]);
   });
 
   it("tone을 지정하지 않으면 neutral", () => {
