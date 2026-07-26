@@ -1,5 +1,9 @@
 # 홈 Hero Decision Brief — Figma 제작 지시서
 
+> ⚠ **일부 개정됨 (2026-07-26)** — 이 문서의 **근거 칩(evidence chip) 규정**(개수 `2~3`/`3개`, 후보 풀, "칩 2개 미만이면 행을 숨긴다" 하한)은 더 이상 현행이 아니다.
+> 현행 계약은 **DESIGN.md “Component Grammar › 홈 히어로 근거 칩” 표**가 단일 진실이고, 구현·근거는 `lib/hero-brief.ts buildHeroEvidence` 주석에 있다.
+> 본문은 당시 기록으로 보존하며 고치지 않는다. 나머지 규정(타입·색·레이아웃·상태)은 그대로 유효하다.
+
 > 산출일 2026-07-25 · 시안: [`2026-07-25-home-decision-brief-design.html`](./2026-07-25-home-decision-brief-design.html)
 > 동작 프로토타입: [`2026-07-25-home-decision-brief-prototype.html`](./2026-07-25-home-decision-brief-prototype.html) — 아이 전환·상태 5종·다크·치수 오버레이·계약 상한 스트레스를 실제로 눌러볼 수 있다
 > 대상: 390px 모바일 홈 (AI 판단 브리프 + 준비물 실행)

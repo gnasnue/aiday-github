@@ -5,6 +5,10 @@ import {
   highlightHeadline,
   pickPrimaryPrep,
   pickEvidence,
+  EVIDENCE_MAX,
+  buildHeroEvidence,
+  tempRangeOf,
+  type EvidenceSlot,
   heroState,
   splitPrepText,
   prepNeedles,
@@ -186,16 +190,16 @@ describe("pickPrimaryPrep — accent 타일 1개", () => {
   });
 });
 
-describe("pickEvidence — 근거 chip 2~3개", () => {
-  it("이슈 지표를 먼저, 그다음 priority 순으로 최대 3개", () => {
+describe("pickEvidence — 근거 chip 상한 2개", () => {
+  it("이슈 지표를 먼저, 그다음 priority 순으로 상한까지", () => {
     const picked = pickEvidence([
       { label: "현재", value: "19°C", priority: 1 },
       { label: "일교차", value: "9°C", tone: "warn", priority: 2 },
       { label: "꽃가루", value: "높음", tone: "warn", priority: 3 },
       { label: "습도", value: "60%", priority: 4 },
     ]);
-    expect(picked.map((e) => e.label)).toEqual(["일교차", "꽃가루", "현재"]);
-    expect(picked).toHaveLength(3);
+    expect(picked.map((e) => e.label)).toEqual(["일교차", "꽃가루"]);
+    expect(picked).toHaveLength(EVIDENCE_MAX);
   });
 
   it("결측 지표는 칩을 만들지 않는다", () => {
@@ -263,5 +267,161 @@ describe("splitPrepText", () => {
 
   it("괄호가 없으면 제목만", () => {
     expect(splitPrepText("마스크")).toEqual({ title: "마스크", reason: "" });
+  });
+});
+
+/* ============================================================
+   buildHeroEvidence — 근거 chip + 히어로 상태의 단일 진실
+   2026-07-26 결함 회귀 고정: "주의색 카드 + 근거 칩 0개"
+   ============================================================ */
+
+const slot = (over: Partial<EvidenceSlot> = {}): EvidenceSlot => ({
+  pty: 0,
+  pop: 0,
+  dust: "좋음",
+  pollen: "낮음",
+  uv: "보통",
+  wind: "약함",
+  humidity: 55,
+  ...over,
+});
+
+/** 06~21시 3시간 예보 기온 6점 */
+const TEMPS = [24, 27, 30, 31, 29, 26];
+
+describe("tempRangeOf — 일교차 표본", () => {
+  it("최고−최저를 반올림해 돌려준다", () => {
+    expect(tempRangeOf(TEMPS)).toBe(7);
+  });
+
+  it("표본이 2점 미만이면 null — 칩을 만들지 않는다", () => {
+    expect(tempRangeOf([25])).toBeNull();
+    expect(tempRangeOf([])).toBeNull();
+    expect(tempRangeOf(undefined)).toBeNull();
+  });
+
+  it("결측(null·undefined·NaN)은 표본에서 뺀다 — 결측을 0도로 위장하지 않는다", () => {
+    expect(tempRangeOf([20, null, undefined, NaN, 28])).toBe(8);
+    expect(tempRangeOf([null, undefined])).toBeNull();
+  });
+});
+
+describe("buildHeroEvidence — 불변식", () => {
+  // 이 두 케이스가 2026-07-26 결함의 본체다. 깨지면 그 버그가 돌아온 것이다.
+  it("caution이면 근거 칩이 반드시 1개 이상 — warn 신호가 하나뿐인 날도", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ uv: "강함" }),
+      hourlyTemps: [],
+      hasAiHook: true,
+    });
+    expect(r.state).toBe("caution");
+    expect(r.evidence.length).toBeGreaterThanOrEqual(1);
+    expect(r.evidence.some((e) => e.tone === "warn")).toBe(true);
+  });
+
+  it("warn 칩이 있으면 카드는 normal일 수 없다 — 역방향", () => {
+    const cases: EvidenceSlot[] = [
+      slot({ uv: "강함" }),
+      slot({ dust: "매우나쁨" }),
+      slot({ pollen: "높음" }),
+      slot({ wind: "강함" }),
+      slot({ humidity: 25 }),
+      slot({ pty: 1, pop: 80 }),
+    ];
+    for (const s of cases) {
+      const r = buildHeroEvidence({ slot: s, hourlyTemps: TEMPS, hasAiHook: true });
+      if (r.evidence.some((e) => e.tone !== "neutral")) expect(r.state).not.toBe("normal");
+    }
+  });
+});
+
+describe("buildHeroEvidence — 계량 지표(뉴트럴) 공급", () => {
+  it("이슈가 하나도 없는 무난한 날에도 칩이 뜬다 — 일교차·강수", () => {
+    const r = buildHeroEvidence({ slot: slot(), hourlyTemps: TEMPS, hasAiHook: true });
+    expect(r.state).toBe("normal");
+    expect(r.evidence.map((e) => e.label)).toEqual(["일교차", "강수"]);
+    expect(r.evidence.every((e) => e.tone === "neutral")).toBe(true);
+  });
+
+  it("강수형태 0이 확인된 경우에만 '없음' — 결측은 안심으로 바꾸지 않는다", () => {
+    expect(
+      buildHeroEvidence({ slot: slot({ pty: 0, pop: 0 }), hourlyTemps: TEMPS, hasAiHook: true })
+        .evidence.find((e) => e.label === "강수")?.value
+    ).toBe("없음");
+    // pty 결측 + 저확률 → 수치를 그대로 둔다
+    expect(
+      buildHeroEvidence({ slot: slot({ pty: null, pop: 30 }), hourlyTemps: TEMPS, hasAiHook: true })
+        .evidence.find((e) => e.label === "강수")?.value
+    ).toBe("30%");
+  });
+
+  it("강수 60% 이상은 뉴트럴이 아니라 warn 칩", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ pty: 0, pop: 60 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.evidence.find((e) => e.label === "강수")?.tone).toBe("warn");
+    expect(r.state).toBe("caution");
+  });
+
+  it("현재·체감 기온은 어떤 경우에도 칩이 되지 않는다 — 우상단 블록과 중복 금지", () => {
+    const r = buildHeroEvidence({ slot: slot({ uv: "강함" }), hourlyTemps: TEMPS, hasAiHook: true });
+    expect(r.evidence.map((e) => e.label)).not.toContain("현재");
+    expect(r.evidence.map((e) => e.label)).not.toContain("체감");
+  });
+});
+
+describe("buildHeroEvidence — 정렬·중복·결측", () => {
+  it("AI가 고른 1순위 이슈가 맨 앞 — 같은 라벨이 두 개가 되지 않는다", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ pty: 1, pop: 70, uv: "매우강함" }),
+      hourlyTemps: TEMPS,
+      ctxIssue: "자외선",
+      hasAiHook: true,
+    });
+    expect(r.evidence[0].label).toBe("자외선");
+    expect(new Set(r.evidence.map((e) => e.label)).size).toBe(r.evidence.length);
+  });
+
+  it("warn이 뉴트럴보다 앞 — 근거가 잘려도 이슈가 먼저 남는다", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ dust: "나쁨" }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.evidence[0].label).toBe("미세먼지");
+  });
+
+  it("슬롯이 없고 일교차만 있으면 칩 1개뿐이라 행을 숨긴다(하한 2)", () => {
+    const r = buildHeroEvidence({ slot: null, hourlyTemps: TEMPS, hasAiHook: true });
+    expect(r.state).toBe("normal");
+    expect(r.evidence).toEqual([]);
+  });
+
+  it("데이터가 전면 결측이면 칩 없음", () => {
+    expect(buildHeroEvidence({ slot: null, hasAiHook: true }).evidence).toEqual([]);
+  });
+
+  it("하한은 상태로 갈린다 — 후보가 정확히 1개일 때 caution은 살리고 fallback은 숨긴다", () => {
+    // 강수 결측(pty·pop 없음) + 일교차 표본 없음 → 후보는 자외선 warn 하나뿐
+    const lone = { slot: slot({ uv: "강함", pty: null, pop: null }), hourlyTemps: [] };
+
+    const caution = buildHeroEvidence({ ...lone, hasAiHook: true });
+    expect(caution.state).toBe("caution");
+    expect(caution.evidence.map((e) => e.label)).toEqual(["자외선"]);
+
+    const fallback = buildHeroEvidence({ ...lone, hasAiHook: false });
+    expect(fallback.state).toBe("fallback");
+    expect(fallback.evidence).toEqual([]);
+  });
+
+  it("상한(2개)을 넘지 않는다 — 자세히 버튼과 한 행을 나눠 쓰므로 3개는 2줄로 밀린다", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ pty: 1, pop: 80, dust: "나쁨", pollen: "높음", uv: "강함", wind: "강함" }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.evidence).toHaveLength(EVIDENCE_MAX);
   });
 });
