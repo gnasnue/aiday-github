@@ -249,19 +249,38 @@ export type EvidenceCandidate = {
   priority: number;
 };
 
-export const EVIDENCE_MAX = 3;
+/**
+ * 상한 2 — 명세는 "2~3개"를 허용하고 목표치를 3으로 썼지만, 그 계산("3개 합 285px, 310 안에
+ * 1줄 수납")은 **근거 행이 칩만 쓰던 시절**의 것이다. 2026-07-26에 `자세히 ⌄`가 같은 행으로
+ * 들어오면서(DESIGN.md) 칩 가용 폭이 310 → 234px로 줄었는데 아무도 재계산하지 않았다.
+ *
+ * 빌드된 Tailwind CSS + Chromium 390px 실측:
+ *   3개(자외선 강함 92.4 + 일교차 78.3 + 강수 없음 79.5 + gap 16) = 266px > 234 → 2줄로 밀림
+ *   2개(자외선 강함 + 일교차) = 178.7px → 1줄 ✓
+ * 즉 상한 3을 유지하면 **거의 모든 caution 날에 칩이 2줄로 흘러** 카드가 35px 늘어난다.
+ * 라벨이 둘 다 긴 예외(미세먼지 매우나쁨 131 + 자외선 매우강함 118 = 257)는 2개여도 밀리는데,
+ * 명세가 오버플로 동작으로 허용한 flex-wrap에 맡긴다(드물다).
+ */
+export const EVIDENCE_MAX = 2;
 export const EVIDENCE_MIN = 2;
+/** caution(이슈 있음)일 때의 하한 — 아래 buildHeroEvidence 주석의 "하한이 갈리는 이유" 참고 */
+export const EVIDENCE_MIN_CAUTION = 1;
 
 /**
  * 근거 chip을 고른다.
  *
  * - **결측 지표는 칩을 만들지 않는다.** 무근거를 데이터처럼 보이게 하는 것이 가장 나쁘다.
  * - 이슈 지표(warn/good)를 먼저, 그다음 priority 순.
+ * - 같은 라벨은 하나만 남긴다 — 1순위 승격이 후보를 복제하면 같은 칩이 두 개 그려진다.
  * - 최대 3개. 4개 이상 나열은 "아직 판단하지 않았다"는 신호라 규칙으로 막는다.
- * - 살아남은 칩이 2개 미만이면 **빈 배열** — 호출부가 근거 행 자체를 숨긴다.
- *   칩 하나만 뜬 근거 줄은 판단의 근거처럼 보이지 않는다.
+ * - 살아남은 칩이 `min`개 미만이면 **빈 배열** — 호출부가 칩 행을 그리지 않는다
+ *   (명세: "칩이 2개 미만이면 근거 행 자체를 숨기고 근거 진입 행만 남긴다").
+ *   `min`을 호출부가 정하는 이유는 buildHeroEvidence 주석 참고.
  */
-export function pickEvidence(candidates: EvidenceCandidate[]): Evidence[] {
+export function pickEvidence(
+  candidates: EvidenceCandidate[],
+  min: number = EVIDENCE_MIN
+): Evidence[] {
   const alive = candidates
     .filter((c) => {
       const v = (c.value ?? "").trim();
@@ -281,10 +300,142 @@ export function pickEvidence(candidates: EvidenceCandidate[]): Evidence[] {
     return a.priority - b.priority;
   });
 
-  const picked = ranked.slice(0, EVIDENCE_MAX);
-  return picked.length >= EVIDENCE_MIN
+  const seen = new Set<string>();
+  const deduped = ranked.filter((c) => (seen.has(c.label) ? false : (seen.add(c.label), true)));
+
+  const picked = deduped.slice(0, EVIDENCE_MAX);
+  return picked.length >= min
     ? picked.map(({ label, value, tone }) => ({ label, value, tone }))
     : [];
+}
+
+/* ------------------------------------------------------------
+   4-1. 근거 chip 후보 생성 — 화면의 단일 진실
+   ------------------------------------------------------------ */
+
+/** 근거 계산에 필요한 슬롯 필드만 (lib/timeline.ts HomeTimeSlot의 부분집합) */
+export type EvidenceSlot = {
+  pty?: number | null;
+  pop?: number | null;
+  popWindow?: number | null;
+  dust: string;
+  pollen: string;
+  uv: string;
+  wind: string;
+  humidity: number;
+};
+
+export type HeroEvidenceInput = {
+  /** 판단 기준 슬롯. null이면 근거를 만들지 않는다(예보 결측) */
+  slot: EvidenceSlot | null;
+  /** 오늘 3시간 예보 기온(06·09·12·15·18·21시). 일교차 계산 표본 */
+  hourlyTemps?: readonly (number | null | undefined)[];
+  /** AI hook 조건절이 지목한 1순위 지표 라벨. 그 칩을 맨 앞으로 올린다 */
+  ctxIssue?: string | null;
+  hasAiHook: boolean;
+};
+
+export type HeroEvidenceResult = {
+  evidence: Evidence[];
+  /** warn 신호 라벨 — heroState의 issueCount와 **같은 배열**에서 나온다 */
+  issueLabels: string[];
+  state: HeroState;
+};
+
+/**
+ * 오늘 3시간 예보 기온의 최고−최저. 표본이 2점 미만이면 null(칩을 만들지 않는다).
+ *
+ * 기상청 정의의 일 최고/최저(TMX·TMN)는 홈이 호출하지 않는 주간예보에만 있어 쓸 수 없다.
+ * 06~21시 6점의 근사이며 **새벽(00~05시)이 빠져 실제보다 작게 나온다** — 그래도 이 표본을
+ * 쓰는 이유는 AI 리포트가 일과 미입력 사용자에게 보는 표본과 같기 때문이다
+ * (app/api/report/route.ts의 hourlyForecast 투입). 슬롯 기온(displaySlots)으로 계산하면
+ * 하루 최저가 흔한 06시가 빠져 AI가 말한 일교차와 수 도(度) 단위로 어긋난다.
+ */
+export function tempRangeOf(temps: readonly (number | null | undefined)[] = []): number | null {
+  const t = temps.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (t.length < 2) return null;
+  return Math.round(Math.max(...t) - Math.min(...t));
+}
+
+/**
+ * 히어로의 근거 chip과 상태를 **한 곳에서** 만든다.
+ *
+ * ## 왜 한 함수인가
+ * 칩과 카드 색이 서로 다른 곳에서 계산되던 동안 "주의색 카드 + 근거 칩 0개"가 구조적으로
+ * 발생했다(2026-07-26 결함). 이제 `issueLabels`가 warn 칩의 소스이자 `heroState`의
+ * `issueCount`라서 **칩에 warn이 없는데 카드가 주의색인 모순이 타입 수준에서 불가능**하다.
+ * 이 불변식은 lib/hero-brief.test.ts가 양방향으로 고정한다 — 깨면 테스트가 죽는다.
+ *
+ * ## 후보 규칙 (이걸 바꾸려면 DESIGN.md Decisions Log부터 고쳐라)
+ * - **등급 지표**(미세먼지·꽃가루·자외선·바람·건조) = **warn일 때만** 칩이 된다.
+ *   "좋음·보통"을 칩으로 만들면 없는 문제를 만들거나 무의미한 안심을 준다.
+ * - **계량 지표**(일교차·강수) = 등급이 아니라 수치·사실이므로 **등급 없이 뉴트럴 칩**이 된다.
+ *   이 부류가 있어야 무난한 날에도 칩이 뜬다(명세의 `일교차 5°C`·`강수 없음`이 이것).
+ * - **현재·체감 기온은 칩으로 만들지 않는다.** 우상단 기준값 블록이 이미 그 두 값을 말하고,
+ *   같은 지표가 한 카드에 다른 값으로 두 번 나오면 어느 게 지금인지 흐려진다(2026-07-26 결정).
+ *   일교차는 "기온의 폭"이라 절대 기온과 다른 지표다 — 중복이 아니다.
+ *
+ * ## 하한이 갈리는 이유
+ * 명세의 "칩 2개 미만이면 행을 숨긴다"는 **지표 결측(API 장애)** 문맥의 규칙이다. 지표가
+ * 멀쩡한데 warn만 1개인 날까지 행을 통째로 숨기면 주의색 카드에 근거가 사라진다. 그래서
+ * caution에서만 하한을 1로 둔다. 결측·평상·폴백은 명세대로 2를 유지한다.
+ */
+export function buildHeroEvidence(input: HeroEvidenceInput): HeroEvidenceResult {
+  const { slot, hourlyTemps = [], ctxIssue = null, hasAiHook } = input;
+
+  // --- 이슈 신호(warn) — 임계값은 app/(main)/home/page.tsx slotNotables()와 같아야 한다 ---
+  const issues: EvidenceCandidate[] = [];
+  // --- 계량 지표(neutral) — 등급 없이 값 그대로 ---
+  const measures: EvidenceCandidate[] = [];
+
+  const range = tempRangeOf(hourlyTemps);
+  if (range != null) {
+    measures.push({ label: "일교차", value: `${range}°`, tone: "neutral", priority: 20 });
+  }
+
+  if (slot) {
+    const pop = slot.popWindow ?? slot.pop ?? null;
+    const raining = slot.pty != null && slot.pty > 0;
+    if (raining || (pop != null && pop >= 60)) {
+      issues.push({
+        label: "강수",
+        value: pop != null ? `${pop}%` : "예보",
+        tone: "warn",
+        priority: 0,
+      });
+    } else if (slot.pty === 0 && (pop == null || pop < 40)) {
+      // "없음"은 강수형태가 0으로 **확인된** 경우에만 말한다 — 결측을 안심으로 바꾸지 않는다
+      measures.push({ label: "강수", value: "없음", tone: "neutral", priority: 21 });
+    } else if (pop != null) {
+      measures.push({ label: "강수", value: `${pop}%`, tone: "neutral", priority: 21 });
+    }
+
+    if (slot.dust === "나쁨" || slot.dust === "매우나쁨") {
+      issues.push({ label: "미세먼지", value: slot.dust, tone: "warn", priority: 1 });
+    }
+    if (slot.pollen === "높음" || slot.pollen === "매우높음") {
+      issues.push({ label: "꽃가루", value: slot.pollen, tone: "warn", priority: 2 });
+    }
+    if (slot.uv === "강함" || slot.uv === "매우강함") {
+      issues.push({ label: "자외선", value: slot.uv, tone: "warn", priority: 3 });
+    }
+    if (slot.wind === "강함") {
+      issues.push({ label: "바람", value: "강함", tone: "warn", priority: 4 });
+    }
+    if (slot.humidity > 0 && slot.humidity <= 40) {
+      issues.push({ label: "습도", value: `${slot.humidity}%`, tone: "warn", priority: 5 });
+    }
+  }
+
+  // AI가 고른 1순위를 맨 앞으로 — **후보를 추가하지 않고 기존 후보의 priority만 낮춘다**
+  // (추가하면 같은 라벨 칩이 두 개가 된다).
+  const promoted = issues.map((c) => (c.label === ctxIssue ? { ...c, priority: -1 } : c));
+
+  const issueLabels = promoted.map((c) => c.label);
+  const state = heroState({ hasAiHook, issueCount: issueLabels.length });
+  const min = state === "caution" ? EVIDENCE_MIN_CAUTION : EVIDENCE_MIN;
+
+  return { evidence: pickEvidence([...promoted, ...measures], min), issueLabels, state };
 }
 
 /* ============================================================

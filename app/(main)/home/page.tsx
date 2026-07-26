@@ -19,9 +19,8 @@ import {
   toBrief,
   splitHook,
   splitPrepText,
-  pickEvidence,
+  buildHeroEvidence,
   pickPrimaryPrep,
-  heroState,
 } from "@/lib/hero-brief";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
@@ -1244,31 +1243,6 @@ const Home = () => {
   // 이 슬롯을 가리켜야 한 화면 안에서 서로 어긋나지 않는다.
   const basisSlot = displaySlots.find((sl) => !sl.isDefault) ?? displaySlots[0] ?? null;
 
-  // 판단 근거 칩 2~3개 — 근거는 기준 슬롯의 실측 지표에서 뽑는다.
-  // badges(weatherData 스칼라)를 쓰지 않는 이유: 시간대별 환경·케어 플랜 카드는 슬롯 값을
-  // 쓰기 때문에, badges로 칩을 만들면 같은 화면에서 "히어로는 특이사항 없음 / 아래 카드는
-  // 자외선 매우강함"처럼 어긋난다(2026-07-21 "홈=판단 / env=근거" 결정이 해소한 문제와 같은 류).
-  // 임계값은 slotNotables()의 경고급 조건과 동일하게 맞춘다 — 둘 중 하나만 바뀌면 안 된다.
-  const warnSignals: { label: string; value: string }[] = [];
-  if (basisSlot) {
-    const pop = basisSlot.popWindow ?? basisSlot.pop ?? null;
-    if ((basisSlot.pty != null && basisSlot.pty > 0) || (pop != null && pop >= 60)) {
-      warnSignals.push({ label: "강수", value: pop != null ? `${pop}%` : "예보" });
-    }
-    if (basisSlot.dust === "나쁨" || basisSlot.dust === "매우나쁨") {
-      warnSignals.push({ label: "미세먼지", value: basisSlot.dust });
-    }
-    if (basisSlot.pollen === "높음" || basisSlot.pollen === "매우높음") {
-      warnSignals.push({ label: "꽃가루", value: basisSlot.pollen });
-    }
-    if (basisSlot.uv === "강함" || basisSlot.uv === "매우강함") {
-      warnSignals.push({ label: "자외선", value: basisSlot.uv });
-    }
-    if (basisSlot.wind === "강함") warnSignals.push({ label: "바람", value: "강함" });
-    if (basisSlot.humidity > 0 && basisSlot.humidity <= 40) {
-      warnSignals.push({ label: "습도", value: `${basisSlot.humidity}%` });
-    }
-  }
   // 1순위는 AI가 정한다 — hook의 조건절(pill 텍스트)이 곧 오늘의 1순위 이슈다
   // (프롬프트 규칙 5: hook은 1순위 이슈로 쓴다). 그래서 pill 아이콘과 근거 칩 순서를
   // 이 텍스트에 맞춘다. 맞추지 않으면 "pill은 자외선인데 아이콘은 비"처럼 어긋난다.
@@ -1284,25 +1258,29 @@ const Home = () => {
     return null;
   })();
 
-  // 좋음·보통 등급은 칩으로 만들지 않는다("없는 문제를 만들지 않는다"는 리포트 규칙과 같은
-  // 원칙). 결측 지표에 "—"를 그리지도 않는다 — 무근거가 데이터처럼 보이는 게 가장 나쁘다.
-  // 현재·체감 기온은 칩이 아니라 우상단 기준값 블록이 담당한다(2026-07-26). 칩은 "판단에 쓴
-  // 이슈 신호"만 남는다 — 신호가 1개뿐인 날은 pill이 이미 그 이슈를 말하므로 칩 행이 사라진다
-  // (pickEvidence의 최소 2개 규칙).
-  const evidence = pickEvidence(
-    warnSignals.map((w, i) => ({
-      label: w.label,
-      value: w.value,
-      tone: "warn" as const,
-      priority: w.label === ctxIssue ? -1 : i, // AI가 고른 1순위를 맨 앞으로
-    }))
-  );
-
-  // 상태와 근거는 같은 후보 집합에서 나온다 — 칩에 warn이 없는데 카드가 주의색인(또는 반대인)
-  // 모순이 구조적으로 불가능해진다.
-  // safe(야외활동 권유)는 아직 배선하지 않는다: 홈에는 야외활동 지수 입력(pm25·풍속)이 없어
-  // env와 다른 입력으로 같은 지수를 계산하면 두 화면의 판단이 또 어긋난다.
-  const heroSt = heroState({ hasAiHook: !!aiHook, issueCount: warnSignals.length });
+  // 근거 칩 + 히어로 상태는 **lib/hero-brief.ts buildHeroEvidence 한 곳**에서 나온다.
+  // 칩(warn)과 카드 색을 서로 다른 곳에서 계산하던 동안 "주의색 카드 + 근거 칩 0개"가
+  // 구조적으로 발생했다(2026-07-26). 후보 규칙·하한 규칙은 전부 그 함수의 주석에 있다 —
+  // 여기서 후보를 다시 만들지 마라.
+  //
+  // badges(weatherData 스칼라)를 쓰지 않는 이유: 시간대별 환경·케어 플랜 카드는 슬롯 값을
+  // 쓰기 때문에, badges로 칩을 만들면 같은 화면에서 "히어로는 특이사항 없음 / 아래 카드는
+  // 자외선 매우강함"처럼 어긋난다(2026-07-21 "홈=판단 / env=근거" 결정이 해소한 문제와 같은 류).
+  // 등급 임계값은 slotNotables()의 경고급 조건과 동일해야 한다 — 둘 중 하나만 바뀌면 안 된다.
+  //
+  // safe(야외활동 권유)는 아직 배선하지 않는다: 홈에는 야외활동 지수 입력(pm25 등급)이
+  // 타입상 없어, env와 다른 입력으로 같은 지수를 계산하면 두 화면의 판단이 또 어긋난다.
+  const {
+    evidence,
+    issueLabels,
+    state: heroSt,
+  } = buildHeroEvidence({
+    slot: basisSlot,
+    // 일교차 표본은 슬롯이 아니라 원시 3시간 예보다 — 이유는 tempRangeOf 주석 참고
+    hourlyTemps: envRaw?.weather?.hourlyForecast?.map((h) => h.temp),
+    ctxIssue,
+    hasAiHook: !!aiHook,
+  });
 
   // context pill 아이콘 — 1순위 이슈를 모양으로 말한다(색이 빠져도 남는 상태 신호).
   const HERO_ISSUE_BY_LABEL: Record<string, HeroIssue> = {
@@ -1315,7 +1293,7 @@ const Home = () => {
   };
   const heroIssue: HeroIssue | undefined =
     heroSt === "caution"
-      ? HERO_ISSUE_BY_LABEL[ctxIssue ?? warnSignals[0]?.label ?? ""] ?? "temp"
+      ? HERO_ISSUE_BY_LABEL[ctxIssue ?? issueLabels[0] ?? ""] ?? "temp"
       : undefined;
 
   // 준비물 사유 — AI 체크리스트는 "이모지 짧은이름"만 준다(report.ts 출력 규칙). 그래서 사유는
