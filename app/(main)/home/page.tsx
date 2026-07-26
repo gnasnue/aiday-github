@@ -1385,6 +1385,26 @@ const Home = () => {
   const briefLoading = (loading || aiLoading || refreshing) && !reportPrimed;
   const listLoading = (loading || aiLoading || aiStreaming || refreshing) && !reportPrimed;
 
+  // 오늘 챙길 것 스켈레톤 — 히어로 전체 로딩(briefLoading)과 목록만 로딩(listLoading) 두
+  // 경로가 같은 골격을 그려야 한다. 이제 한 카드 안이라 골격이 갈리면 높이가 튄다.
+  const prepSkeleton = (
+    <div aria-busy="true">
+      <div className="flex items-baseline justify-between">
+        <Skeleton className="h-5 w-24 rounded-full" />
+        <Skeleton className="h-4 w-10 rounded-full" />
+      </div>
+      <div className="mt-2">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex min-h-14 items-center gap-3">
+            <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
+            <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+            <Skeleton className="h-4 w-24 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   // 공유 — 오늘의 AI 리포트 요약(hook·챙길 것·환경 칩)을 텍스트로 만들어
   // 모바일 네이티브 공유 시트(navigator.share)로 넘긴다. 미지원(주로 데스크톱)이면
   // 클립보드 복사로 폴백. 사용자 제스처(클릭) 안에서만 호출되므로 권한 이슈 없음.
@@ -1666,13 +1686,14 @@ const Home = () => {
                 <Skeleton className="h-4 w-full rounded-full" />
                 <Skeleton className="h-4 w-3/6 rounded-full" />
               </div>
-              <div className="mt-3 flex justify-end">
-                <Skeleton className="h-5 w-14 rounded-full" />
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-24 rounded-full" />
+                  <Skeleton className="h-9 w-28 rounded-full" />
+                </div>
+                <Skeleton className="h-5 w-14 shrink-0 rounded-full" />
               </div>
-              <div className="mt-4 flex gap-2">
-                <Skeleton className="h-9 w-24 rounded-full" />
-                <Skeleton className="h-9 w-28 rounded-full" />
-              </div>
+              <div className="-mx-5 mt-5 border-t border-border px-5 pt-5">{prepSkeleton}</div>
             </section>
           ) : (
             <HeroDecisionBrief
@@ -1703,7 +1724,24 @@ const Home = () => {
               issue={heroIssue}
               onRetry={heroSt === "fallback" ? refreshReport : undefined}
               retrying={aiLoading || refreshing}
-            />
+            >
+              {/* 오늘 챙길 것 — 판단과 같은 카드 안 섹션(2026-07-26). 판단과 그 판단이 지시한
+                  실행이 두 표면으로 갈리면 한눈에 하나로 읽히지 않는다는 사용자 지적.
+                  리포트가 정착하기 전(스트리밍 포함)까지는 스켈레톤을 유지해 규칙 폴백이 잠깐
+                  노출됐다 AI 결과로 바뀌는 잔상을 막는다. */}
+              {listLoading ? (
+                prepSkeleton
+              ) : (
+                <PrepChecklistCard
+                  embedded
+                  items={prepItems}
+                  checkedKeys={checked}
+                  onToggle={toggle}
+                  primaryKey={primaryPrepKey}
+                  footer={<ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />}
+                />
+              )}
+            </HeroDecisionBrief>
           )}
 
           {/* AI 리포트 생성 한도(429) 안내 — 토스트는 몇 초 뒤 사라지므로, 재방문해도
@@ -1723,38 +1761,8 @@ const Home = () => {
             </div>
           )}
 
-          {/* 상세(리포트 본문·출처)는 히어로 카드 안 "자세히" CTA로 들어간다(2026-07-26).
-              별도 진입 카드를 두면 표면이 둘이 되고, 펼쳤을 때 카드가 하나 더 생긴 것처럼 보였다. */}
-
-          {/* 오늘 챙길 것 — 히어로 밖 L1 카드. 리포트가 정착하기 전(스트리밍 포함)까지는
-              스켈레톤을 유지해 규칙 폴백이 잠깐 노출됐다 AI 결과로 바뀌는 잔상을 막는다. */}
-          {listLoading ? (
-            <section className="mt-6 rounded-2xl bg-card p-5 shadow-soft" aria-busy="true">
-              <div className="flex items-baseline justify-between">
-                <Skeleton className="h-5 w-24 rounded-full" />
-                <Skeleton className="h-4 w-10 rounded-full" />
-              </div>
-              <div className="mt-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex min-h-14 items-center gap-3">
-                    <Skeleton className="h-6 w-6 shrink-0 rounded-full" />
-                    <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
-                    <Skeleton className="h-4 w-24 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : (
-            <div className="mt-6">
-              <PrepChecklistCard
-                items={prepItems}
-                checkedKeys={checked}
-                onToggle={toggle}
-                primaryKey={primaryPrepKey}
-                footer={<ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />}
-              />
-            </div>
-          )}
+          {/* 상세(리포트 본문·출처)와 오늘 챙길 것은 모두 히어로 카드 안으로 들어갔다(2026-07-26).
+              별도 카드로 두면 표면이 셋이 되고, "판단 → 실행"이 한눈에 하나로 읽히지 않았다. */}
 
           {/* Timeline — 스크롤 가능성은 peek이 전달 (안내 문구 없음) */}
           <section className="mt-12">

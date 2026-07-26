@@ -74,6 +74,9 @@ export type HeroDecisionBriefProps = {
   /** fallback 상태에서만 노출되는 재시도 */
   onRetry?: () => void;
   retrying?: boolean;
+  /** 카드 하단에 이어 붙는 섹션(오늘 챙길 것) — 전체폭 헤어라인으로 구분된다.
+   *  자체 표면을 가진 카드를 넣으면 "카드 안 카드"가 된다(DESIGN.md 금지) */
+  children?: ReactNode;
 };
 
 const HeroDecisionBrief = ({
@@ -90,6 +93,7 @@ const HeroDecisionBrief = ({
   issue,
   onRetry,
   retrying = false,
+  children,
 }: HeroDecisionBriefProps) => {
   const isFallback = state === "fallback";
   // 결론은 2줄 고정 — 어절 경계에서 균형 있게 쪼개고 강조 구간은 가르지 않는다.
@@ -178,33 +182,57 @@ const HeroDecisionBrief = ({
         <p className="mt-2 text-[15px] leading-[1.66] text-muted-foreground break-keep">{support}</p>
       )}
 
-      {/* 상세 진입 — 근거 문장 끝 오른쪽. 별도 카드로 두면 "판단 카드 + 진입 카드" 두 표면이
-          되고, 펼쳤을 때 카드가 하나 더 생긴 것처럼 보인다. 문장 안 인라인 링크가 아니라
-          독립 행인 이유는 터치 타깃(44px) — 15px 본문 안에 링크를 박으면 오조작이 난다. */}
-      {detail && onToggleDetail && (
-        <div className="-mb-2 -mr-2 flex justify-end">
-          <button
-            type="button"
-            onClick={onToggleDetail}
-            aria-expanded={detailOpen}
-            aria-controls="hero-detail"
-            // 보이는 글자("자세히")를 포함하는 이름 — 음성 제어에서 화면의 말과 조작이 어긋나지
-            // 않게 한다(WCAG 2.5.3). "무엇을" 자세히 보는지는 시각적으로 위치가 말해준다.
-            aria-label={detailOpen ? "AI 리포트 접기" : "AI 리포트 자세히 보기"}
-            className="flex min-h-11 items-center gap-0.5 rounded-xl px-2 text-[14px] font-semibold text-muted-foreground transition-smooth active:bg-muted"
-          >
-            {detailOpen ? "접기" : "자세히"}
-            <ChevronDown
-              className={`h-4 w-4 transition-transform ${detailOpen ? "rotate-180" : ""}`}
-              strokeWidth={2}
-            />
-          </button>
+      {/* 데이터 + 상세 진입을 한 행에 — 근거(왼쪽)와 "더 읽기"(오른쪽)는 둘 다 판단이 끝난
+          뒤의 확인용이라 같은 위계다. 행을 따로 쓰면 카드가 40px 길어지고, 그 대가로
+          얻는 정보는 없다. 진입이 문장 안 인라인 링크가 아닌 이유는 터치 타깃(44px). */}
+      {(evidence.length > 0 || (detail && onToggleDetail)) && (
+        <div className="mt-3 flex items-center justify-between gap-2">
+          <ul className="flex min-w-0 flex-wrap gap-2">
+            {evidence.map((e) => (
+              <li
+                key={e.label}
+                className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-3 py-2"
+              >
+                <span className="text-[13px] font-medium tracking-[-0.01em] text-muted-foreground">
+                  {e.label}
+                </span>
+                <span
+                  className={`text-[13px] font-bold tracking-[-0.01em] ${
+                    e.tone === "warn"
+                      ? "text-status-warn"
+                      : e.tone === "good"
+                        ? "text-status-good"
+                        : "text-foreground"
+                  } ${/\d/.test(e.value) ? "num" : ""}`}
+                >
+                  {e.value}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {detail && onToggleDetail && (
+            <button
+              type="button"
+              onClick={onToggleDetail}
+              aria-expanded={detailOpen}
+              aria-controls="hero-detail"
+              // 보이는 글자("자세히")를 포함하는 이름 — 음성 제어에서 화면의 말과 조작이 어긋나지
+              // 않게 한다(WCAG 2.5.3). "무엇을" 자세히 보는지는 시각적으로 위치가 말해준다.
+              aria-label={detailOpen ? "AI 리포트 접기" : "AI 리포트 자세히 보기"}
+              className="-mr-2 flex min-h-11 shrink-0 items-center gap-0.5 rounded-xl px-2 text-[14px] font-semibold text-muted-foreground transition-smooth active:bg-muted"
+            >
+              {detailOpen ? "접기" : "자세히"}
+              <ChevronDown
+                className={`h-4 w-4 transition-transform ${detailOpen ? "rotate-180" : ""}`}
+                strokeWidth={2}
+              />
+            </button>
+          )}
         </div>
       )}
 
-      {/* 펼침 본문은 버튼 바로 아래 — 데이터 칩은 그 뒤에 남는다. 접힘·펼침 어느 상태에서도
-          "칩이 마지막"이라는 순서(판단은 끝났고 근거는 확인용)가 유지된다.
-          잠정본·출처 같은 시점 정보도 여기 담긴다 — 조건과 결론 사이에 읽을 것을 늘리지 않는다. */}
+      {/* 펼침 본문은 진입 버튼이 있는 행 바로 아래 — 여는 컨트롤과 열리는 내용이 붙어 있어야
+          한다. 잠정본·출처 같은 시점 정보도 여기 담긴다(조건과 결론 사이에 읽을 것을 늘리지 않는다). */}
       {detail && detailOpen && (
         <div
           id="hero-detail"
@@ -212,32 +240,6 @@ const HeroDecisionBrief = ({
         >
           {detail}
         </div>
-      )}
-
-      {evidence.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-2">
-          {evidence.map((e) => (
-            <li
-              key={e.label}
-              className="inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-muted px-3 py-2"
-            >
-              <span className="text-[13px] font-medium tracking-[-0.01em] text-muted-foreground">
-                {e.label}
-              </span>
-              <span
-                className={`text-[13px] font-bold tracking-[-0.01em] ${
-                  e.tone === "warn"
-                    ? "text-status-warn"
-                    : e.tone === "good"
-                      ? "text-status-good"
-                      : "text-foreground"
-                } ${/\d/.test(e.value) ? "num" : ""}`}
-              >
-                {e.value}
-              </span>
-            </li>
-          ))}
-        </ul>
       )}
 
       {isFallback && onRetry && (
@@ -250,6 +252,13 @@ const HeroDecisionBrief = ({
           <RefreshCw className={`h-4 w-4 ${retrying ? "animate-spin" : ""}`} strokeWidth={1.75} />
           AI 판단 다시 받기
         </button>
+      )}
+
+      {/* 실행(오늘 챙길 것)은 판단과 같은 카드 안에서 이어진다 — 판단과 그 판단이 지시한
+          실행이 두 표면으로 갈리면 한눈에 하나로 읽히지 않는다. 구분은 전체폭 헤어라인
+          하나뿐: 안쪽 divider는 "목록의 행 구분", 전체폭 divider는 "같은 카드의 다음 섹션"이다. */}
+      {children && (
+        <div className="-mx-5 mt-5 border-t border-border px-5 pt-5">{children}</div>
       )}
     </section>
   );
