@@ -127,19 +127,26 @@ const HeroDecisionBrief = ({
             )}
           </div>
           {now && (
-            <div className="flex shrink-0 flex-col items-end">
-              {/* 하늘 아이콘은 장식 — 조건은 pill 텍스트가, 값은 아래 두 줄이 말한다 */}
+            // 아이콘은 온도 **왼쪽**에 둔다(세로 스택 금지). 세로로 쌓으면 이 블록이 74px가 되는데
+            // 이 행은 items-start라 높이가 큰 쪽을 따르므로, 33.5px짜리 pill 아래에 40.5px짜리
+            // 빈 칸이 생긴다. 그 빈 칸이 조건과 결론 사이를 광학 70px로 벌려 "조건 → 결론"의
+            // 시선을 끊었다 — mt를 0으로 줄여도 남는 결함이라 배치로 고친다. 가로로 두면 블록이
+            // 36px가 되어 pill과 나란해지고, 결론은 의도한 mt-4 자리(실측 18.5px)에 온다.
+            <div className="flex shrink-0 items-center gap-2">
+              {/* 하늘 아이콘은 장식 — 조건은 pill 텍스트가, 값은 옆의 두 줄이 말한다 */}
               <span aria-hidden="true">{now.icon}</span>
-              <p className="mt-1.5 flex items-baseline gap-1 leading-none">
-                <span className="text-[13px] font-medium text-muted-foreground">현재</span>
-                <span className="num text-[17px] font-bold text-foreground">{now.temp}</span>
-              </p>
-              {now.feels && (
-                <p className="mt-1.5 flex items-baseline gap-1 text-[13px] leading-none text-muted-foreground">
-                  <span className="font-medium">체감</span>
-                  <span className="num font-semibold">{now.feels}</span>
+              <div className="flex flex-col items-end">
+                <p className="flex items-baseline gap-1 leading-none">
+                  <span className="text-[13px] font-medium text-muted-foreground">현재</span>
+                  <span className="num text-[17px] font-bold text-foreground">{now.temp}</span>
                 </p>
-              )}
+                {now.feels && (
+                  <p className="mt-1.5 flex items-baseline gap-1 text-[13px] leading-none text-muted-foreground">
+                    <span className="font-medium">체감</span>
+                    <span className="num font-semibold">{now.feels}</span>
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </div>
