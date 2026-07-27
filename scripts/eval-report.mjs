@@ -332,6 +332,26 @@ export const SCENARIOS = [
       pollen: pollen(1),
     },
   },
+  // ── E-MASK: 마스크 언급 게이트 회귀 케이스 (2026-07-27 실사용 사고 재현) ──
+  // 폭염·습도 70%·미세먼지 좋음 날, 호흡기 민감 아이의 히어로 support에 "호흡기가 민감해
+  // 마스크를 씌우면 오히려 …" 부정 언급이 노출됐다. 원인은 few-shot 예시 8이 같은 조합에서
+  // 마스크 부정 문장을 시연한 것 — 이 시나리오는 그 조합을 고정 입력으로 잡아 전역 불변식
+  // ("마스크 미언급")이 실제 위험 조합에서 상시 검증되게 한다.
+  {
+    id: "E-MASK-1",
+    title: "마스크 음성 대조 — 호흡기 민감·땀 매우 많음 × 31°C 습도 70% × 미세먼지 좋음",
+    focus: "근거(미세먼지·꽃가루) 없으면 호흡기 민감이라도 마스크를 입에 올리지 않는다 — 부정·안심 형태 포함",
+    expects: ["마스크 단어가 hook·message·checklist·prep 어디에도 없음", "습도×땀 → 통풍·여벌·갈아입히기 처방"],
+    mustMatch: [/여벌|통풍|갈아입/],
+    payload: {
+      evalDate: WEEKDAY,
+      child: { name: "준서", age: "5세", gender: "male", conditions: ["비염"], cold: "normal", hot: "normal", sweat: "very-much", schedule: SCHEDULE_FULL },
+      weather: weather({ "06:00": { temp: 26, humidity: 75 }, "09:00": { temp: 29, humidity: 70 }, "12:00": { temp: 31, humidity: 70 }, "15:00": { temp: 31, humidity: 65 }, "18:00": { temp: 29, humidity: 70 } }),
+      air: air(1, 1),
+      uv: uv(5, 12),
+      pollen: pollen(1),
+    },
+  },
 ];
 
 // ── SSE 응답 파싱 ──────────────────────────────────────────────
@@ -396,9 +416,12 @@ export const runChecks = (s, r) => {
   // 뒤 절만 읽어도 할 일이 성립해야 한다 — 12자 미만은 "우산 챙겨요"처럼 뭉툭해진다.
   add("② 행동절 ≥ 12자", hookAct.length >= 12, `${hookAct.length}자: ${hookAct}`);
   add("자외선 수치 미노출", !/자외선\s*(지수)?\s*\d/.test(body));
+  // "필요[는가] 없"은 2026-07-27 추가 — few-shot 예시 8의 "챙길 필요는 없어요"가 이 검사를
+  // 통과하고 있었다(예시가 규칙을 어기는데 eval이 침묵). lib/prompts/report.test.ts의 정적
+  // 린트와 같은 표현 목록을 본다.
   add(
     "안심문장 없음",
-    !/(괜찮아요|필수는 아니|걱정 없어도|나쁘지 않아)/.test(r.message ?? "") ||
+    !/(괜찮아요|필수는 아니|걱정 없어도|나쁘지 않아|필요[는가]? 없)/.test(r.message ?? "") ||
       /감기 걱정 없/.test(r.message ?? ""), // "감기 걱정 없어요"는 행동 뒤 결과 서술로 허용
     ""
   );
@@ -526,6 +549,24 @@ export const runChecks = (s, r) => {
   for (const re of s.mustNotMatch ?? []) {
     const m = kwText.match(re);
     add(`금지어 /${re.source}/ 없음`, !m, m ? `"${m[0]}"` : "");
+  }
+
+  // ── 마스크 언급 전역 불변식 (2026-07-27) ──────────────────────
+  // 근거(미세먼지 나쁨 등급≥3 또는 꽃가루 지수≥2 — lib/report-sanitize.ts isMaskJustified와
+  // 같은 임계값, TS라 import 불가하니 변경 시 함께 갱신) 없이 "마스크"가 hook·message·
+  // checklist·prep 어디든 등장하면 FAIL. 권유뿐 아니라 부정·안심 형태("마스크를 씌우면
+  // 오히려", "챙길 필요는 없어요")도 언급이다 — 2026-07-27 실사용 사고: 폭염·습도 70%·
+  // 미세먼지 좋음 날 히어로 support에 마스크 부정 문장이 노출(few-shot 예시 8 복사).
+  // 시나리오별 expects가 아니라 전역 검사인 이유: 새 시나리오마다 마스크 검사를 기억에
+  // 의존해 붙이지 않기 위해. 근거 있는 날은 침묵 강제 아님(권유·영아 나이 설명 모두 허용).
+  const airG = s.payload.air ?? {};
+  const maskJustified =
+    [airG.pm10Grade, airG.pm25Grade, airG.khaiGrade].some((g) => g != null && g >= 3) ||
+    Object.values(s.payload.pollen ?? {}).some((g) => g != null && g >= 2);
+  if (!maskJustified) {
+    const allSurfaces = `${body}\n${(r.checklist ?? []).join(" ")}\n${Object.values(r.prep ?? {}).flat().join(" ")}`;
+    const maskHit = allSurfaces.match(/[^\n]{0,20}마스크[^\n]{0,20}/);
+    add("마스크 미언급(미세먼지·꽃가루 근거 없음)", !maskHit, maskHit ? `"${maskHit[0].trim()}"` : "");
   }
 
   if (isInfant) {
