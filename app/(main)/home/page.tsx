@@ -40,7 +40,7 @@ import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, buildTomorrowTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { loadEnvSnapshot, saveEnvSnapshot } from "@/lib/env-cache";
 import { buildPrepKeywords, isCriticalPrep } from "@/lib/prep";
-import { canonicalPrep, canonicalPrepList } from "@/lib/prep-vocab";
+import { canonicalPrep } from "@/lib/prep-vocab";
 import { ageInMonths, canRecommendMask, isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
@@ -309,28 +309,6 @@ const Home = () => {
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
-  const [aiPrep, setAiPrep] = useState<Record<string, string[]>>({});
-  // AI 변형 prep 프리즈: 리포트는 5분 캐시 만료마다 재생성되고 온도 고정도 불가해
-  // 같은 입력에도 키워드가 흔들린다. 지나간 시각 슬롯은 그 시각을 지날 때의 값을
-  // 날짜·프로필별로 고정 저장해, 지난 카드의 준비물이 오후에 바뀌지 않게 한다.
-  // (rule 변형은 입력이 같으면 출력이 같아 프리즈가 필요 없다)
-  const [frozenPrep, setFrozenPrep] = useState<Record<string, string[]>>({});
-  // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지.
-  // SSR 안전: 초기값은 항상 "rule"(서버·클라 첫 렌더 동일)로 두고, 실제 변형은 마운트 후 effect에서
-  // 확정한다. window.location.search·localStorage를 초기값에서 읽으면 서버엔 없어, A/B "ai" 사용자의
-  // 첫 렌더가 서버(rule)와 어긋나 하이드레이션 불일치(React #418)가 난다.
-  const [prepVariant, setPrepVariant] = useState<"rule" | "ai">("rule");
-  useEffect(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get("prep");
-      if (q === "ai" || q === "rule") {
-        localStorage.setItem("aiday:prepVariant", q);
-        setPrepVariant(q);
-        return;
-      }
-      if (localStorage.getItem("aiday:prepVariant") === "ai") setPrepVariant("ai");
-    } catch {}
-  }, []);
   const [aiLoading, setAiLoading] = useState(false);
   // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
   const [aiStreaming, setAiStreaming] = useState(false);
@@ -641,18 +619,6 @@ const Home = () => {
   // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
   activeIdRef.current = cur?.id ?? null;
 
-  // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
-  // v2: 지나간 슬롯에 마스크가 동결돼 있던 구값을 무효화 (리포트 v23 준비물 안전망과 정렬)
-  const prepFrozenKey = cur ? `aiday:prepFrozen:v2:${cur.id}:${localDateStr()}` : null;
-  useEffect(() => {
-    if (!prepFrozenKey) return;
-    try {
-      setFrozenPrep(JSON.parse(localStorage.getItem(prepFrozenKey) ?? "{}"));
-    } catch {
-      setFrozenPrep({});
-    }
-  }, [prepFrozenKey]);
-
   // 수동 새로고침 쿨다운 — 중복 탭으로 인한 불필요한 Claude 호출(비용) 방지
   const REFRESH_COOLDOWN = 60 * 1000;
 
@@ -743,7 +709,6 @@ const Home = () => {
               setAiHook(cached.hook ?? "");
               setAiMessage(cached.message);
               if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-              setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
               setReportTs(typeof cached.ts === "number" ? cached.ts : null);
               setAiLoading(false);
             }
@@ -914,11 +879,10 @@ const Home = () => {
           if (Array.isArray(done.checklist) && done.checklist.length > 0) {
             setAiChecklist(done.checklist);
           }
-          setAiPrep(done.prep && typeof done.prep === "object" ? done.prep : {});
           const now = Date.now();
           setReportTs(now);
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig, profileSig: profSig }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], ts: now, env: sig, profileSig: profSig }));
           } catch {}
           if (regenerating) toast(profileRegen ? "아이 정보가 바뀌어 브리핑을 새로 썼어요" : morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
           else if (force) toast("최신 날씨로 새로고침했어요");
@@ -1001,7 +965,6 @@ const Home = () => {
     if (!loading) {
       setAiLoading(true);
       setAiHook("");
-      setAiPrep({});
       setAiError(false);
       setReportLimitReached(null);
     }
@@ -1031,7 +994,6 @@ const Home = () => {
         setAiHook(cached.hook ?? "");
         setAiMessage(cached.message);
         if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-        setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
         setReportTs(typeof cached.ts === "number" ? cached.ts : null);
         primedRef.current = true;
         setReportPrimed(true);
@@ -1106,53 +1068,19 @@ const Home = () => {
     [cur, weatherData, displaySlots]
   );
 
-  // 슬롯별 준비물 키워드 (A/B): rule=로컬 규칙 엔진, ai=Claude prep 필드
-  // AI 변형에서 prep이 비면(로딩 중·미지원 응답) 규칙 기반으로 폴백해 빈 화면을 막는다
-  const AI_PREP_KEY: Record<string, string> = { 등원시간: "등원", 야외활동: "야외활동", 하원시간: "하원", 저녁: "저녁" };
-  // "HH:MM"이 현재 시각 이전인지 — 지나간 슬롯 판정
-  const slotPassed = (hour: string): boolean => {
-    const [h, m] = hour.split(":").map(Number);
-    if (Number.isNaN(h)) return false;
-    const now = new Date();
-    return h * 60 + (m || 0) <= now.getHours() * 60 + now.getMinutes();
-  };
-
-  // 지나간 슬롯의 AI prep 고정 저장 — 슬롯 시각을 지날 때의 값을 그날 내내 유지.
-  // 저장 전에 표준화(canonicalPrepList) — 냉동된 값도 화면 어휘와 같게.
-  useEffect(() => {
-    if (prepVariant !== "ai" || !prepFrozenKey) return;
-    const additions: Record<string, string[]> = {};
-    for (const slot of displaySlots) {
-      if (!slotPassed(slot.hour) || frozenPrep[slot.time]) continue;
-      const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
-      if (Array.isArray(fromAi) && fromAi.length > 0)
-        additions[slot.time] = canonicalPrepList(fromAi).slice(0, 2);
-    }
-    if (!Object.keys(additions).length) return;
-    const merged = { ...frozenPrep, ...additions };
-    setFrozenPrep(merged);
-    try {
-      localStorage.setItem(prepFrozenKey, JSON.stringify(merged));
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiPrep, displaySlots, prepVariant, prepFrozenKey, frozenPrep]);
-
+  // 슬롯별 준비물 키워드 — 규칙 엔진(lib/prep.ts) 단일 소스.
+  // 매 슬롯 빠짐없이·흔들림 없이 보여야 하는 표면이라 규칙이 적합 (2026-07-20 A/B로 확정,
+  // docs/PRODUCT-DECISIONS.md). AI의 뉘앙스는 message·checklist에서 살린다.
   const slotPrep = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
     const sweatProne = isSweatProne(cur?.hot, cur?.sweat);
     // 24개월 미만이면 규칙 엔진도 마스크 대신 실내놀이 — AI 프롬프트 규칙과 정렬 (R1)
     const maskOk = canRecommendMask(ageInMonths(cur?.age, cur?.birth));
     displaySlots.forEach((slot, i) => {
-      const frozen = slotPassed(slot.hour) ? frozenPrep[slot.time] : undefined;
-      const fromAi = frozen ?? aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
-      map[slot.time] =
-        prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
-          ? canonicalPrepList(fromAi).slice(0, 2)
-          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne, maskOk);
+      map[slot.time] = buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne, maskOk);
     });
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions, cur?.hot, cur?.sweat, cur?.age, cur?.birth]);
+  }, [displaySlots, cur?.conditions, cur?.hot, cur?.sweat, cur?.age, cur?.birth]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;

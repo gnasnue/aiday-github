@@ -32,7 +32,7 @@ flowchart TD
 2. **프롬프트 조립(서버)** — 원시 데이터를 모델이 오해하지 않을 한국어 요약으로 가공한다. **수치 대신 등급만**(μg/m³·UVI 숫자 미포함), 일정별 날씨 매핑(3시간 해상도, 2시간 초과 이격 시 생략), 자외선 오귀속 방지(피크 시각 명시), KST 요일 + 주말엔 등원·하원 줄 제외.
 3. **지시·예시(품질 규칙이 사는 곳)** — "육아 친구" 페르소나 + 금지 목록(일반 조언·억지 연결·무정보 안심 문장·2인칭), 상황별 few-shot, 출력 규칙(message 250자·문장마다 `\n`·`**단어**` 강조·이슈 1~2개·마스크 연령·우산 임계 등).
 4. **생성·스트리밍(서버)** — `claude-sonnet-5`, thinking 비활성(저지연 우선). **부분 파싱**: 토큰이 쌓이는 동안 `"message":"..."`의 닫는 따옴표가 도착한 순간 그 필드만 뽑아 즉시 SSE로 내려보낸다. hook은 ~2초, message는 그 직후 노출.
-5. **수신·렌더(클라이언트)** — `hook`→스켈레톤 해제·히어로, `message`→본문 state, `done`→체크리스트·prep·캐시. `aiMessage || fallbackMessage`로 실패 시 규칙 기반 폴백. **hook이 있으면 message는 접혀 있고** "자세히" 토글로 펼친다. 프로필 전환·중복 요청은 `isCurrent()`(세대 카운터 + childId)로 낡은 응답이 화면을 덮지 않게 막는다.
+5. **수신·렌더(클라이언트)** — `hook`→스켈레톤 해제·히어로, `message`→본문 state, `done`→체크리스트·캐시(`prep` 필드는 평가 하네스용 — 클라이언트는 소비하지 않는다). `aiMessage || fallbackMessage`로 실패 시 규칙 기반 폴백. **hook이 있으면 message는 접혀 있고** "자세히" 토글로 펼친다. 프로필 전환·중복 요청은 `isCurrent()`(세대 카운터 + childId)로 낡은 응답이 화면을 덮지 않게 막는다.
 
 ### 고도화 레버가 있는 지점
 
@@ -90,9 +90,9 @@ flowchart TD
 | ① hook 행동 | A (AI) | — |
 | ② message 강조 | A (AI) | 실패 시 B |
 | ③ 체크리스트 | A (AI) | 실패 시 B |
-| ④ 케어플랜 칩 | **C (규칙)** | `?prep=ai`일 때 A |
+| ④ 케어플랜 칩 | **C (규칙)** | — |
 
-③은 AI 기본, ④는 규칙 기본 — 두 표면이 다른 엔진에서 나온다. 이는 **2026-07-20 데이터로 확정된 의도적 결정**이다: 칩 A/B(`scripts/chip-ab.test.ts`, 48슬롯) 결과 커버리지 갭 규칙 0 vs AI 10, 결정성 규칙 0 vs AI 7슬롯 흔들림 — 칩은 매 슬롯 빠짐없이·흔들림 없이 보여야 하는 표면이라 규칙이 적합하고, AI의 풍부한 뉘앙스는 message·checklist에서 살린다. `?prep=ai` 실험은 은퇴(하네스는 회귀용 유지). 근거: [docs/report-eval/chip-ab.md](./report-eval/chip-ab.md), [PRODUCT-DECISIONS](./PRODUCT-DECISIONS.md).
+③은 AI 기본, ④는 규칙 기본 — 두 표면이 다른 엔진에서 나온다. 이는 **2026-07-20 데이터로 확정된 의도적 결정**이다: 칩 A/B(`scripts/chip-ab.test.ts`, 48슬롯) 결과 커버리지 갭 규칙 0 vs AI 10, 결정성 규칙 0 vs AI 7슬롯 흔들림 — 칩은 매 슬롯 빠짐없이·흔들림 없이 보여야 하는 표면이라 규칙이 적합하고, AI의 풍부한 뉘앙스는 message·checklist에서 살린다. `?prep=ai` 실험은 은퇴 — 2026-07-27 클라이언트 실험 경로(`prepVariant`·`aiday:prepVariant`·prep 프리즈)까지 제거해 칩은 규칙 엔진 단일 소스가 됐다(하네스 `scripts/chip-ab.test.ts`는 회귀용 유지, 리포트 API의 `prep` 필드도 하네스용으로 유지). 근거: [docs/report-eval/chip-ab.md](./report-eval/chip-ab.md), [PRODUCT-DECISIONS](./PRODUCT-DECISIONS.md).
 
 ### 2026-07-20 개선 (구조적 약점 3건 해결)
 
