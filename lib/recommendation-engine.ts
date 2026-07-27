@@ -107,9 +107,21 @@ export function buildRecommendation(
   const avgHumidity = slots.length
     ? slots.reduce((s, t) => s + t.humidity, 0) / slots.length
     : 50;
-  if (avgHumidity < 45 || hasSensitiveSkin) {
-    checklist.push({ icon: "💧", text: "보습제 (건조 주의)", key: "보습제" });
-    if (avgHumidity < 45) envReasons.push("__건조함__");
+  // 케어 플랜 칩(lib/prep.ts)과 같은 규칙을 쓴다 — 그쪽은 2026-07-20 실사용 지적("습도 60%
+  // 넘는 여름날 보습제는 비논리")으로 습함 게이트를 넣었는데 이 폴백 경로만 빠져 있었다.
+  // 그 결과 히어로가 "덥고 습함"이라 말하면서 같은 카드에서 "보습제 (건조 주의)"를 권하는
+  // 자기모순이 났다(2026-07-27 실사용 제보 — 32°·습도 55%+, 피부 민감 아이).
+  //  · 건조(평균 습도 < 45): 날씨 신호 → 사유도 "건조 주의"
+  //  · 민감 피부: 체질 신호 → 습하지 않을 때만, 사유는 "피부 보습"(건조를 사실로 말하지 않는다)
+  const isDry = avgHumidity < 45;
+  const isHumid = avgHumidity >= 60;
+  if (isDry || (hasSensitiveSkin && !isHumid)) {
+    checklist.push({
+      icon: "💧",
+      text: isDry ? "보습제 (건조 주의)" : "보습제 (피부 보습)",
+      key: "보습제",
+    });
+    if (isDry) envReasons.push("__건조함__");
     itemRecommends.push("**보습제**");
   }
 

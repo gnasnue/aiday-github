@@ -19,6 +19,7 @@ import {
   toBrief,
   splitHook,
   splitPrepText,
+  buildAiChecklist,
   buildHeroEvidence,
   pickPrimaryPrep,
 } from "@/lib/hero-brief";
@@ -45,6 +46,7 @@ import { ageInMonths, canRecommendMask, isSweatProne } from "@/lib/domain/child-
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
 import { localDateStr } from "@/lib/date";
+import { fetchDailyReport, saveDailyReport } from "@/lib/daily-report-store";
 import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
@@ -66,7 +68,11 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // (2026-07-27 Codex 엔지니어링 리뷰 T3).
 // v27: 시점 단정 금지 — 꽃가루·대기질처럼 시간대 입력이 없는 지표의 변화를 사실로 말하지
 // 않고 가능성 보존형으로. 구캐시엔 단정형 문장이 남아 있으므로 무효화 (2026-07-27)
-const reportCacheKey = (childId: string) => `aiday:report:v27:${childId}:${localDateStr()}`;
+// 페이로드 스키마 버전. 로컬 캐시 키와 서버 사본(daily_reports.cache_version)이 같은 값을 쓴다 —
+// 서버 사본에 버전이 없으면 규격을 바꾼 당일 구형 리포트가 서버에서 되살아난다.
+const REPORT_CACHE_VERSION = "v27";
+const reportCacheKey = (childId: string) =>
+  `aiday:report:${REPORT_CACHE_VERSION}:${childId}:${localDateStr()}`;
 
 // 리포트 판단에 실제로 들어가는 프로필 입력만 정규화한 시그니처. 생성 시점 값을 캐시에 저장해
 // 같은 날 체질·민감도·일과가 바뀌면 당일 고정 캐시를 버리고 재생성한다.
@@ -694,7 +700,22 @@ const Home = () => {
         // 판단 입력 스냅샷 — 캐시 생성 시점과 지금의 프로필이 같은 판단을 낳는지 비교 근거
         const profSig = profileSignature(cur);
 
-        const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+        // 당일 캐시는 2단이다 — 1순위 로컬(localStorage), 2순위 서버 사본(daily_reports).
+        // 서버 사본이 필요한 이유: 리포트가 브라우저 저장소에만 있으면 폰↔PC·시크릿창처럼
+        // 저장소가 다른 기기에서는 "오늘의 리포트가 없는 것"과 같고, 하루 한도를 소진한 뒤엔
+        // 그 기기의 히어로가 반드시 규칙 폴백("기본 추천")으로 추락한다(2026-07-27 실사용 제보).
+        // 조회는 Claude 생성이 아니므로 비용도 한도도 쓰지 않는다 — 한도는 "새로 쓰기"만 막는다.
+        // 강제 새로고침(force)은 재생성이 목적이라 어느 쪽 캐시도 보지 않는다.
+        let cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+        let cachedFromServer = false;
+        if (!force && !(cached && cached.message && Array.isArray(cached.checklist))) {
+          const remote = await fetchDailyReport(childId, localDateStr(), REPORT_CACHE_VERSION);
+          // 대기 중 프로필이 전환됐으면 이 응답은 남의 것 — 버린다.
+          if (remote && isCurrent()) {
+            cached = remote;
+            cachedFromServer = true;
+          }
+        }
         if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
           // 같은 날 아이 체질·민감도·일과가 바뀌었으면 구 판단은 무효 — 재생성한다.
           // (me 화면 수정 후 홈 복귀, 다른 기기에서 수정한 프로필의 DB 복원 모두 포괄.)
@@ -705,8 +726,25 @@ const Home = () => {
           const morningRefresh =
             typeof cached.ts === "number" && needsMorningRefresh(cached.ts);
           if (!profileChanged && !envChanged(cached.env, sig) && !morningRefresh) {
-            perfMark(perf, "cache_hit");
+            perfMark(perf, cachedFromServer ? "cache_hit_server" : "cache_hit");
             outcome = "cache_hit";
+            // 서버 사본을 썼으면 이 기기의 로컬 캐시에도 적어둔다 — 다음 진입부터는
+            // 프라임 effect가 동기로 읽어 즉시 페인트되고, 서버 왕복도 사라진다.
+            if (cachedFromServer) {
+              try {
+                localStorage.setItem(
+                  cacheKey,
+                  JSON.stringify({
+                    hook: cached.hook ?? "",
+                    message: cached.message,
+                    checklist: cached.checklist,
+                    ts: cached.ts,
+                    env: cached.env,
+                    profileSig: cached.profileSig,
+                  })
+                );
+              } catch {}
+            }
             if (isCurrent()) {
               setAiHook(cached.hook ?? "");
               setAiMessage(cached.message);
@@ -886,6 +924,16 @@ const Home = () => {
           try {
             localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], ts: now, env: sig, profileSig: profSig }));
           } catch {}
+          // 서버 사본에도 올린다(로그인 사용자만, 실패는 삼킨다) — 다른 기기·시크릿창에서
+          // 같은 판단이 뜨고, 한도를 소진해도 오늘 리포트가 살아 있게 하는 근거가 이 행이다.
+          void saveDailyReport(childId, localDateStr(), REPORT_CACHE_VERSION, {
+            hook: done.hook ?? "",
+            message: done.message,
+            checklist: done.checklist ?? [],
+            ts: now,
+            env: sig,
+            profileSig: profSig,
+          });
           if (regenerating) toast(profileRegen ? "아이 정보가 바뀌어 브리핑을 새로 썼어요" : morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
           else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
@@ -900,21 +948,25 @@ const Home = () => {
           // 리포트가 사라진다(2026-07-27). 프로필이 바뀌었으면 구 판단이라 되살리지 않는다.
           let restored = false;
           if (attemptRes.httpStatus === 429) {
+            // 로컬 캐시 → 없으면 서버 사본. 여기까지 왔다는 건 캐시가 없거나(신규 기기)
+            // 신선도 판정에서 낡다고 본 경우인데(급변·아침 갱신), 한도에 막혀 새로 쓸 수 없으면
+            // **낡은 진짜 리포트가 규칙 폴백보다 낫다** — 그래서 여기서는 profileSig만 본다
+            // (프로필이 바뀌었으면 다른 아이의 판단에 가까워 되살리지 않는다).
+            const restore = (r: { hook?: string; message?: string; checklist?: unknown; ts?: unknown; profileSig?: string } | null) => {
+              if (!r || !r.message || !Array.isArray(r.checklist) || r.profileSig !== profSig) return false;
+              setAiHook(r.hook ?? "");
+              setAiMessage(r.message);
+              if (r.checklist.length > 0) setAiChecklist(r.checklist as string[]);
+              setReportTs(typeof r.ts === "number" ? r.ts : null);
+              return true;
+            };
             try {
-              const cachedReport = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
-              if (
-                cachedReport &&
-                cachedReport.message &&
-                Array.isArray(cachedReport.checklist) &&
-                cachedReport.profileSig === profSig
-              ) {
-                setAiHook(cachedReport.hook ?? "");
-                setAiMessage(cachedReport.message);
-                if (cachedReport.checklist.length > 0) setAiChecklist(cachedReport.checklist);
-                setReportTs(typeof cachedReport.ts === "number" ? cachedReport.ts : null);
-                restored = true;
-              }
+              restored = restore(JSON.parse(localStorage.getItem(cacheKey) ?? "null"));
             } catch {}
+            if (!restored) {
+              const remote = await fetchDailyReport(childId, localDateStr(), REPORT_CACHE_VERSION);
+              if (isCurrent()) restored = restore(remote);
+            }
           }
           setAiError(!restored);
           // 하루 한도 소진(429)은 카드 안에 게스트/로그인 여부에 맞는 안내+CTA를 영구 표시한다
@@ -1121,24 +1173,13 @@ const Home = () => {
   // 이름은 canonicalPrep으로 표준화(물통/물병, 선크림/자외선차단제 등 별칭 통일 — 케어
   // 플랜 칩과 같은 어휘), key도 표준화된 이름 기반이라 목록이 교체돼도 같은 준비물의
   // 체크가 유지된다. 같은 이름이 중복 생성되면 뒤 항목에 인덱스를 붙여 key 충돌을 막는다.
-  const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
-    if (aiChecklist.length > 0) {
-      const seenKeys = new Map<string, number>();
-      return aiChecklist.map((item) => {
-        // "☂️ 우산" 형태 파싱
-        const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
-        // icon은 화면에 raw로 렌더링되지 않는다 — 체크리스트 UI는 항상 checklistIcon()을
-        // 거쳐 LineIcon/lucide로 매핑되고, 매칭 실패 시 CircleCheck로 fallback된다.
-        // 이 문자열은 키워드 매칭·텍스트 공유용 데이터로만 쓰인다.
-        const icon = match ? match[1] : "✅";
-        const text = canonicalPrep(match ? match[2] : item);
-        const n = seenKeys.get(text) ?? 0;
-        seenKeys.set(text, n + 1);
-        return { icon, text, key: n === 0 ? text : `${text}-${n}` };
-      });
-    }
-    return baseChecklist;
-  }, [aiChecklist, baseChecklist]);
+  // 파싱·표준화·key 부여는 `buildAiChecklist`(lib/hero-brief.ts) 순수 함수로 옮겼다 —
+  // 인라인이던 시절 정규식의 `\S+` 대안이 이모지 없는 항목의 첫 단어를 아이콘으로 먹어
+  // "여벌 상의"를 "상의"로 렌더했고, 화면 JSX 안이라 유닛 테스트로 잡을 수 없었다.
+  const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(
+    () => (aiChecklist.length > 0 ? buildAiChecklist(aiChecklist) : baseChecklist),
+    [aiChecklist, baseChecklist]
+  );
 
 
   // ── 하루 케어 플랜 "지금" 판정 — 슬롯 시각 ±W 밴드 ──────────────────────
@@ -1726,7 +1767,13 @@ const Home = () => {
               onToggleDetail={() => setReportExpanded((v) => !v)}
               evidence={evidence}
               issue={heroIssue}
-              onRetry={heroSt === "fallback" ? refreshReport : undefined}
+              onRetry={
+                // 하루 한도를 소진한 상태에서는 재시도를 노출하지 않는다 — 이 버튼의 약속은
+                // "AI 판단을 다시 받는다"인데 그게 유일하게 불가능한 상황이고, 눌러도 429가
+                // 돌아온다. 종전엔 계속 보여서 사용자가 반복 클릭했고 사용량만 올랐다
+                // (2026-07-27: 한도 20인데 카운터 34 — 초과 14회가 전부 이미 막힌 재시도였다).
+                heroSt === "fallback" && !reportLimitReached ? refreshReport : undefined
+              }
               retrying={aiLoading || refreshing}
             >
               {/* 오늘 챙길 것 — 판단과 같은 카드 안 섹션(2026-07-26). 판단과 그 판단이 지시한

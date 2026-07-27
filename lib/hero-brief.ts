@@ -475,3 +475,44 @@ export function splitPrepText(text: string): { title: string; reason: string } {
   const m = text.match(/^(.*?)\s*[（(](.+?)[)）]\s*$/);
   return m ? { title: m[1].trim(), reason: m[2].trim() } : { title: text.trim(), reason: "" };
 }
+
+/**
+ * AI 체크리스트 항목의 선행 이모지만 아이콘으로 떼어낸다 — "👕 여벌 상의" → 👕 / "여벌 상의".
+ *
+ * **선행 이모지가 없으면 전체를 이름으로 본다.** 종전 정규식은 마지막 대안이 `\S+`여서
+ * 이모지가 없을 때 **첫 단어를 아이콘으로 먹었다** — 프롬프트 계약(`checklist`는 "이모지
+ * 짧은이름", lib/prompts/report.ts)이 지켜지는 동안엔 드러나지 않는 잠복 결함이지만, 모델
+ * 출력은 확률적이고 계약의 준비물 이름 다수가 두 단어다(여벌 상의·여벌 옷·지퍼 겉옷·
+ * 얇은 목수건·실내 놀이거리). 이모지 한 번 누락에 "여벌 상의"가 "상의"로, "실내 놀이거리"가
+ * "놀이거리"로 렌더된다 — 부모가 가방에 넣을 물건이 달라지는 오표기다(2026-07-27 발견).
+ *
+ * 이모지 클러스터는 단일 코드포인트가 아니다 — 변이 선택자(️FE0F: ☂️), 피부톤 수식자,
+ * 키캡(20E3), ZWJ 결합까지 한 덩어리로 받는다. 이름 쪽은 공백이 없어도 분리한다("👕여벌 상의").
+ */
+export function parseAiPrepItem(item: string): { icon: string; name: string } {
+  // 이스케이프로만 쓴다 — FE0F·200D는 소스에 그대로 넣으면 보이지 않아 편집 사고를 부른다.
+  const EMOJI_CLUSTER =
+    /^(\p{Extended_Pictographic}(?:\uFE0F|\u20E3|\p{Emoji_Modifier}|\u200D\p{Extended_Pictographic}\uFE0F?)*)\s*(\S.*)$/u;
+  const m = item.trim().match(EMOJI_CLUSTER);
+  // 아이콘 폴백 "✅"는 화면에 raw로 렌더되지 않는다 — PrepIcon이 `icon + text`를 함께 보고
+  // LineIcon/lucide로 매핑하며, 어디에도 안 걸리면 CircleCheck로 떨어진다.
+  return m ? { icon: m[1], name: m[2].trim() } : { icon: "✅", name: item.trim() };
+}
+
+/**
+ * AI 체크리스트(문자열 배열) → 화면용 항목. 이름은 `canonicalPrep`으로 표준화해 케어 플랜
+ * 칩과 어휘를 맞추고, key도 표준명 기반이라 목록이 교체돼도 같은 준비물의 체크가 유지된다.
+ * 같은 이름이 중복으로 오면 뒤 항목에 인덱스를 붙여 key 충돌을 막는다.
+ */
+export function buildAiChecklist(
+  items: readonly string[]
+): { icon: string; text: string; key: string }[] {
+  const seenKeys = new Map<string, number>();
+  return items.map((item) => {
+    const { icon, name } = parseAiPrepItem(item);
+    const text = canonicalPrep(name);
+    const n = seenKeys.get(text) ?? 0;
+    seenKeys.set(text, n + 1);
+    return { icon, text, key: n === 0 ? text : `${text}-${n}` };
+  });
+}

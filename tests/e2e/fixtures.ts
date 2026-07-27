@@ -18,15 +18,18 @@ export async function hasSupabaseAuthCookie(page: Page): Promise<boolean> {
  */
 
 /**
- * 홈의 "오늘 챙길 것" 체크리스트 헤딩 — 공유 이미지 캡처용 off-screen `ShareReportCard`
- * (app/(main)/home/page.tsx:1822)에도 같은 문구가 `<div>`로 중복 렌더되므로, 실제 화면에
- * 보이는 `<p>`(role=paragraph)만 지정해 strict mode 충돌을 피한다.
+ * 홈의 "오늘 챙길 것" 체크리스트 헤딩.
+ *
+ * 공유 이미지 캡처용 off-screen `ShareReportCard`에도 같은 문구가 있으나 그쪽은 `<div>`라
+ * heading role이 아니어서 strict mode 충돌이 없다.
+ *
+ * 2026-07-27 수정: 종전에는 `getByRole("paragraph")`로 찾았는데 이 제목은
+ * `components/PrepChecklistCard.tsx`에서 `<h2>`로 렌더된다(7/26 Decision Brief 개편 이후).
+ * 그래서 셀렉터가 아무것도 못 찾아 TC-ERR-02·TC-HOME-07·TC-LAND-04가 코드와 무관하게
+ * 실패하고 있었다(거짓 실패). heading role로 맞춘다.
  */
 export function checklistHeading(page: Page) {
-  // 주의: <p>는 accessible name이 콘텐츠로부터 계산되지 않으므로(accname 스펙상
-  // "naming from content"는 button/link/heading 등 일부 역할에 한정) getByRole(...,{name})은
-  // 항상 매칭 실패한다. filter({hasText})로 텍스트 포함 여부를 봐야 한다.
-  return page.getByRole("paragraph").filter({ hasText: "오늘 챙길 것" });
+  return page.getByRole("heading", { name: "오늘 챙길 것" });
 }
 
 /** QA 테스트 계정임을 이메일만 봐도 알 수 있는 패턴. 실제로 Supabase에 생성되며 삭제하지 않는다. */

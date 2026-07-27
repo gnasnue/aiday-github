@@ -11,6 +11,8 @@ import {
   type EvidenceSlot,
   heroState,
   splitPrepText,
+  parseAiPrepItem,
+  buildAiChecklist,
   prepNeedles,
   headlineLines,
 } from "./hero-brief";
@@ -267,6 +269,69 @@ describe("splitPrepText", () => {
 
   it("괄호가 없으면 제목만", () => {
     expect(splitPrepText("마스크")).toEqual({ title: "마스크", reason: "" });
+  });
+});
+
+/* ============================================================
+   parseAiPrepItem / buildAiChecklist
+   2026-07-27 결함 회귀 고정: 이모지가 없으면 첫 단어를 아이콘으로 먹어
+   "여벌 상의"가 "상의"로 렌더됐다(홈 page.tsx 인라인 정규식의 `\S+` 대안).
+   ============================================================ */
+
+describe("parseAiPrepItem", () => {
+  it("계약대로 '이모지 짧은이름'을 아이콘과 이름으로 나눈다", () => {
+    expect(parseAiPrepItem("👕 여벌 상의")).toEqual({ icon: "👕", name: "여벌 상의" });
+    expect(parseAiPrepItem("🧸 실내 놀이거리")).toEqual({ icon: "🧸", name: "실내 놀이거리" });
+    expect(parseAiPrepItem("🧥 지퍼 겉옷")).toEqual({ icon: "🧥", name: "지퍼 겉옷" });
+  });
+
+  it("변이 선택자(FE0F)가 붙은 이모지도 한 덩어리로 떼어낸다", () => {
+    // "☂️"는 U+2602 + U+FE0F 두 코드포인트다. 앞 한 글자만 떼면 FE0F가 이름 앞에 남는다.
+    expect(parseAiPrepItem("☂️ 우산")).toEqual({ icon: "☂️", name: "우산" });
+  });
+
+  it("피부톤 수식자가 붙어도 이름을 침범하지 않는다", () => {
+    expect(parseAiPrepItem("👍🏽 물통")).toEqual({ icon: "👍🏽", name: "물통" });
+  });
+
+  it("**이모지가 없으면 전체가 이름이다 — 첫 단어를 먹지 않는다** (2026-07-27 결함)", () => {
+    expect(parseAiPrepItem("여벌 상의")).toEqual({ icon: "✅", name: "여벌 상의" });
+    expect(parseAiPrepItem("실내 놀이거리")).toEqual({ icon: "✅", name: "실내 놀이거리" });
+    expect(parseAiPrepItem("얇은 목수건")).toEqual({ icon: "✅", name: "얇은 목수건" });
+  });
+
+  it("한 단어 항목은 이모지 유무와 무관하게 그대로", () => {
+    expect(parseAiPrepItem("마스크")).toEqual({ icon: "✅", name: "마스크" });
+    expect(parseAiPrepItem("😷 마스크")).toEqual({ icon: "😷", name: "마스크" });
+  });
+
+  it("이모지와 이름 사이 공백이 없어도 분리한다", () => {
+    expect(parseAiPrepItem("👕여벌 상의")).toEqual({ icon: "👕", name: "여벌 상의" });
+  });
+});
+
+describe("buildAiChecklist", () => {
+  it("이름을 표준명으로 통일하고 key를 표준명 기반으로 만든다", () => {
+    const out = buildAiChecklist(["💧 물병", "😷 마스크"]);
+    expect(out.map((o) => o.text)).toEqual(["물통", "마스크"]);
+    expect(out.map((o) => o.key)).toEqual(["물통", "마스크"]);
+  });
+
+  it("여벌 상의는 여벌 옷과 합쳐지지 않는다 (서로 다른 처방 — prep-vocab 계약)", () => {
+    const out = buildAiChecklist(["👕 여벌 상의", "👕 여벌 옷"]);
+    expect(out.map((o) => o.text)).toEqual(["여벌 상의", "여벌 옷"]);
+  });
+
+  it("이모지 없는 두 단어 항목도 이름이 온전하다 (결함 회귀)", () => {
+    const out = buildAiChecklist(["여벌 상의", "물통"]);
+    expect(out.map((o) => o.text)).toEqual(["여벌 상의", "물통"]);
+    // 아이콘 폴백이어도 PrepIcon은 `icon + title`을 함께 보므로 셔츠 아이콘에 도달한다.
+    expect(out[0].icon).toBe("✅");
+  });
+
+  it("같은 이름이 중복되면 key 충돌을 막는다", () => {
+    const out = buildAiChecklist(["💧 물통", "💧 물병"]);
+    expect(out.map((o) => o.key)).toEqual(["물통", "물통-1"]);
   });
 });
 
