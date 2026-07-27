@@ -104,6 +104,10 @@ describe.each(EXAMPLES)("few-shot 정적 린트 — $label", ({ label, input, ou
     expect(output.message).not.toMatch(/괜찮아요|필수는 아니|걱정 없어도|나쁘지 않아|필요[는가]? 없/);
   });
 
+  it("메타 비교 구문이 없다 — '더위 자체보다 중요해요'류 AI 말투 (2026-07-27 사용자 피드백)", () => {
+    expect(`${output.hook}\n${output.message}`).not.toMatch(/자체보다|자체가 아니라|보다 (더 )?중요/);
+  });
+
   it("질병명·입력에 없는 기간 비교를 지어내지 않는다", () => {
     const all = JSON.stringify(output);
     expect(all).not.toMatch(/비염|천식|아토피/);
