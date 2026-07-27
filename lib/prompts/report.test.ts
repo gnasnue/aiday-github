@@ -25,9 +25,11 @@ const PROMPT = buildReportPrompt({
   tempSensitivity: "특이사항 없음",
   dateLabel: "7월 21일 화요일",
   scheduleSummary: "- 등원 08:30: 기온 25°C, 맑음, 습도 60%",
-  airSummary: "미세먼지 좋음",
+  // 좋음·보통 등급은 라우트가 프롬프트에 넣지 않는다(app/api/report/route.ts airSummary·
+  // pollenSummary) — 실제로 들어가는 문구를 그대로 쓴다.
+  airSummary: "대기질 특이사항 없음",
   uvSummary: "자외선 특이사항 없음",
-  pollenSummary: "꽃가루 낮음",
+  pollenSummary: "꽃가루 특이사항 없음",
 });
 
 type Example = { label: string; input: string; output: ReportPayload };
