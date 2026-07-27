@@ -97,3 +97,46 @@ describe("buildRecommendation — 메시지 템플릿", () => {
     expect(checklist.map((c) => c.key)).toContain("외투");
   });
 });
+
+// 보습제 자기모순 회귀 방지 — 2026-07-27 실사용 제보: 히어로가 "덥고 습함"이라 말하면서
+// 같은 카드에서 "보습제 · 건조 주의"를 권했다. 케어 플랜 칩(lib/prep.ts)은 2026-07-20에
+// 습함 게이트를 받았는데 이 폴백 경로만 빠져 있었다. 두 엔진이 같은 규칙을 쓰는지 고정한다.
+describe("buildRecommendation — 보습제 사유", () => {
+  const humidSlots = [
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 70 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 66 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 62 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 68 },
+  ] as const;
+  const drySlots = [
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 38 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 40 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 36 },
+    { wind: "약함", pollen: "낮음", dust: "좋음", humidity: 42 },
+  ] as const;
+  const skinChild = child({ conditions: ["피부 민감 (아토피, 건조)"] });
+
+  it("습한 날(평균 습도 ≥ 60)에는 피부 민감이어도 보습제를 권하지 않는다", () => {
+    const { checklist, message } = buildRecommendation(
+      skinChild,
+      weather({ temp: 32, humidity: 70 }),
+      humidSlots
+    );
+    expect(checklist.map((c) => c.key)).not.toContain("보습제");
+    expect(message).not.toContain("보습제");
+    // 같은 카드가 "덥고 습함"과 "건조"를 동시에 말하지 않는다.
+    expect(message).not.toContain("건조");
+  });
+
+  it("건조하지 않은 보통 습도 + 피부 민감: 사유가 '건조 주의'가 아니라 '피부 보습'", () => {
+    const { checklist } = buildRecommendation(skinChild, weather({ temp: 26 }), calmSlots);
+    const item = checklist.find((c) => c.key === "보습제");
+    expect(item?.text).toBe("보습제 (피부 보습)");
+  });
+
+  it("실제로 건조한 날(평균 습도 < 45)에는 '건조 주의'와 건조 사유를 유지한다", () => {
+    const { checklist, message } = buildRecommendation(child(), weather({ temp: 26 }), drySlots);
+    expect(checklist.find((c) => c.key === "보습제")?.text).toBe("보습제 (건조 주의)");
+    expect(message).toContain("__건조함__");
+  });
+});
