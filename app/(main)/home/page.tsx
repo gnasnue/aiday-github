@@ -64,7 +64,9 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // 같은 날 체질·민감도·일과를 수정해도 구 판단을 재사용하던 결함과, PM10 외 대기질·습도
 // 급변을 놓치던 결함을 함께 고친다. 구캐시엔 profileSig가 없어 전부 재생성된다
 // (2026-07-27 Codex 엔지니어링 리뷰 T3).
-const reportCacheKey = (childId: string) => `aiday:report:v26:${childId}:${localDateStr()}`;
+// v27: 시점 단정 금지 — 꽃가루·대기질처럼 시간대 입력이 없는 지표의 변화를 사실로 말하지
+// 않고 가능성 보존형으로. 구캐시엔 단정형 문장이 남아 있으므로 무효화 (2026-07-27)
+const reportCacheKey = (childId: string) => `aiday:report:v27:${childId}:${localDateStr()}`;
 
 // 리포트 판단에 실제로 들어가는 프로필 입력만 정규화한 시그니처. 생성 시점 값을 캐시에 저장해
 // 같은 날 체질·민감도·일과가 바뀌면 당일 고정 캐시를 버리고 재생성한다.
