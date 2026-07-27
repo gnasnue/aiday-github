@@ -26,7 +26,8 @@ import { canonicalPrep } from "./prep-vocab";
  *     · hook: 한 줄이라 부분 제거가 불가능 → 통째로 비운다. 홈 히어로는 hook이 비면
  *       message 첫 줄을 헤드라인으로 쓴다.
  *     · 근거가 있으면 영아여도 언급은 허용 — "쓰기 어려운 나이라" 설명은 정당한 문장이다.
- *  ③ 본문 스타일 게이트 — 메타 비교 부가어("자체보다") 제거 + hook 행동을 되풀이하는
+ *  ③ 본문 스타일 게이트 — 메타 비교 부가어("자체보다") 제거 + 좋음·보통 등급 언급 수술
+ *     ("미세먼지도 좋음이라" 부가절 제거, 2026-07-27 E-AHA-4 재발) + hook 행동을 되풀이하는
  *     message 줄 절삭(히어로가 hook과 message를 한 카드에 렌더하므로 반복=같은 말 두 번).
  *  ④ prep ⊆ checklist — 케어 플랜 칩(prep)이 "오늘 챙길 것"(checklist)에 없는 아이템을
  *     내보내면 화면이 자기모순된다. checklist를 진실원으로 삼아 어긋난 칩을 제거한다(#131 R4).
@@ -86,6 +87,24 @@ export const stripMetaComparison = (text: string): string =>
     .replace(/[가-힣0-9·%°C]{1,8}보다 (더 )?(?=중요)/g, "")
     .replace(/ {2,}/g, " ");
 
+/**
+ * 문제없는 등급 언급 감지 — "미세먼지도 좋음이라", "자외선은 보통이니" 류.
+ *
+ * eval(scripts/eval-report.mjs '좋음·보통 등급 미언급')은 지표와 등급 사이 12자를 허용하는
+ * 느슨한 창을 쓰지만, **여기서는 지표에 조사·마크업만 끼고 등급이 바로 붙은 형태만** 본다.
+ * eval은 적발해 보고할 뿐이고 이 게이트는 문장을 지우기 때문이다 — 느슨한 창은 "자외선
+ * 강함이라 그늘에서 보통 속도로"처럼 등급어가 부사로 쓰인 정당한 경고 문장까지 12자 안에
+ * 걸어 통째로 삭제한다(message는 3문장 계약이고 둘째 줄이 히어로 근거라 손실이 크다).
+ * 좁은 쪽으로 틀리는 편을 택한다 — 놓친 표현은 eval이 계속 감시한다.
+ */
+const GRADE_MENTION =
+  /(?:자외선|미세먼지|초미세먼지|꽃가루|통합대기|대기질)[은는이가도만]?\s?\*{0,2}(?:보통|좋음|낮음|적정)/;
+// 부가어 수술이 가능한 형태 — 등급 뒤에 연결어미(이라/이니/이고/이어서/인 데다)가 붙어
+// 절 전체를 지워도 문장이 성립하는 경우만. "자외선은 보통이에요"처럼 등급이 서술어인
+// 문장은 수술 불가 → 줄 제거로 폴백.
+const GRADE_ADJUNCT =
+  /(?:자외선|미세먼지|초미세먼지|꽃가루|통합대기|대기질)[은는이가도만]?\s?\*{0,2}(?:보통|좋음|낮음|적정)\*{0,2}(?:이라|이니|이고|이어서|인 데다)\s?/g;
+
 const dupNorm = (t: string): string =>
   t.replace(/\*\*|__/g, "").replace(/'[^']*'|‘[^’]*’/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
 const dupBigrams = (t: string): Set<string> => {
@@ -131,6 +150,45 @@ export const applyTextStyleGates = (
   if (outHook !== hook) actions.push("meta-comparison:hook");
   let outMessage = stripMetaComparison(message);
   if (outMessage !== message) actions.push("meta-comparison:message");
+
+  // ── 좋음·보통 등급 언급 수술 ────────────────────────────────
+  // "미세먼지도 좋음이라 걱정할 환경이 없는 날이에요" → 부가절만 지우고 문장을 살린다.
+  // 수술 후에도 언급이 남으면(등급이 서술어인 문장) 줄 제거로 폴백 — 유일한 줄이면 유지.
+  //
+  // hook은 **비우지 않는다** — 마스크 게이트와 다른 판단이다. 홈은 `hasAiHook`(=hook 비어
+  // 있지 않음)으로 히어로 상태를 정하므로(app/(main)/home/page.tsx), hook을 비우면 카드가
+  // fallback으로 떨어져 결론이 28px→20px로 내려가고 하이라이트 밴드·'자세히' 상세가 사라지며
+  // "AI 판단 다시 받기" 버튼이 뜬다. 근거 없는 마스크는 부모의 행동을 잘못 바꾸므로 그 대가가
+  // 정당하지만, "미세먼지 좋음"은 군더더기일 뿐이라 히어로 전체를 내릴 이유가 못 된다.
+  // 수술이 안 되면 그대로 두고 관측만 남긴다(eval이 계속 감시한다).
+  if (GRADE_MENTION.test(outHook)) {
+    const trimmedHook = outHook.replace(GRADE_ADJUNCT, "").replace(/ {2,}/g, " ").trim();
+    if (!GRADE_MENTION.test(trimmedHook) && trimmedHook.length > 0) {
+      outHook = trimmedHook;
+      actions.push("grade-mention:hook-trimmed");
+    } else {
+      actions.push("grade-mention:hook-kept");
+    }
+  }
+  const gradeGated: string[] = [];
+  const msgLines = outMessage.split("\n");
+  for (const line of msgLines) {
+    if (!GRADE_MENTION.test(line)) {
+      gradeGated.push(line);
+      continue;
+    }
+    const trimmed = line.replace(GRADE_ADJUNCT, "").replace(/ {2,}/g, " ").trim();
+    if (!GRADE_MENTION.test(trimmed) && trimmed.length >= 12) {
+      gradeGated.push(trimmed);
+      actions.push("grade-mention:clause-trimmed");
+    } else if (msgLines.length > 1) {
+      actions.push("grade-mention:line-dropped"); // 줄 제거
+    } else {
+      gradeGated.push(line); // 유일한 줄이면 유지(빈 본문 방지) — 관측만
+      actions.push("grade-mention:kept-sole-line");
+    }
+  }
+  if (gradeGated.filter((l) => l.trim()).length > 0) outMessage = gradeGated.join("\n");
 
   const act = hookActionOf(outHook);
   const lines = outMessage.split("\n");
