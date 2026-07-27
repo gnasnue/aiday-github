@@ -7,7 +7,7 @@ import { ageInMonths, canRecommendMask, conditionsForPrompt, sensitivityPhrase, 
 import { kstNow } from "@/lib/kma-time";
 import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
-import { isMaskJustified, sanitizeReportPayload, type ReportPayload } from "@/lib/report-sanitize";
+import { isMaskJustified, MASK_PATTERN, sanitizeReportPayload, type ReportPayload } from "@/lib/report-sanitize";
 
 // 이 라우트는 Claude 생성을 SSE로 스트리밍한다. 콜드 스타트 + 게이트웨이 연결 +
 // 생성 완료까지 걸리는 시간이 Vercel 함수 기본 타임아웃에 근접하면, done 이벤트가
@@ -197,7 +197,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "필수 입력(child, weather)이 없습니다." }, { status: 400 });
   }
 
-  // 마스크 안전망 — 준비물의 마스크는 두 게이트를 모두 통과해야 한다(lib/report-sanitize.ts).
+  // 마스크 안전망 — 준비물의 마스크는 두 게이트를 모두 통과해야 하고, 근거(①)가 없으면
+  // 본문(hook·message)에서 마스크 언급 자체(부정·안심 형태 포함)를 걷어낸다(lib/report-sanitize.ts).
   // 프롬프트·규칙 엔진(lib/prep.ts)이 같은 규칙을 두지만 프롬프트는 확률적이라 모델이 어길 수
   // 있고, 그 검증은 오프라인 eval에만 있었다. 실사용 출력의 결정적 최후 방어선을 여기 둔다.
   //  ① 근거: 미세먼지 나쁨(등급≥3) 또는 꽃가루 높음(지수≥2) — 습도·더위는 마스크 사유가 아니다.
@@ -407,18 +408,23 @@ export async function POST(req: NextRequest) {
       checklist: Array.isArray(parsed.checklist) ? parsed.checklist : [],
       prep: parsed.prep && typeof parsed.prep === "object" && !Array.isArray(parsed.prep) ? parsed.prep : {},
     };
-    // 구조 필드(checklist·prep) 정합성을 결정적으로 강제한다(lib/report-sanitize.ts):
-    // 마스크 정책(근거·연령) + prep⊆checklist. 프롬프트 강화 후에도 모델이 규칙을 어기는지
-    // 추적하도록 사유별 관측 로그를 남긴다.
-    const { payload, maskAction, droppedPrep } = sanitizeReportPayload(base, {
+    // 출력 정합성을 결정적으로 강제한다(lib/report-sanitize.ts): 마스크 정책(근거·연령,
+    // checklist·prep 항목 제거 + 근거 없는 본문 언급 줄 제거) + prep⊆checklist.
+    // 프롬프트 강화 후에도 모델이 규칙을 어기는지 추적하도록 사유별 관측 로그를 남긴다.
+    const { payload, maskAction, maskTextDropped, droppedPrep } = sanitizeReportPayload(base, {
       maskJustified,
       maskAllowedForAge,
     });
     if (maskAction === "removed") perfLog("mask_stripped", " · 미세먼지·꽃가루 정상인데 AI가 마스크 권함 → 제거");
     else if (maskAction === "downgraded") perfLog("mask_to_indoor", " · 만 2세 미만인데 AI가 마스크 권함 → 실내놀이 대체");
+    // 2026-07-27 사고 재발 방어 — 근거 없는 날 본문의 마스크 언급(부정·안심 형태 포함)은
+    // 문장 단위로 걷어냈다. 이 로그가 반복되면 프롬프트(예시·규칙)가 다시 새는 것이다.
+    if (maskTextDropped.length > 0) {
+      perfLog("mask_text_dropped", ` · 근거 없는 마스크 언급 제거: ${maskTextDropped.join(", ")}`);
+    }
     if (droppedPrep.length > 0) perfLog("prep_dropped", ` · checklist에 없는 준비물 칩 제거: ${droppedPrep.join(", ")}`);
-    // 본문(hook)에 마스크가 남았는데 checklist엔 없으면 프롬프트가 샌 것 — 관측만(문장은 프롬프트 담당).
-    if (/마스크/.test(payload.hook) && !payload.checklist.some((c) => /마스크/.test(c))) {
+    // 근거 있는 날 hook에 마스크가 남았는데 checklist엔 없으면(영아 대체 등) 표면 간 어긋남 — 관측만.
+    if (MASK_PATTERN.test(payload.hook) && !payload.checklist.some((c) => MASK_PATTERN.test(c))) {
       perfLog("hook_mask_orphan", " · hook에 마스크가 있으나 checklist엔 없음(프롬프트 규칙 누수)");
     }
     return payload;
@@ -517,19 +523,32 @@ export async function POST(req: NextRequest) {
           ) {
             if (!tFirstDelta) tFirstDelta = Date.now(); // 모델 첫 텍스트 토큰 도착
             acc += event.delta.text;
+            // 스트리밍 조기 방출은 done의 새니타이즈(parseFinal)를 거치지 않으므로, 근거
+            // 없는 마스크 언급이 담긴 필드는 방출을 보류한다 — 클라이언트는 done의 정제본을
+            // 받는다(수백 ms 지연). 2026-07-27 사고: 위반 message가 스트림으로 먼저 화면에
+            // 노출된 뒤에야 검사 기회가 있었다. 보류해도 sentHook/sentMessage는 세워 재추출
+            // 루프를 막는다.
             if (!sentHook) {
               const hook = extractField(acc, "hook");
               if (hook !== null) {
                 sentHook = true;
                 tHook = Date.now(); // 완성된 hook 추출·전송 시점
-                send("hook", hook);
+                if (!maskJustified && MASK_PATTERN.test(hook)) {
+                  perfLog("hook_mask_withheld", " · 근거 없는 마스크 언급 — hook 스트림 방출 보류");
+                } else {
+                  send("hook", hook);
+                }
               }
             }
             if (!sentMessage) {
               const message = extractField(acc, "message");
               if (message !== null) {
                 sentMessage = true;
-                send("message", message);
+                if (!maskJustified && MASK_PATTERN.test(message)) {
+                  perfLog("message_mask_withheld", " · 근거 없는 마스크 언급 — message 스트림 방출 보류");
+                } else {
+                  send("message", message);
+                }
               }
             }
           }

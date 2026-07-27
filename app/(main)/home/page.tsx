@@ -73,9 +73,12 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // (2026-07-27 Codex 엔지니어링 리뷰 T3).
 // v27: 시점 단정 금지 — 꽃가루·대기질처럼 시간대 입력이 없는 지표의 변화를 사실로 말하지
 // 않고 가능성 보존형으로. 구캐시엔 단정형 문장이 남아 있으므로 무효화 (2026-07-27)
+// v28: 근거 없는 마스크 본문 언급 금지(부정·안심 형태 포함) — few-shot 예시 8 재작성 +
+// 런타임 본문 게이트. 당일 구캐시에 "마스크를 씌우면 오히려 …" 문장이 남아 있으므로 무효화
+// (2026-07-27 실사용 사고)
 // 페이로드 스키마 버전. 로컬 캐시 키와 서버 사본(daily_reports.cache_version)이 같은 값을 쓴다 —
 // 서버 사본에 버전이 없으면 규격을 바꾼 당일 구형 리포트가 서버에서 되살아난다.
-const REPORT_CACHE_VERSION = "v27";
+const REPORT_CACHE_VERSION = "v28";
 const reportCacheKey = (childId: string) =>
   `aiday:report:${REPORT_CACHE_VERSION}:${childId}:${localDateStr()}`;
 

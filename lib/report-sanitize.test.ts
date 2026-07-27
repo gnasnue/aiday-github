@@ -80,7 +80,47 @@ describe("sanitizeReportPayload — ① 마스크 정책", () => {
   });
 });
 
-describe("sanitizeReportPayload — ② prep ⊆ checklist", () => {
+describe("sanitizeReportPayload — ② 마스크 본문 언급 게이트", () => {
+  it("근거 X → message에서 마스크 언급 줄만 제거한다 (부정 언급 포함)", () => {
+    const p = payload({
+      message:
+        "오늘 **31°C**에 습도 **70%**라 땀이 옷에 그대로 남는 날이에요.\n" +
+        "땀이 매우 많은 도준이는 호흡기가 민감해 마스크를 씌우면 오히려 답답해할 수 있으니 통풍이 우선이에요.\n" +
+        "**야외활동** 뒤 **여벌 상의**로 갈아입혀 주세요.",
+    });
+    const out = sanitizeReportPayload(p, NO_REASON);
+    expect(out.maskTextDropped).toEqual(["message-line"]);
+    expect(out.payload.message).toBe(
+      "오늘 **31°C**에 습도 **70%**라 땀이 옷에 그대로 남는 날이에요.\n**야외활동** 뒤 **여벌 상의**로 갈아입혀 주세요."
+    );
+  });
+
+  it("근거 X → hook의 마스크 언급은 hook을 통째로 비운다 (홈이 message 첫 줄로 폴백)", () => {
+    const out = sanitizeReportPayload(
+      payload({ hook: "습도 90% — 마스크 대신 통풍 우선이에요", message: "본문이에요.\n둘째 줄." }),
+      NO_REASON
+    );
+    expect(out.maskTextDropped).toEqual(["hook"]);
+    expect(out.payload.hook).toBe("");
+    expect(out.payload.message).toBe("본문이에요.\n둘째 줄.");
+  });
+
+  it("근거 O면 본문 언급을 건드리지 않는다 (영아의 '쓰기 어려운 나이라' 설명 포함)", () => {
+    const msg = "미세먼지가 나빠요.\n서아는 아직 마스크를 쓰기 어려운 나이라 실내 놀이로 바꿔주세요.\n물도 자주요.";
+    const out = sanitizeReportPayload(payload({ message: msg }), INFANT);
+    expect(out.maskTextDropped).toEqual([]);
+    expect(out.payload.message).toBe(msg);
+  });
+
+  it("전 줄이 마스크 언급이면 빈 본문 대신 원문을 유지한다 (과삭제 방지)", () => {
+    const msg = "마스크 이야기뿐인 줄.";
+    const out = sanitizeReportPayload(payload({ message: msg }), NO_REASON);
+    expect(out.maskTextDropped).toEqual([]);
+    expect(out.payload.message).toBe(msg);
+  });
+});
+
+describe("sanitizeReportPayload — ③ prep ⊆ checklist", () => {
   it("checklist에 없는 준비물 칩을 제거한다", () => {
     const p = payload({
       checklist: ["☂️ 우산", "💧 물통"],
@@ -109,11 +149,12 @@ describe("sanitizeReportPayload — ② prep ⊆ checklist", () => {
 });
 
 describe("sanitizeReportPayload — 공통", () => {
-  it("hook·message는 건드리지 않는다 (본문은 프롬프트가 담당)", () => {
-    const p = payload({ hook: "우산과 마스크 함께", message: "마스크 챙겨주세요", checklist: ["☂️ 우산"], prep: {} });
-    const out = sanitizeReportPayload(p, NO_REASON);
-    expect(out.payload.hook).toBe("우산과 마스크 함께");
-    expect(out.payload.message).toBe("마스크 챙겨주세요");
+  it("근거 O + 나이 O면 hook·message를 건드리지 않는다", () => {
+    const p = payload({ hook: "미세먼지 나쁨 — 마스크 챙겨주세요", message: "마스크 챙겨주세요.\n둘째 줄.", checklist: ["😷 마스크"], prep: {} });
+    const out = sanitizeReportPayload(p, OK);
+    expect(out.payload.hook).toBe("미세먼지 나쁨 — 마스크 챙겨주세요");
+    expect(out.payload.message).toBe("마스크 챙겨주세요.\n둘째 줄.");
+    expect(out.maskTextDropped).toEqual([]);
   });
 });
 

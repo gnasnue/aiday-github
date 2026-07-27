@@ -1,0 +1,135 @@
+{
+  "label": "mask-baseline-r3",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-27T09:13:56.509Z",
+  "results": [
+    {
+      "id": "E-MASK-1",
+      "title": "마스크 음성 대조 — 호흡기 민감·땀 매우 많음 × 31°C 습도 70% × 미세먼지 좋음",
+      "focus": "근거(미세먼지·꽃가루) 없으면 호흡기 민감이라도 마스크를 입에 올리지 않는다 — 부정·안심 형태 포함",
+      "expects": [
+        "마스크 단어가 hook·message·checklist·prep 어디에도 없음",
+        "습도×땀 → 통풍·여벌·갈아입히기 처방"
+      ],
+      "latencyMs": 7021,
+      "output": {
+        "hook": "낮 31도 땡볕 — 야외활동은 그늘 위주로 짧게 해주세요",
+        "message": "오늘 **야외활동**(**11~12:30**) 시간대가 **31°C** 맑음으로 가장 뜨거운 구간이에요.\n땀이 매우 많은 준서는 이 시간에 흠뻑 젖은 채로 오후까지 버티면 기관지에도 부담이 되기 쉬워, 젖은 옷을 오래 입지 않게 해주는 게 중요해요.\n야외활동 끝나면 **여벌 상의**로 바로 갈아입히고, 그늘 위주로 놀이 시간을 조절해달라고 알림장에 남겨주세요.",
+        "checklist": [
+          "👕 여벌 상의",
+          "💧 물통",
+          "🧢 모자"
+        ],
+        "prep": {
+          "야외활동": [
+            "여벌 상의",
+            "모자",
+            "물통"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "202자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "202자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "31자: 낮 31도 땡볕 — 야외활동은 그늘 위주로 짧게 해주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 31도 땡볕\" / 행동 \"야외활동은 그늘 위주로 짧게 해주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 31도 땡볕"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "20자: 야외활동은 그늘 위주로 짧게 해주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "시점 단정 없음(일 단위·현재값 지표)",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "준비물 총량 한정 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /여벌|통풍|갈아입/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "마스크 미언급(미세먼지·꽃가루 근거 없음)",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}

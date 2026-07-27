@@ -1,6 +1,12 @@
+import { fileURLToPath } from "node:url";
 import { defineConfig, configDefaults } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // tsconfig paths("@/*")와 동일한 별칭 — lib/prompts/report.ts처럼 "@/lib/…"를
+    // import하는 모듈을 테스트가 직접 불러올 수 있게 한다.
+    alias: { "@": fileURLToPath(new URL(".", import.meta.url)) },
+  },
   test: {
     exclude: [
       ...configDefaults.exclude,
