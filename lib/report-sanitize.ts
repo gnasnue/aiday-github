@@ -79,7 +79,12 @@ const itemName = (entry: string): string =>
  * 가능한 유일한 메타 비교 형태다("보다 중요"류 일반형은 수술 불가 — eval이 감시).
  */
 export const stripMetaComparison = (text: string): string =>
-  text.replace(/[가-힣0-9·%°C]{1,8} ?자체(보다|가 아니라) ?(더 )?/g, "").replace(/ {2,}/g, " ");
+  text
+    .replace(/[가-힣0-9·%°C]{1,8} ?자체(보다|가 아니라) ?(더 )?/g, "")
+    // "갈아입는 타이밍이 평소보다 중요해요" → "…타이밍이 중요해요" — 뒤에 '중요'가 올 때만
+    // 비교어를 걷어낸다("체온이 평소보다 높아요" 같은 정당한 수치 비교는 건드리지 않는다).
+    .replace(/[가-힣0-9·%°C]{1,8}보다 (더 )?(?=중요)/g, "")
+    .replace(/ {2,}/g, " ");
 
 const dupNorm = (t: string): string =>
   t.replace(/\*\*|__/g, "").replace(/'[^']*'|‘[^’]*’/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
