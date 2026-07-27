@@ -145,9 +145,18 @@ export function buildRecommendation(
       : items[0] ?? "";
   const lastItem = items[items.length - 1] ?? "";
   const objParticle = hasJongseong(core(lastItem)) ? "을" : "를";
-  const message =
-    `${withDativeParticle(profile.name)} 오늘 ${envPart}이에요.${conditionNote} ${itemPart}${objParticle} 꼭 챙겨주세요.` +
-    (itemRecommends.length > 2 ? ` ${itemRecommends[2]}도 챙겨주세요.` : "");
+  // 발동한 환경 사유가 없으면 envPart가 빈 문자열이라 "오늘 이에요"로 깨진다(온화한 날,
+  // 또는 더워도 습도가 땀 임계 미달인 날 실제 발생 — 2026-07-27). 무난한 날 문장으로
+  // 분기하고, 체질만으로 잡힌 준비물(피부 민감 보습제 등)이 있으면 뒤에 잇는다.
+  // 준비물조차 없으면 조사("를")만 남는 두 번째 깨짐이 있어 "평소대로"로 끝낸다.
+  const head = envPart
+    ? `${withDativeParticle(profile.name)} 오늘 ${envPart}이에요.`
+    : `${withDativeParticle(profile.name)} 오늘 무난한 날이에요.`;
+  const message = itemPart
+    ? head +
+      `${conditionNote} ${itemPart}${objParticle} 꼭 챙겨주세요.` +
+      (itemRecommends.length > 2 ? ` ${itemRecommends[2]}도 챙겨주세요.` : "")
+    : head + " 평소대로 준비하면 충분해요.";
 
   const badges = buildBadges(weather);
 

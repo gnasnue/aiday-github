@@ -894,7 +894,29 @@ const Home = () => {
           // 영구 실패(429 한도·4xx 입력·503 설정) — 재시도 무의미, 즉시 폴백.
           perfMark(perf, `report_http_${attemptRes.httpStatus}`);
           outcome = `http_${attemptRes.httpStatus}`;
-          setAiError(true);
+          // 한도(429)는 "새 생성"만 막힌 것이다 — 새로고침이 방금 비운 당일 캐시 리포트가
+          // localStorage에 그대로 있으면 되살린다(캐시는 항상 진짜 AI 리포트). 규칙 폴백은
+          // 캐시조차 없을 때만 — 안 그러면 한도에 걸린 새로고침 한 번에 멀쩡한 아침
+          // 리포트가 사라진다(2026-07-27). 프로필이 바뀌었으면 구 판단이라 되살리지 않는다.
+          let restored = false;
+          if (attemptRes.httpStatus === 429) {
+            try {
+              const cachedReport = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
+              if (
+                cachedReport &&
+                cachedReport.message &&
+                Array.isArray(cachedReport.checklist) &&
+                cachedReport.profileSig === profSig
+              ) {
+                setAiHook(cachedReport.hook ?? "");
+                setAiMessage(cachedReport.message);
+                if (cachedReport.checklist.length > 0) setAiChecklist(cachedReport.checklist);
+                setReportTs(typeof cachedReport.ts === "number" ? cachedReport.ts : null);
+                restored = true;
+              }
+            } catch {}
+          }
+          setAiError(!restored);
           // 하루 한도 소진(429)은 카드 안에 게스트/로그인 여부에 맞는 안내+CTA를 영구 표시한다
           // (토스트는 몇 초 뒤 사라져 재방문 시 다시 보이지 않으므로 별도 상태로 붙잡아 둔다).
           setReportLimitReached(
@@ -1216,7 +1238,13 @@ const Home = () => {
       .map((l) => l.trim())
       .filter(Boolean);
     if (!lines.length) return null;
-    return lines.find((l) => l.includes(cur.name)) ?? lines[1] ?? null;
+    const line = lines.find((l) => l.includes(cur.name)) ?? lines[1] ?? null;
+    // hook이 없으면 헤드라인이 본문 첫 줄(plainLines[0])을 그대로 쓴다 — 같은 문장이
+    // 근거 자리(support)에 또 나오면 제목·본문이 중복된다(2026-07-27 규칙 폴백에서 확인,
+    // 폴백 메시지는 한 줄이라 이름 포함 줄 = 첫 줄). 마크다운 표기만 다른 동일 문장이면 숨긴다.
+    if (line && !brief.headline && line.replace(/\*\*|__/g, "").trim() === (plainLines[0] ?? ""))
+      return null;
+    return line;
   })();
 
   // 상세 본문 문단 — v3 body 규격(16/400/1.6). 접힘이 기본이라 랜딩 높이에 영향이 없고,
