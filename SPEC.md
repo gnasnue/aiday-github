@@ -420,7 +420,7 @@ components/CharacterReport.tsx와 /images/character-*.png는 보존 — 베타 �
   - `prep`: 일정 슬롯별 준비물 키워드 1~2개 (환경이 튀는 슬롯만)
 - **입력 컨텍스트:** 아이 정보(이름·나이·성별·건강 특이사항·체온 민감도) + 오늘 일정별 날씨(등원/야외활동/하원/저녁 시간대 매핑) + 현재 대기질(PM10/PM2.5/통합대기 등급)
 - **파싱 안전장치:** 코드블록 제거 → JSON.parse, 실패 시 `{}` 블록 직접 추출 재시도, 최종 실패 시 빈 응답 반환 → 클라이언트가 `lib/recommendation-engine.ts`의 규칙 기반 fallback 사용
-- **캐싱:** 클라이언트에서 아이 ID + 날짜별 localStorage **당일 고정** 캐시 (`aiday:report:v23:{childId}:{YYYY-MM-DD}` — 프롬프트/스키마 변경 시 버전 상향). 아침 첫 생성본을 하루 내내 유지하고, 생성 시점 환경 스냅샷(`env`) 대비 **급변**(비 소식 생김/사라짐, 강수확률 ±30%p, 미세먼지 나쁨 경계 통과, 같은 시각 기온 ±3°C)일 때만 자동 재생성. 헤더에 생성 시각 표시 + 수동 새로고침 버튼(60초 쿨다운) 제공 (`app/(main)/home/page.tsx: envSignature/envChanged/refreshReport`)
+- **캐싱:** 클라이언트에서 아이 ID + 날짜별 localStorage **당일 고정** 캐시 (`aiday:report:v26:{childId}:{YYYY-MM-DD}` — 프롬프트/스키마 변경 시 버전 상향). 아침 첫 생성본을 하루 내내 유지하고, ① 생성 시점 환경 스냅샷(`env`) 대비 **급변**(비 소식 생김/사라짐, 강수확률 ±30%p, PM10·PM2.5·통합대기 나쁨 경계 통과, 자외선 강함·꽃가루 높음 경계 통과, 같은 시각 기온 ±3°C·습도 ±20%p) 또는 ② 생성 시점 판단 입력 스냅샷(`profileSig` — 체질·민감도·일과·나이 정규화) 대비 **프로필 변경**일 때만 자동 재생성. 헤더에 생성 시각 표시 + 수동 새로고침 버튼(60초 쿨다운) 제공 (`app/(main)/home/page.tsx: envSignature/envChanged/profileSignature/refreshReport`)
 
 ---
 
@@ -701,8 +701,7 @@ Today's OOTD
 | `aiweather:profiles` | ChildProfile[] 전체 | `lib/profile.ts` |
 | `aiweather:activeProfileId` | 선택된 아이 ID | 홈/환경/옷차림/팁/마이/온보딩 |
 | `aiweather:onboarding` | 온보딩 진행 상태 (단계+입력값, 완료 시 삭제) | 온보딩 |
-| `aiday:report:v21:{childId}:{YYYY-MM-DD}` | AI 리포트 당일 고정 캐시 (`hook, message, checklist, prep, ts, env` — env는 급변 판정용 환경 스냅샷) | 홈 |
-| `aiday:prepFrozen:v1:{childId}:{YYYY-MM-DD}` | 지나간 시간대 슬롯의 AI 준비물 고정값 | 홈 |
+| `aiday:report:v26:{childId}:{YYYY-MM-DD}` | AI 리포트 당일 고정 캐시 (`hook, message, checklist, ts, env, profileSig` — env는 급변 판정용 환경 스냅샷, profileSig는 같은 날 프로필 수정 감지용 판단 입력 스냅샷) | 홈 |
 
 > ⚠️ 네임스페이스가 `aiweather:`와 `aiday:`로 혼재 — **`aiday:`로 통일하기로 확정** (1회성 마이그레이션 포함, 프로필 포맷 정규화 작업에서 처리 — [docs/PRODUCT-DECISIONS.md](./docs/PRODUCT-DECISIONS.md) §3-4)
 

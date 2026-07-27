@@ -40,7 +40,7 @@ import type { WeatherData } from "@/lib/weather-api";
 import { buildTimeline, buildTomorrowTimeline, dustLabel, pollenLabel, type EnvRaw, type HomeTimeSlot } from "@/lib/timeline";
 import { loadEnvSnapshot, saveEnvSnapshot } from "@/lib/env-cache";
 import { buildPrepKeywords, isCriticalPrep } from "@/lib/prep";
-import { canonicalPrep, canonicalPrepList } from "@/lib/prep-vocab";
+import { canonicalPrep } from "@/lib/prep-vocab";
 import { ageInMonths, canRecommendMask, isSweatProne } from "@/lib/domain/child-conditions";
 import { perfStart, perfMark, perfReport, perfEnabled, type PerfSession } from "@/lib/perf";
 import { track, ageBand } from "@/lib/analytics";
@@ -60,21 +60,52 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // 히어로에서 배지가 비거나 28px 결론이 6자만 담당하게 되므로 버전을 올려 무효화한다.
 // v25: 브리핑 판단 깊이 개편 — message 3문장 역할 구조(이름=2번째 줄, supportLine 발췌
 // 계약)·few-shot 교체. 구캐시는 이름 줄 위치가 달라 근거 발췌가 어긋나므로 무효화 (2026-07-27)
-const reportCacheKey = (childId: string) => `aiday:report:v25:${childId}:${localDateStr()}`;
+// v26: 저장값에 판단 입력 스냅샷(profileSig) 추가 + 환경 스냅샷에 PM2.5/통합대기/습도 반영 —
+// 같은 날 체질·민감도·일과를 수정해도 구 판단을 재사용하던 결함과, PM10 외 대기질·습도
+// 급변을 놓치던 결함을 함께 고친다. 구캐시엔 profileSig가 없어 전부 재생성된다
+// (2026-07-27 Codex 엔지니어링 리뷰 T3).
+const reportCacheKey = (childId: string) => `aiday:report:v26:${childId}:${localDateStr()}`;
+
+// 리포트 판단에 실제로 들어가는 프로필 입력만 정규화한 시그니처. 생성 시점 값을 캐시에 저장해
+// 같은 날 체질·민감도·일과가 바뀌면 당일 고정 캐시를 버리고 재생성한다.
+// - 이름·이모지·성별 등 문구 표시용 필드는 제외 — 판단이 같은데 재생성(Claude 비용)하지 않기 위해.
+// - age·birth는 서버의 마스크 연령 게이트(만 2세 미만) 판정에 쓰이므로 포함한다.
+// - JSON.parse 유래 객체는 키 순서가 다를 수 있어 필드를 명시 나열해 순서를 고정한다.
+const profileSignature = (p: ChildProfile): string =>
+  JSON.stringify({
+    age: p.age ?? "",
+    birth: p.birth ? { year: p.birth.year, month: p.birth.month, day: p.birth.day ?? "" } : null,
+    conditions: [...(p.conditions ?? [])].sort(),
+    conditionEtc: (p.conditionEtc ?? "").trim(),
+    cold: p.cold ?? "",
+    hot: p.hot ?? "",
+    sweat: p.sweat ?? "",
+    schedule: {
+      goSchool: p.schedule?.goSchool ?? "",
+      outdoorStart: p.schedule?.outdoorStart ?? "",
+      outdoorEnd: p.schedule?.outdoorEnd ?? "",
+      leaveSchool: p.schedule?.leaveSchool ?? "",
+      eveningStart: p.schedule?.eveningStart ?? "",
+      eveningEnd: p.schedule?.eveningEnd ?? "",
+    },
+  });
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
   rain: string; // 시각별 강수 형태 유무 ("06:00:0,09:00:1,...")
   maxPop: number; // 하루 최대 강수확률
-  dustBad: boolean; // 미세먼지 나쁨(3) 이상 여부
+  dustBad: boolean; // 미세먼지(PM10) 나쁨(3) 이상 여부
+  pm25Bad: boolean; // 초미세먼지(PM2.5) 나쁨(3) 이상 여부
+  khaiBad: boolean; // 통합대기환경지수 나쁨(3) 이상 여부
   uvHigh: boolean; // 자외선 강함(지수 6) 이상 여부
   pollenHigh: boolean; // 꽃가루 높음(지수 2) 이상 여부
   temps: Record<string, number>; // 시각별 기온
+  hums: Record<string, number>; // 시각별 습도(예보) — 결측 시각은 제외
 };
 
 const envSignature = (
-  w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null }[] } | null,
-  a: { pm10Grade?: number | null } | null,
+  w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null; humidity?: number | null }[] } | null,
+  a: { pm10Grade?: number | null; pm25Grade?: number | null; khaiGrade?: number | null } | null,
   uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null,
   pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null
 ): EnvSignature => {
@@ -89,22 +120,38 @@ const envSignature = (
     rain: hours.map((h) => `${h.hour}:${h.pty && h.pty > 0 ? 1 : 0}`).join(","),
     maxPop: hours.reduce((m, h) => Math.max(m, h.pop ?? 0), 0),
     dustBad: (a?.pm10Grade ?? 1) >= 3,
+    pm25Bad: (a?.pm25Grade ?? 1) >= 3,
+    khaiBad: (a?.khaiGrade ?? 1) >= 3,
     uvHigh: (uvPeak ?? 0) >= 6,
     pollenHigh: (pollenMax ?? 0) >= 2, // 기상청 꽃가루농도위험지수 0~3에서 '높음'은 2
     temps: Object.fromEntries(hours.map((h) => [h.hour, h.temp])),
+    hums: Object.fromEntries(
+      hours.filter((h): h is typeof h & { humidity: number } => typeof h.humidity === "number")
+        .map((h) => [h.hour, h.humidity])
+    ),
   };
 };
 
-// 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 미세먼지 나쁨 경계 통과 ·
-// 자외선 강함 경계 통과 · 꽃가루 높음 경계 통과 · 같은 시각 기온 예보 3°C 이상 변동.
-// 스냅샷이 없는 구캐시는 급변 아님으로 취급.
+// 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 대기질(PM10·PM2.5·통합) 나쁨 경계 통과 ·
+// 자외선 강함 경계 통과 · 꽃가루 높음 경계 통과 · 같은 시각 기온 예보 3°C 이상 · 같은 시각 습도 예보
+// 20%p 이상 변동. 습도는 같은 시각 예보끼리 비교해 하루 주기의 자연 변동(아침↔낮)이 재생성(비용)을
+// 유발하지 않게 한다. 스냅샷이 없는 구캐시는 급변 아님으로 취급.
 const envChanged = (prev: EnvSignature | undefined, cur: EnvSignature): boolean => {
   if (!prev) return false;
   if (prev.rain !== cur.rain) return true;
   if (Math.abs((prev.maxPop ?? 0) - cur.maxPop) >= 30) return true;
   if (!!prev.dustBad !== cur.dustBad) return true;
+  if (!!prev.pm25Bad !== cur.pm25Bad) return true;
+  if (!!prev.khaiBad !== cur.khaiBad) return true;
   if (!!prev.uvHigh !== cur.uvHigh) return true;
   if (!!prev.pollenHigh !== cur.pollenHigh) return true;
+  if (
+    Object.entries(cur.hums ?? {}).some(([h, v]) => {
+      const pv = prev.hums?.[h];
+      return typeof pv === "number" && Math.abs(pv - v) >= 20;
+    })
+  )
+    return true;
   return Object.entries(cur.temps).some(([h, t]) => {
     const pt = prev.temps?.[h];
     return typeof pt === "number" && Math.abs(pt - t) >= 3;
@@ -262,28 +309,6 @@ const Home = () => {
   const [aiHook, setAiHook] = useState<string>("");
   const [aiMessage, setAiMessage] = useState<string>("");
   const [aiChecklist, setAiChecklist] = useState<string[]>([]);
-  const [aiPrep, setAiPrep] = useState<Record<string, string[]>>({});
-  // AI 변형 prep 프리즈: 리포트는 5분 캐시 만료마다 재생성되고 온도 고정도 불가해
-  // 같은 입력에도 키워드가 흔들린다. 지나간 시각 슬롯은 그 시각을 지날 때의 값을
-  // 날짜·프로필별로 고정 저장해, 지난 카드의 준비물이 오후에 바뀌지 않게 한다.
-  // (rule 변형은 입력이 같으면 출력이 같아 프리즈가 필요 없다)
-  const [frozenPrep, setFrozenPrep] = useState<Record<string, string[]>>({});
-  // 준비물 키워드 A/B: rule(규칙 기반, 기본) vs ai(Claude 생성). ?prep=ai|rule로 전환, 세션 간 유지.
-  // SSR 안전: 초기값은 항상 "rule"(서버·클라 첫 렌더 동일)로 두고, 실제 변형은 마운트 후 effect에서
-  // 확정한다. window.location.search·localStorage를 초기값에서 읽으면 서버엔 없어, A/B "ai" 사용자의
-  // 첫 렌더가 서버(rule)와 어긋나 하이드레이션 불일치(React #418)가 난다.
-  const [prepVariant, setPrepVariant] = useState<"rule" | "ai">("rule");
-  useEffect(() => {
-    try {
-      const q = new URLSearchParams(window.location.search).get("prep");
-      if (q === "ai" || q === "rule") {
-        localStorage.setItem("aiday:prepVariant", q);
-        setPrepVariant(q);
-        return;
-      }
-      if (localStorage.getItem("aiday:prepVariant") === "ai") setPrepVariant("ai");
-    } catch {}
-  }, []);
   const [aiLoading, setAiLoading] = useState(false);
   // 스트리밍 중 hook만 먼저 도착한 구간 — 헤드라인은 노출하되 본문은 스켈레톤 유지
   const [aiStreaming, setAiStreaming] = useState(false);
@@ -594,18 +619,6 @@ const Home = () => {
   // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
   activeIdRef.current = cur?.id ?? null;
 
-  // 지나간 슬롯 prep 고정값 복원 — 날짜 표기는 리포트 캐시 키와 동일 규칙 사용
-  // v2: 지나간 슬롯에 마스크가 동결돼 있던 구값을 무효화 (리포트 v23 준비물 안전망과 정렬)
-  const prepFrozenKey = cur ? `aiday:prepFrozen:v2:${cur.id}:${localDateStr()}` : null;
-  useEffect(() => {
-    if (!prepFrozenKey) return;
-    try {
-      setFrozenPrep(JSON.parse(localStorage.getItem(prepFrozenKey) ?? "{}"));
-    } catch {
-      setFrozenPrep({});
-    }
-  }, [prepFrozenKey]);
-
   // 수동 새로고침 쿨다운 — 중복 탭으로 인한 불필요한 Claude 호출(비용) 방지
   const REFRESH_COOLDOWN = 60 * 1000;
 
@@ -639,6 +652,7 @@ const Home = () => {
 
       let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
       let morningRegen = false; // 새벽 잠정본을 06시 이후 당일 발표본으로 교체하는 경우
+      let profileRegen = false; // 같은 날 아이 판단 입력(체질·민감도·일과)이 바뀌어 교체하는 경우
       // 계측 세션 로컬 캡처 — 초기 진입이면 fetchEnv의 세션(env 마커 포함)을 1회 점유(claim)하고,
       // 이미 점유·보고된 세션(재방문·프로필 전환·중첩 요청)이면 리포트 전용 새 세션을 만든다.
       // 어느 경로든 세션을 claim해, 뒤이은 요청이 같은 세션에 마커를 덧쓰지 않게 한다
@@ -675,28 +689,34 @@ const Home = () => {
           pollenClean
         );
 
+        // 판단 입력 스냅샷 — 캐시 생성 시점과 지금의 프로필이 같은 판단을 낳는지 비교 근거
+        const profSig = profileSignature(cur);
+
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
         if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
+          // 같은 날 아이 체질·민감도·일과가 바뀌었으면 구 판단은 무효 — 재생성한다.
+          // (me 화면 수정 후 홈 복귀, 다른 기기에서 수정한 프로필의 DB 복원 모두 포괄.)
+          const profileChanged = cached.profileSig !== profSig;
           // 새벽(00~06시) 생성 잠정본은 06시 이후 첫 방문에서 당일 발표본(02시 예보·
           // 당일 자외선)으로 조용히 교체한다 — 재료가 전날 밤 예보 기준이었기 때문.
           // 06시 전이면 잠정본이 그 시점의 최선이므로 그대로 캐시 히트.
           const morningRefresh =
             typeof cached.ts === "number" && needsMorningRefresh(cached.ts);
-          if (!envChanged(cached.env, sig) && !morningRefresh) {
+          if (!profileChanged && !envChanged(cached.env, sig) && !morningRefresh) {
             perfMark(perf, "cache_hit");
             outcome = "cache_hit";
             if (isCurrent()) {
               setAiHook(cached.hook ?? "");
               setAiMessage(cached.message);
               if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-              setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
               setReportTs(typeof cached.ts === "number" ? cached.ts : null);
               setAiLoading(false);
             }
             return;
           }
           regenerating = true;
-          morningRegen = morningRefresh && !envChanged(cached.env, sig);
+          profileRegen = profileChanged;
+          morningRegen = !profileChanged && morningRefresh && !envChanged(cached.env, sig);
         }
 
         // SSE 스트림 소비 — hook·message가 도착하는 즉시 히어로를 노출하고,
@@ -859,13 +879,12 @@ const Home = () => {
           if (Array.isArray(done.checklist) && done.checklist.length > 0) {
             setAiChecklist(done.checklist);
           }
-          setAiPrep(done.prep && typeof done.prep === "object" ? done.prep : {});
           const now = Date.now();
           setReportTs(now);
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], ts: now, env: sig, profileSig: profSig }));
           } catch {}
-          if (regenerating) toast(morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
+          if (regenerating) toast(profileRegen ? "아이 정보가 바뀌어 브리핑을 새로 썼어요" : morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
           else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
           outcome = "done";
@@ -946,7 +965,6 @@ const Home = () => {
     if (!loading) {
       setAiLoading(true);
       setAiHook("");
-      setAiPrep({});
       setAiError(false);
       setReportLimitReached(null);
     }
@@ -965,11 +983,17 @@ const Home = () => {
       const cached = JSON.parse(
         localStorage.getItem(reportCacheKey(cur.id)) ?? "null"
       );
-      if (cached && cached.message && Array.isArray(cached.checklist)) {
+      // 판단 입력이 캐시 생성 시점과 다르면 프라임하지 않는다 — 구 판단을 잠깐이라도
+      // 보여주지 않고 스켈레톤을 유지하면, 리포트 effect가 곧 재생성한다.
+      if (
+        cached &&
+        cached.message &&
+        Array.isArray(cached.checklist) &&
+        cached.profileSig === profileSignature(cur)
+      ) {
         setAiHook(cached.hook ?? "");
         setAiMessage(cached.message);
         if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
-        setAiPrep(cached.prep && typeof cached.prep === "object" ? cached.prep : {});
         setReportTs(typeof cached.ts === "number" ? cached.ts : null);
         primedRef.current = true;
         setReportPrimed(true);
@@ -1044,53 +1068,19 @@ const Home = () => {
     [cur, weatherData, displaySlots]
   );
 
-  // 슬롯별 준비물 키워드 (A/B): rule=로컬 규칙 엔진, ai=Claude prep 필드
-  // AI 변형에서 prep이 비면(로딩 중·미지원 응답) 규칙 기반으로 폴백해 빈 화면을 막는다
-  const AI_PREP_KEY: Record<string, string> = { 등원시간: "등원", 야외활동: "야외활동", 하원시간: "하원", 저녁: "저녁" };
-  // "HH:MM"이 현재 시각 이전인지 — 지나간 슬롯 판정
-  const slotPassed = (hour: string): boolean => {
-    const [h, m] = hour.split(":").map(Number);
-    if (Number.isNaN(h)) return false;
-    const now = new Date();
-    return h * 60 + (m || 0) <= now.getHours() * 60 + now.getMinutes();
-  };
-
-  // 지나간 슬롯의 AI prep 고정 저장 — 슬롯 시각을 지날 때의 값을 그날 내내 유지.
-  // 저장 전에 표준화(canonicalPrepList) — 냉동된 값도 화면 어휘와 같게.
-  useEffect(() => {
-    if (prepVariant !== "ai" || !prepFrozenKey) return;
-    const additions: Record<string, string[]> = {};
-    for (const slot of displaySlots) {
-      if (!slotPassed(slot.hour) || frozenPrep[slot.time]) continue;
-      const fromAi = aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
-      if (Array.isArray(fromAi) && fromAi.length > 0)
-        additions[slot.time] = canonicalPrepList(fromAi).slice(0, 2);
-    }
-    if (!Object.keys(additions).length) return;
-    const merged = { ...frozenPrep, ...additions };
-    setFrozenPrep(merged);
-    try {
-      localStorage.setItem(prepFrozenKey, JSON.stringify(merged));
-    } catch {}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiPrep, displaySlots, prepVariant, prepFrozenKey, frozenPrep]);
-
+  // 슬롯별 준비물 키워드 — 규칙 엔진(lib/prep.ts) 단일 소스.
+  // 매 슬롯 빠짐없이·흔들림 없이 보여야 하는 표면이라 규칙이 적합 (2026-07-20 A/B로 확정,
+  // docs/PRODUCT-DECISIONS.md). AI의 뉘앙스는 message·checklist에서 살린다.
   const slotPrep = useMemo<Record<string, string[]>>(() => {
     const map: Record<string, string[]> = {};
     const sweatProne = isSweatProne(cur?.hot, cur?.sweat);
     // 24개월 미만이면 규칙 엔진도 마스크 대신 실내놀이 — AI 프롬프트 규칙과 정렬 (R1)
     const maskOk = canRecommendMask(ageInMonths(cur?.age, cur?.birth));
     displaySlots.forEach((slot, i) => {
-      const frozen = slotPassed(slot.hour) ? frozenPrep[slot.time] : undefined;
-      const fromAi = frozen ?? aiPrep[AI_PREP_KEY[slot.time] ?? slot.time];
-      map[slot.time] =
-        prepVariant === "ai" && Array.isArray(fromAi) && fromAi.length > 0
-          ? canonicalPrepList(fromAi).slice(0, 2)
-          : buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne, maskOk);
+      map[slot.time] = buildPrepKeywords(slot, i > 0 ? displaySlots[i - 1] : null, cur?.conditions, i === 0, sweatProne, maskOk);
     });
     return map;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [displaySlots, aiPrep, frozenPrep, prepVariant, cur?.conditions, cur?.hot, cur?.sweat, cur?.age, cur?.birth]);
+  }, [displaySlots, cur?.conditions, cur?.hot, cur?.sweat, cur?.age, cur?.birth]);
   const { checklist: baseChecklist, message: fallbackMessage, badges } = recommendation;
 
   const message = aiMessage || fallbackMessage;
