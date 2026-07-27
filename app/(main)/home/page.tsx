@@ -60,21 +60,52 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // 히어로에서 배지가 비거나 28px 결론이 6자만 담당하게 되므로 버전을 올려 무효화한다.
 // v25: 브리핑 판단 깊이 개편 — message 3문장 역할 구조(이름=2번째 줄, supportLine 발췌
 // 계약)·few-shot 교체. 구캐시는 이름 줄 위치가 달라 근거 발췌가 어긋나므로 무효화 (2026-07-27)
-const reportCacheKey = (childId: string) => `aiday:report:v25:${childId}:${localDateStr()}`;
+// v26: 저장값에 판단 입력 스냅샷(profileSig) 추가 + 환경 스냅샷에 PM2.5/통합대기/습도 반영 —
+// 같은 날 체질·민감도·일과를 수정해도 구 판단을 재사용하던 결함과, PM10 외 대기질·습도
+// 급변을 놓치던 결함을 함께 고친다. 구캐시엔 profileSig가 없어 전부 재생성된다
+// (2026-07-27 Codex 엔지니어링 리뷰 T3).
+const reportCacheKey = (childId: string) => `aiday:report:v26:${childId}:${localDateStr()}`;
+
+// 리포트 판단에 실제로 들어가는 프로필 입력만 정규화한 시그니처. 생성 시점 값을 캐시에 저장해
+// 같은 날 체질·민감도·일과가 바뀌면 당일 고정 캐시를 버리고 재생성한다.
+// - 이름·이모지·성별 등 문구 표시용 필드는 제외 — 판단이 같은데 재생성(Claude 비용)하지 않기 위해.
+// - age·birth는 서버의 마스크 연령 게이트(만 2세 미만) 판정에 쓰이므로 포함한다.
+// - JSON.parse 유래 객체는 키 순서가 다를 수 있어 필드를 명시 나열해 순서를 고정한다.
+const profileSignature = (p: ChildProfile): string =>
+  JSON.stringify({
+    age: p.age ?? "",
+    birth: p.birth ? { year: p.birth.year, month: p.birth.month, day: p.birth.day ?? "" } : null,
+    conditions: [...(p.conditions ?? [])].sort(),
+    conditionEtc: (p.conditionEtc ?? "").trim(),
+    cold: p.cold ?? "",
+    hot: p.hot ?? "",
+    sweat: p.sweat ?? "",
+    schedule: {
+      goSchool: p.schedule?.goSchool ?? "",
+      outdoorStart: p.schedule?.outdoorStart ?? "",
+      outdoorEnd: p.schedule?.outdoorEnd ?? "",
+      leaveSchool: p.schedule?.leaveSchool ?? "",
+      eveningStart: p.schedule?.eveningStart ?? "",
+      eveningEnd: p.schedule?.eveningEnd ?? "",
+    },
+  });
 
 // 리포트 생성 시점의 환경 요약. 당일 고정 캐시를 깨고 재생성할 "급변"인지 비교하는 근거.
 type EnvSignature = {
   rain: string; // 시각별 강수 형태 유무 ("06:00:0,09:00:1,...")
   maxPop: number; // 하루 최대 강수확률
-  dustBad: boolean; // 미세먼지 나쁨(3) 이상 여부
+  dustBad: boolean; // 미세먼지(PM10) 나쁨(3) 이상 여부
+  pm25Bad: boolean; // 초미세먼지(PM2.5) 나쁨(3) 이상 여부
+  khaiBad: boolean; // 통합대기환경지수 나쁨(3) 이상 여부
   uvHigh: boolean; // 자외선 강함(지수 6) 이상 여부
   pollenHigh: boolean; // 꽃가루 높음(지수 2) 이상 여부
   temps: Record<string, number>; // 시각별 기온
+  hums: Record<string, number>; // 시각별 습도(예보) — 결측 시각은 제외
 };
 
 const envSignature = (
-  w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null }[] } | null,
-  a: { pm10Grade?: number | null } | null,
+  w: { hourlyForecast?: { hour: string; temp: number; pty: number | null; pop: number | null; humidity?: number | null }[] } | null,
+  a: { pm10Grade?: number | null; pm25Grade?: number | null; khaiGrade?: number | null } | null,
   uv: { uvi?: number | null; hourly?: Record<string, number | null> } | null,
   pollen: { oak?: number | null; pine?: number | null; weed?: number | null } | null
 ): EnvSignature => {
@@ -89,22 +120,38 @@ const envSignature = (
     rain: hours.map((h) => `${h.hour}:${h.pty && h.pty > 0 ? 1 : 0}`).join(","),
     maxPop: hours.reduce((m, h) => Math.max(m, h.pop ?? 0), 0),
     dustBad: (a?.pm10Grade ?? 1) >= 3,
+    pm25Bad: (a?.pm25Grade ?? 1) >= 3,
+    khaiBad: (a?.khaiGrade ?? 1) >= 3,
     uvHigh: (uvPeak ?? 0) >= 6,
     pollenHigh: (pollenMax ?? 0) >= 2, // 기상청 꽃가루농도위험지수 0~3에서 '높음'은 2
     temps: Object.fromEntries(hours.map((h) => [h.hour, h.temp])),
+    hums: Object.fromEntries(
+      hours.filter((h): h is typeof h & { humidity: number } => typeof h.humidity === "number")
+        .map((h) => [h.hour, h.humidity])
+    ),
   };
 };
 
-// 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 미세먼지 나쁨 경계 통과 ·
-// 자외선 강함 경계 통과 · 꽃가루 높음 경계 통과 · 같은 시각 기온 예보 3°C 이상 변동.
-// 스냅샷이 없는 구캐시는 급변 아님으로 취급.
+// 급변 기준: 비 소식 생김/사라짐 · 강수확률 30%p 이상 변동 · 대기질(PM10·PM2.5·통합) 나쁨 경계 통과 ·
+// 자외선 강함 경계 통과 · 꽃가루 높음 경계 통과 · 같은 시각 기온 예보 3°C 이상 · 같은 시각 습도 예보
+// 20%p 이상 변동. 습도는 같은 시각 예보끼리 비교해 하루 주기의 자연 변동(아침↔낮)이 재생성(비용)을
+// 유발하지 않게 한다. 스냅샷이 없는 구캐시는 급변 아님으로 취급.
 const envChanged = (prev: EnvSignature | undefined, cur: EnvSignature): boolean => {
   if (!prev) return false;
   if (prev.rain !== cur.rain) return true;
   if (Math.abs((prev.maxPop ?? 0) - cur.maxPop) >= 30) return true;
   if (!!prev.dustBad !== cur.dustBad) return true;
+  if (!!prev.pm25Bad !== cur.pm25Bad) return true;
+  if (!!prev.khaiBad !== cur.khaiBad) return true;
   if (!!prev.uvHigh !== cur.uvHigh) return true;
   if (!!prev.pollenHigh !== cur.pollenHigh) return true;
+  if (
+    Object.entries(cur.hums ?? {}).some(([h, v]) => {
+      const pv = prev.hums?.[h];
+      return typeof pv === "number" && Math.abs(pv - v) >= 20;
+    })
+  )
+    return true;
   return Object.entries(cur.temps).some(([h, t]) => {
     const pt = prev.temps?.[h];
     return typeof pt === "number" && Math.abs(pt - t) >= 3;
@@ -639,6 +686,7 @@ const Home = () => {
 
       let regenerating = false; // 급변으로 기존 브리핑을 교체하는 경우 (완료 시 안내 토스트)
       let morningRegen = false; // 새벽 잠정본을 06시 이후 당일 발표본으로 교체하는 경우
+      let profileRegen = false; // 같은 날 아이 판단 입력(체질·민감도·일과)이 바뀌어 교체하는 경우
       // 계측 세션 로컬 캡처 — 초기 진입이면 fetchEnv의 세션(env 마커 포함)을 1회 점유(claim)하고,
       // 이미 점유·보고된 세션(재방문·프로필 전환·중첩 요청)이면 리포트 전용 새 세션을 만든다.
       // 어느 경로든 세션을 claim해, 뒤이은 요청이 같은 세션에 마커를 덧쓰지 않게 한다
@@ -675,14 +723,20 @@ const Home = () => {
           pollenClean
         );
 
+        // 판단 입력 스냅샷 — 캐시 생성 시점과 지금의 프로필이 같은 판단을 낳는지 비교 근거
+        const profSig = profileSignature(cur);
+
         const cached = JSON.parse(localStorage.getItem(cacheKey) ?? "null");
         if (cached && !force && cached.message && Array.isArray(cached.checklist)) {
+          // 같은 날 아이 체질·민감도·일과가 바뀌었으면 구 판단은 무효 — 재생성한다.
+          // (me 화면 수정 후 홈 복귀, 다른 기기에서 수정한 프로필의 DB 복원 모두 포괄.)
+          const profileChanged = cached.profileSig !== profSig;
           // 새벽(00~06시) 생성 잠정본은 06시 이후 첫 방문에서 당일 발표본(02시 예보·
           // 당일 자외선)으로 조용히 교체한다 — 재료가 전날 밤 예보 기준이었기 때문.
           // 06시 전이면 잠정본이 그 시점의 최선이므로 그대로 캐시 히트.
           const morningRefresh =
             typeof cached.ts === "number" && needsMorningRefresh(cached.ts);
-          if (!envChanged(cached.env, sig) && !morningRefresh) {
+          if (!profileChanged && !envChanged(cached.env, sig) && !morningRefresh) {
             perfMark(perf, "cache_hit");
             outcome = "cache_hit";
             if (isCurrent()) {
@@ -696,7 +750,8 @@ const Home = () => {
             return;
           }
           regenerating = true;
-          morningRegen = morningRefresh && !envChanged(cached.env, sig);
+          profileRegen = profileChanged;
+          morningRegen = !profileChanged && morningRefresh && !envChanged(cached.env, sig);
         }
 
         // SSE 스트림 소비 — hook·message가 도착하는 즉시 히어로를 노출하고,
@@ -863,9 +918,9 @@ const Home = () => {
           const now = Date.now();
           setReportTs(now);
           try {
-            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig }));
+            localStorage.setItem(cacheKey, JSON.stringify({ hook: done.hook ?? "", message: done.message, checklist: done.checklist ?? [], prep: done.prep ?? {}, ts: now, env: sig, profileSig: profSig }));
           } catch {}
-          if (regenerating) toast(morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
+          if (regenerating) toast(profileRegen ? "아이 정보가 바뀌어 브리핑을 새로 썼어요" : morningRegen ? "아침 예보가 나와 브리핑을 새로 썼어요" : "날씨가 바뀌어 브리핑을 새로 썼어요");
           else if (force) toast("최신 날씨로 새로고침했어요");
           perfMark(perf, "report_done"); // 전체 페이로드 수신·정착
           outcome = "done";
@@ -965,7 +1020,14 @@ const Home = () => {
       const cached = JSON.parse(
         localStorage.getItem(reportCacheKey(cur.id)) ?? "null"
       );
-      if (cached && cached.message && Array.isArray(cached.checklist)) {
+      // 판단 입력이 캐시 생성 시점과 다르면 프라임하지 않는다 — 구 판단을 잠깐이라도
+      // 보여주지 않고 스켈레톤을 유지하면, 리포트 effect가 곧 재생성한다.
+      if (
+        cached &&
+        cached.message &&
+        Array.isArray(cached.checklist) &&
+        cached.profileSig === profileSignature(cur)
+      ) {
         setAiHook(cached.hook ?? "");
         setAiMessage(cached.message);
         if (cached.checklist.length > 0) setAiChecklist(cached.checklist);
