@@ -1,0 +1,151 @@
+{
+  "label": "tone-baseline-r2",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-27T10:12:53.871Z",
+  "results": [
+    {
+      "id": "E-AHA-2",
+      "title": "aha 지표 상호작용 — 피부 민감·땀 매우 많음 × 32°C 습도 85%",
+      "focus": "더위 자체가 아니라 증발 못 한 땀·젖은 옷이 문제 — 처방은 갈아입히기",
+      "expects": [
+        "기온×습도 결합 해석",
+        "젖은 옷·땀 메커니즘",
+        "여벌·갈아입히기 실행"
+      ],
+      "latencyMs": 7631,
+      "output": {
+        "hook": "낮 32도 습도 85% — 야외활동 뒤 상의 갈아입혀 주세요",
+        "message": "오늘 **야외활동**(**11~12시반**) 시간대는 **32°C**에 습도 **85%**라 땀이 잘 마르지 않고 옷에 그대로 남아요.\n피부가 예민하고 땀이 매우 많은 리아는 젖은 옷이 오래 붙어 있으면 피부를 자극하기 쉬워서, 더위 자체보다 활동 뒤 젖은 상태가 더 신경 쓰이는 날이에요.\n여벌 **상의** 하나 챙겨서 활동 끝나면 바로 갈아입히고, 알림장에 '야외활동 후 상의 갈아입혀 주세요' 한 줄 남겨주세요.",
+        "checklist": [
+          "👕 여벌 상의",
+          "🧻 물수건",
+          "💧 물통",
+          "🧴 보습제"
+        ],
+        "prep": {
+          "야외활동": [
+            "여벌 상의",
+            "물수건"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "233자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "233자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "33자: 낮 32도 습도 85% — 야외활동 뒤 상의 갈아입혀 주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 32도 습도 85%\" / 행동 \"야외활동 뒤 상의 갈아입혀 주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 32도 습도 85%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "18자: 야외활동 뒤 상의 갈아입혀 주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "메타 비교 구문 없음(자체보다·보다 중요)",
+          "result": "FAIL",
+          "detail": "\"자극하기 쉬워서, 더위 자체보다 활동 뒤 젖은 상태가 더\""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "시점 단정 없음(일 단위·현재값 지표)",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "준비물 총량 한정 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /여벌/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /젖|땀/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /갈아입|상의/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "마스크 미언급(미세먼지·꽃가루 근거 없음)",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}
