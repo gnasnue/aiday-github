@@ -1,0 +1,1812 @@
+{
+  "label": "aha-final3",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-26T18:44:57.198Z",
+  "results": [
+    {
+      "id": "S01",
+      "title": "이슈 경합 — 천식 5세 (폭염+미세먼지 나쁨+자외선 강함)",
+      "focus": "우선순위: 호흡기 아이는 미세먼지가 1순위여야",
+      "expects": [
+        "미세먼지×호흡기 민감 연결이 중심 (질병명 없이)",
+        "야외활동 조정 또는 마스크",
+        "폭염·자외선은 부차적"
+      ],
+      "latencyMs": 5324,
+      "output": {
+        "hook": "미세먼지 나쁨 — 등원길 마스크 챙겨 보내주세요",
+        "message": "오늘 **미세먼지**와 **초미세먼지**가 모두 **나쁨**이에요.\n호흡기가 민감한 준호는 아침 **등원**길부터 노출이 시작되니, 증상 생기고 나서가 아니라 현관에서 미리 **마스크**를 씌워 보내는 게 필요해요.\n**야외활동**(11~12시반)은 짧게 줄이고, 자외선도 **강함**이라 그늘 위주로 다녀오면 좋아요.",
+        "checklist": [
+          "😷 마스크",
+          "🧢 모자",
+          "🧴 선크림",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "마스크"
+          ],
+          "야외활동": [
+            "마스크",
+            "모자",
+            "선크림"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "178자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "178자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "26자: 미세먼지 나쁨 — 등원길 마스크 챙겨 보내주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"미세먼지 나쁨\" / 행동 \"등원길 마스크 챙겨 보내주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "미세먼지 나쁨"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "16자: 등원길 마스크 챙겨 보내주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S02",
+      "title": "이슈 경합 — 무특이 7세 (S01과 동일 환경)",
+      "focus": "개인화 쌍: 같은 환경, 특이사항 없음 → 판단이 S01과 달라야",
+      "expects": [
+        "폭염·자외선 중심 (미세먼지는 무특이 아이 기준 재평가)",
+        "S01과 다른 우선순위·행동"
+      ],
+      "latencyMs": 6810,
+      "output": {
+        "hook": "낮 최고 34도 — 야외활동은 그늘 위주 짧게 해주세요",
+        "message": "오늘 **야외활동**(**11~12시반**) 구간은 **33도**에 **자외선 강함**까지 겹치고 **하원**(**16시**) 때는 **34도**로 더 올라가요.\n서연이는 체온 민감도가 보통이라도 정오 전후 최고치 구간에 그대로 노출되면 땀 배출이 급격히 늘어날 수 있어, 오늘은 그늘 확보가 관건이에요.\n선크림은 야외활동 나서기 전 미리 발라주고, 물통은 활동 내내 옆에 둘 수 있게 챙겨주세요.",
+        "checklist": [
+          "🧴 선크림",
+          "🧢 모자",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "야외활동": [
+            "선크림",
+            "모자",
+            "물통"
+          ],
+          "하원": [
+            "물통"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "222자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "222자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "30자: 낮 최고 34도 — 야외활동은 그늘 위주 짧게 해주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 최고 34도\" / 행동 \"야외활동은 그늘 위주 짧게 해주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 최고 34도"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "19자: 야외활동은 그늘 위주 짧게 해주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S03",
+      "title": "무난한 날 — 무특이 4세, 이슈 없음",
+      "focus": "억지 이슈 생성 금지: 문제없는 날 무엇을 말하나",
+      "expects": [
+        "없는 문제를 만들지 않음",
+        "안심문장(~는 괜찮아요) 없음",
+        "그래도 오늘 결정에 유용한 한마디"
+      ],
+      "latencyMs": 4287,
+      "output": {
+        "hook": "모처럼 무난한 날 — 가벼운 옷차림이면 충분해요",
+        "message": "오늘은 걱정할 환경이 없는 맑은 날씨예요.\n지우는 특별히 신경 쓸 지표가 없으니 편하게 활동하기 좋은 날이에요.\n**야외활동**(11시~12:30) 전후로 **물통**만 챙겨 보내주세요.",
+        "checklist": [
+          "💧 물통",
+          "👕 여벌 옷",
+          "🧢 모자"
+        ],
+        "prep": {}
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "104자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "104자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "26자: 모처럼 무난한 날 — 가벼운 옷차림이면 충분해요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"모처럼 무난한 날\" / 행동 \"가벼운 옷차림이면 충분해요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "모처럼 무난한 날"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "14자: 가벼운 옷차림이면 충분해요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S04",
+      "title": "강수확률 40% — 우산 절제",
+      "focus": "규칙 준수: 40~50%는 '혹시 몰라' 한마디까지만",
+      "expects": [
+        "우산을 필수로 권하지 않음",
+        "비가 리포트의 중심 이슈가 아님"
+      ],
+      "latencyMs": 5203,
+      "output": {
+        "hook": "하원 무렵 비 소식 — 가방에 우산 챙겨 보내주세요",
+        "message": "**하원**(**16:00**) 시간대는 **흐림, 비 올 수도** 있는 날씨예요.\n특이사항 없는 도윤이는 오늘 큰 걱정은 없지만, 낮 동안 **27~28°C**로 올라가는 만큼 하원길에 비까지 맞으면 부모님 마중이 늦어질 때 몸이 식기 쉬워요.\n등원 가방에 접이식 **우산** 하나만 넣어 보내주세요.",
+        "checklist": [
+          "☂️ 우산",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "하원": [
+            "우산"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "169자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "169자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "28자: 하원 무렵 비 소식 — 가방에 우산 챙겨 보내주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"하원 무렵 비 소식\" / 행동 \"가방에 우산 챙겨 보내주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "하원 무렵 비 소식"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "15자: 가방에 우산 챙겨 보내주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S05",
+      "title": "등원 시간 소나기 80% → 오후 갬",
+      "focus": "시간대 정확성: 우산은 등원에, 오후는 갬을 인지",
+      "expects": [
+        "등원 시간대에 우산·비 안내",
+        "하원을 비 오는 시간처럼 말하지 않음"
+      ],
+      "latencyMs": 6000,
+      "output": {
+        "hook": "등원길 소나기 80% — 우산과 여벌 옷 챙겨주세요",
+        "message": "**등원**(**08:30**) 시간대 **소나기 확률 80%**로 비 맞을 가능성이 커요.\n하은이는 특이체질은 없지만 이 시간대에 비를 맞으면 **야외활동**(11시) 전까지 옷이 덜 마른 채로 활동하게 될 수 있어 여벌이 필요해요.\n**우산**과 함께 **여벌 옷 한 벌**을 가방에 넣어 보내고, 등원길 신발은 방수되는 걸로 골라주세요.",
+        "checklist": [
+          "☂️ 우산",
+          "👕 여벌 옷",
+          "👟 방수 신발",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "우산",
+            "여벌 옷",
+            "방수 신발"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "191자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "191자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "28자: 등원길 소나기 80% — 우산과 여벌 옷 챙겨주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"등원길 소나기 80%\" / 행동 \"우산과 여벌 옷 챙겨주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "등원길 소나기 80%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "14자: 우산과 여벌 옷 챙겨주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "title": "16개월 영아 × 초미세먼지 매우나쁨",
+      "focus": "연령 규칙: 24개월 미만 마스크 금지 → 외출 조정으로",
+      "expects": [
+        "마스크를 권하지 않음(체크리스트 포함)",
+        "외출 자제·실내 대체·시간 단축 안내"
+      ],
+      "latencyMs": 5358,
+      "output": {
+        "hook": "통합대기 매우나쁨 — 야외활동 11시는 실내 놀이로 바꿔주세요",
+        "message": "오늘 **초미세먼지**가 **매우나쁨**까지 올라 통합대기도 최악 등급이에요.\n서아는 아직 마스크를 씌우기 어려운 나이라, **야외활동**(**11~12시**)은 밖에서 채우기보다 실내 놀이로 바꿔주시는 게 좋아요.\n꼭 나가야 한다면 짧게, 그늘·실내 위주 동선으로만 다녀와 주세요.",
+        "checklist": [
+          "🧸 실내 놀이거리",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "야외활동": [
+            "실내놀이",
+            "물통"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "158자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "158자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "34자: 통합대기 매우나쁨 — 야외활동 11시는 실내 놀이로 바꿔주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"통합대기 매우나쁨\" / 행동 \"야외활동 11시는 실내 놀이로 바꿔주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "통합대기 매우나쁨"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "22자: 야외활동 11시는 실내 놀이로 바꿔주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "24개월 미만 마스크 미권장",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S07",
+      "title": "아토피+땀 많음+더위 탐 × 폭염·고습",
+      "focus": "개인화: 체질(땀→피부 자극) 연결 판단",
+      "expects": [
+        "땀·습도→피부 자극 연결 (질병명 없이)",
+        "여벌 옷·씻기 등 구체 행동",
+        "민감도(더위 탐)가 반영된 강도"
+      ],
+      "latencyMs": 5981,
+      "output": {
+        "hook": "낮 33도 폭염 — 야외활동 뒤 상의부터 갈아입혀 주세요",
+        "message": "**야외활동**(**11시~12시30분**) 시간대 **33°C**에 습도 **80%**까지 겹쳐 땀이 옷에서 잘 마르지 못하는 날이에요.\n더위를 많이 타고 땀도 매우 많은 민준이는 젖은 옷이 그대로 붙어 있으면 피부 자극으로 이어지기 쉬워서, 활동 직후 갈아입히는 타이밍이 관건이에요.\n하의는 크게 안 젖으니 여벌은 **상의 1장**이면 충분하고, 자외선도 **강함**이라 나가기 전 **선크림**을 미리 발라 보내주세요.",
+        "checklist": [
+          "👕 여벌 상의",
+          "🧴 선크림",
+          "💧 물통",
+          "🧢 모자"
+        ],
+        "prep": {
+          "야외활동": [
+            "여벌 상의",
+            "선크림",
+            "모자"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "237자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "237자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "31자: 낮 33도 폭염 — 야외활동 뒤 상의부터 갈아입혀 주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 33도 폭염\" / 행동 \"야외활동 뒤 상의부터 갈아입혀 주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 33도 폭염"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "20자: 야외활동 뒤 상의부터 갈아입혀 주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S08",
+      "title": "일교차 13도 × 추위 많이 타는 아이",
+      "focus": "개인화: 민감도가 옷차림 판단을 바꾸는가",
+      "expects": [
+        "일교차 대응(겉옷) 중심",
+        "추위 민감을 반영한 안내(남들 기준보다 따뜻하게 등)"
+      ],
+      "latencyMs": 5149,
+      "output": {
+        "hook": "일교차 10도 — 옷 기준은 등원 16도에 맞춰주세요",
+        "message": "오늘 **등원**(**08:30**) **16°C**에서 **하원**(**16:00**) **26°C**까지 하루 동안 10도가 벌어져요.\n낮에 더우면 벗기면 되지만 아침에 안 입힌 옷은 입힐 수 없어서, 추위를 많이 타는 윤아는 오늘 옷 기준을 등원 기온에 맞춰 한 겹 더 입혀 보내는 게 좋아요.\n겉옷은 **지퍼**로 골라주시면 낮에 선생님이 벗기기 편해요.",
+        "checklist": [
+          "🧥 지퍼 겉옷",
+          "👕 여벌 옷",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "지퍼 겉옷"
+          ],
+          "하원": [
+            "여벌 옷"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "202자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "202자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "29자: 일교차 10도 — 옷 기준은 등원 16도에 맞춰주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"일교차 10도\" / 행동 \"옷 기준은 등원 16도에 맞춰주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "일교차 10도"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "19자: 옷 기준은 등원 16도에 맞춰주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S09",
+      "title": "꽃가루 매우높음 × 비염 8세",
+      "focus": "체질×환경 직결 케이스의 완성도",
+      "expects": [
+        "꽃가루×호흡기 민감 중심 (질병명 없이)",
+        "마스크·코 세척 등 구체 행동",
+        "등원 전 타이밍"
+      ],
+      "latencyMs": 4947,
+      "output": {
+        "hook": "꽃가루 매우높음 — 등원길부터 마스크 씌워주세요",
+        "message": "오늘 **꽃가루**가 **매우높음**까지 올라요.\n호흡기가 민감한 지호는 재채기나 기침이 시작된 뒤 마스크를 씌우면 늦어요 — **등원**(**08:30**)길부터 미리 씌워 보내는 게 핵심이에요.\n**하원**(**16:00**) 후엔 겉옷을 현관에서 벗겨주세요, 꽃가루가 옷에 붙어 집 안까지 따라 들어와요.",
+        "checklist": [
+          "😷 마스크",
+          "🧢 모자",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "마스크"
+          ],
+          "야외활동": [
+            "마스크"
+          ],
+          "하원": [
+            "마스크"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "173자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "173자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "26자: 꽃가루 매우높음 — 등원길부터 마스크 씌워주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"꽃가루 매우높음\" / 행동 \"등원길부터 마스크 씌워주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "꽃가루 매우높음"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "15자: 등원길부터 마스크 씌워주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S10",
+      "title": "꽃가루 매우높음 × 무특이 8세 (S09 쌍)",
+      "focus": "개인화 쌍: 무특이 아이에게 꽃가루를 어느 강도로 다루나",
+      "expects": [
+        "S09보다 낮은 강도(호흡기 민감 전제 행동 없음)",
+        "그래도 매우높음은 무시하지 않음"
+      ],
+      "latencyMs": 10362,
+      "output": {
+        "hook": "꽃가루 매우높음 — 하원 가방에 마스크 챙겨주세요",
+        "message": "오늘 **꽃가루**가 최고 **매우높음**까지 올라가는 날이에요.\n특이사항은 없지만 8세 수아도 하루 종일 맑고 바람 잘 통하는 야외에서 뛰어놀면 꽃가루에 노출되는 시간이 길어져요.\n**야외활동**(**11~12시반**) 전 마스크를 씌우고, **하원** 후엔 겉옷을 현관에서 벗겨 방 안까지 따라 들어오지 않게 해주세요.",
+        "checklist": [
+          "😷 마스크",
+          "🧢 모자",
+          "💧 물통"
+        ],
+        "prep": {
+          "야외활동": [
+            "마스크",
+            "모자"
+          ],
+          "하원": [
+            "마스크"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "180자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "180자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "27자: 꽃가루 매우높음 — 하원 가방에 마스크 챙겨주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"꽃가루 매우높음\" / 행동 \"하원 가방에 마스크 챙겨주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "꽃가루 매우높음"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "16자: 하원 가방에 마스크 챙겨주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S11",
+      "title": "주말(토) × 폭염+자외선 매우강함",
+      "focus": "요일 인지: 등원·하원 없이 나들이 맥락",
+      "expects": [
+        "등원·하원 언급 없음",
+        "주말 나들이·외출 리듬에 맞춘 안내"
+      ],
+      "latencyMs": 5316,
+      "output": {
+        "hook": "낮 33도 폭염 — 야외활동은 11시대로 짧게 끝내주세요",
+        "message": "오늘 **야외활동**(**11시~12시30분**) 시간대 기온이 **33°C**, 자외선은 **매우강함**까지 올라가는 폭염 구간이에요.\n체온 민감도가 보통인 아윤이도 이 정도 더위에선 그늘 없이 오래 놀면 무리가 갈 수 있어 활동을 짧게 끊어주는 게 좋아요.\n**선크림**은 나가기 전 미리 발라두고, **모자**와 **물통**은 활동 시작부터 챙겨주세요.",
+        "checklist": [
+          "🧴 선크림",
+          "🧢 모자",
+          "💧 물통",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "야외활동": [
+            "선크림",
+            "모자",
+            "물통"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "200자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "200자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "31자: 낮 33도 폭염 — 야외활동은 11시대로 짧게 끝내주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 33도 폭염\" / 행동 \"야외활동은 11시대로 짧게 끝내주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 33도 폭염"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "20자: 야외활동은 11시대로 짧게 끝내주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "주말: 등원·하원 미언급",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S12",
+      "title": "일과 미입력 × 오후 소나기 70%",
+      "focus": "일정 규칙: 등원 시각을 지어내지 않고 아침/낮/저녁으로",
+      "expects": [
+        "등원·하원 단어 없음",
+        "'오후' 등 시간대 표현으로 비 안내"
+      ],
+      "latencyMs": 7101,
+      "output": {
+        "hook": "오후 소나기 70% — 낮 외출엔 우산 챙겨주세요",
+        "message": "**낮 3시**쯤 **소나기** 확률이 **70%**까지 올라 갑작스레 쏟아질 수 있어요.\n이안이는 체온 민감도가 평범한 편이라 비 자체보다 비에 젖은 뒤 그대로 있는 시간이 관건이라, 흠뻑 젖으면 갈아입힐 옷이 있는 게 중요해요.\n**오전**~**낮** 이른 시간에 외출을 마치고, 혹시 나갈 일 있으면 **우산**과 **여벌 옷** 챙겨 보내주세요.",
+        "checklist": [
+          "☂️ 우산",
+          "👕 여벌 옷",
+          "💧 물통"
+        ],
+        "prep": {}
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "197자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "197자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "27자: 오후 소나기 70% — 낮 외출엔 우산 챙겨주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"오후 소나기 70%\" / 행동 \"낮 외출엔 우산 챙겨주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "오후 소나기 70%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "14자: 낮 외출엔 우산 챙겨주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "일과없음: 등원·하원 미언급",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "E-AHA-1",
+      "title": "aha 시점 교차 — 알레르기 × 아침 비 → 하원 맑음 × 꽃가루 높음",
+      "focus": "비가 꽃가루를 씻었다가 그친 뒤 재비산 — 우산은 등원, 마스크는 하원",
+      "expects": [
+        "우산은 등원길",
+        "마스크는 하원·오후 대비로 시점 교차",
+        "그친 뒤 재비산 메커니즘"
+      ],
+      "latencyMs": 5688,
+      "output": {
+        "hook": "강수확률 60% — 우산은 등원길, 마스크는 하원길이에요",
+        "message": "**등원**(**08:30**)길 **비**가 **60%**로 예보돼 **우산**부터 챙겨주세요.\n비가 그친 뒤 낮 동안 마르면서 꽃가루가 다시 날리는데, 꽃가루·먼지에 민감한 유나는 오히려 맑아지는 **하원**(**17:00**)길이 조심 구간이에요.\n**마스크**는 아침 가방이 아니라 하원용으로 챙겨, 알림장에 '하원 때 씌워주세요' 한 줄 남겨두세요.",
+        "checklist": [
+          "☂️ 우산",
+          "😷 마스크",
+          "👕 여벌 옷"
+        ],
+        "prep": {
+          "등원": [
+            "우산"
+          ],
+          "하원": [
+            "마스크"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "200자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "200자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "31자: 강수확률 60% — 우산은 등원길, 마스크는 하원길이에요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"강수확률 60%\" / 행동 \"우산은 등원길, 마스크는 하원길이에요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "강수확률 60%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "20자: 우산은 등원길, 마스크는 하원길이에요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /우산/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /하원|오후/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /마스크/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /그친|다시|마르/",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "E-AHA-2",
+      "title": "aha 지표 상호작용 — 피부 민감·땀 매우 많음 × 32°C 습도 85%",
+      "focus": "더위 자체가 아니라 증발 못 한 땀·젖은 옷이 문제 — 처방은 갈아입히기",
+      "expects": [
+        "기온×습도 결합 해석",
+        "젖은 옷·땀 메커니즘",
+        "여벌·갈아입히기 실행"
+      ],
+      "latencyMs": 5081,
+      "output": {
+        "hook": "낮 32도 습도 85% — 야외활동 뒤 상의부터 갈아입혀 주세요",
+        "message": "오늘 **야외활동**(11~12:30) 시간대는 **32°C**에 습도 **85%**라 땀이 잘 마르지 않는 날이에요.\n땀이 매우 많고 피부까지 예민한 리아는 젖은 옷이 그대로 피부에 붙어 있는 시간이 길어지는 게 더위 자체보다 문제예요.\n여벌은 **상의 1장**이면 충분하니, 활동 끝나고 바로 갈아입혀 주세요.",
+        "checklist": [
+          "👕 여벌 상의",
+          "🧻 물수건",
+          "🧴 보습제",
+          "💧 물통"
+        ],
+        "prep": {
+          "야외활동": [
+            "여벌 상의",
+            "물수건"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "175자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "175자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "35자: 낮 32도 습도 85% — 야외활동 뒤 상의부터 갈아입혀 주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"낮 32도 습도 85%\" / 행동 \"야외활동 뒤 상의부터 갈아입혀 주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "낮 32도 습도 85%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "20자: 야외활동 뒤 상의부터 갈아입혀 주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /여벌/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /젖|땀/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /갈아입|상의/",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "E-AHA-3",
+      "title": "aha 판단 원리 — 추위 많이 탐 × 등원 12°C → 하원 22°C",
+      "focus": "되돌림 비대칭: 옷 기준은 낮 최고가 아니라 아이가 바깥에 서는 등원 기온",
+      "expects": [
+        "등원·아침 기온이 기준",
+        "한 겹 더/기준을 명시",
+        "지퍼·벗기기 실행 디테일"
+      ],
+      "latencyMs": 4912,
+      "output": {
+        "hook": "일교차 10도 — 옷 기준은 아침 12도에 맞춰주세요",
+        "message": "낮 **22°C**만 보면 얇게 입혀도 될 것 같은 날이에요.\n하지만 추위를 많이 타는 건우가 실제로 밖에 서 있는 시간은 **등원**길 **12°C**고, 낮에 더우면 벗기면 되지만 아침에 안 입힌 옷은 되돌릴 수 없어요.\n겉옷은 단추보다 **지퍼**로 챙겨주세요, 낮에 선생님이 벗기기 쉬워요.",
+        "checklist": [
+          "🧥 지퍼 겉옷",
+          "👕 여벌 옷",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "지퍼 겉옷"
+          ],
+          "하원": [
+            "여벌 옷"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "166자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "166자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "29자: 일교차 10도 — 옷 기준은 아침 12도에 맞춰주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"일교차 10도\" / 행동 \"옷 기준은 아침 12도에 맞춰주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "일교차 10도"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "19자: 옷 기준은 아침 12도에 맞춰주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /등원|아침/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /기준|맞춰|한 겹|되돌리|안 입힌/",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "키워드군 /지퍼|벗기/",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "E-AHA-4",
+      "title": "aha 음성 대조 — 무특이 × 전 지표 좋음·보통 (억지 aha 금지)",
+      "focus": "aha 압박이 무난한 날 억지 통찰·안심 문장을 만들지 않는가",
+      "expects": [
+        "안심 문장 없음",
+        "없는 문제를 만들지 않음",
+        "가볍게 보내는 결론"
+      ],
+      "latencyMs": 4144,
+      "output": {
+        "hook": "모처럼 무난한 날 — 얇은 옷차림으로 가볍게 보내주세요",
+        "message": "오늘은 걱정할 환경이 없어요.\n**등원** **22°C**에서 **하원** **26°C**까지 크게 오르지 않아서, 다온이는 여벌이나 겉옷 없이도 가볍게 하루를 보낼 수 있어요.\n**야외활동**(**11시~12시30분**) 전엔 **물통**만 챙겨 보내주세요.",
+        "checklist": [
+          "💧 물통",
+          "👕 반팔 옷",
+          "🧢 모자"
+        ],
+        "prep": {}
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "145자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "145자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "30자: 모처럼 무난한 날 — 얇은 옷차림으로 가볍게 보내주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"모처럼 무난한 날\" / 행동 \"얇은 옷차림으로 가볍게 보내주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "모처럼 무난한 날"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "18자: 얇은 옷차림으로 가볍게 보내주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "금지어 /괜찮|필수 아니|안심/ 없음",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}
