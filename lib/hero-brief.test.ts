@@ -15,6 +15,8 @@ import {
   buildAiChecklist,
   prepNeedles,
   headlineLines,
+  discomfortIndex,
+  TEMP_RANGE_WARN,
 } from "./hero-brief";
 
 // 히어로 Decision Brief 파생 규칙 회귀 방지.
@@ -348,11 +350,137 @@ const slot = (over: Partial<EvidenceSlot> = {}): EvidenceSlot => ({
   uv: "보통",
   wind: "약함",
   humidity: 55,
+  // 22°는 더위(불쾌지수 계산 하한 24°)·추위(0°) 어느 쪽도 발동하지 않는 중립 기온이다.
+  temp: 22,
   ...over,
 });
 
 /** 06~21시 3시간 예보 기온 6점 */
 const TEMPS = [24, 27, 30, 31, 29, 26];
+
+/* ============================================================
+   더위·추위·일교차 warn 승격
+   2026-07-27 결함 회귀 고정: pill이 "낮 31도 고습"이라 그날의 1순위 조건을 말하는데
+   카드는 뉴트럴(= DESIGN.md 정의상 "특이사항 없음")로 렌더됐다. 더위·고습이 히어로 warn
+   어휘에 아예 없었기 때문 — 시간대별 환경 카드·outdoor-index·건강팁은 모두 이상 신호로
+   다루던 지표였다. 임계는 outdoor-index decisiveDeterrent에서 차용했다.
+   ============================================================ */
+
+describe("discomfortIndex — 기상청 불쾌지수", () => {
+  it("기온 24° 미만에서는 계산하지 않는다 — 서늘하고 습한 날을 더위로 오인하지 않는다", () => {
+    expect(discomfortIndex(20, 90)).toBeNull();
+    expect(discomfortIndex(23.9, 100)).toBeNull();
+  });
+
+  it("결측(기온·습도 없음)이면 null", () => {
+    expect(discomfortIndex(null, 70)).toBeNull();
+    expect(discomfortIndex(30, null)).toBeNull();
+    expect(discomfortIndex(30, 0)).toBeNull();
+  });
+
+  it("공식대로 계산한다 — outdoor-index와 같은 식", () => {
+    // 0.81·30 + 0.01·70·(0.99·30 − 14.3) + 46.3 = 24.3 + 0.7·15.4 + 46.3 = 81.38
+    expect(discomfortIndex(30, 70)).toBeCloseTo(81.38, 2);
+  });
+});
+
+describe("buildHeroEvidence — 더위·추위", () => {
+  it("2026-07-27 제보 재현: 32°·고습이면 caution + 더위 칩 (종전엔 normal + 뉴트럴 pill)", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: 32, humidity: 70 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.state).toBe("caution");
+    expect(r.issueLabels).toContain("더위");
+    expect(r.evidence.find((e) => e.label === "더위")).toMatchObject({
+      value: "매우 심함",
+      tone: "warn",
+    });
+  });
+
+  it("습도가 낮아도 기온 33°↑는 더위 매우 심함 (폭염 단독 경로)", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: 34, humidity: 30 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.evidence.find((e) => e.label === "더위")?.value).toBe("매우 심함");
+    expect(r.state).toBe("caution");
+  });
+
+  it("불쾌지수 76~79는 '심함' 한 단계 아래", () => {
+    // 28°·65% → 0.81·28 + 0.01·65·(0.99·28 − 14.3) + 46.3 = 22.68 + 0.65·13.42 + 46.3 = 77.7
+    const r = buildHeroEvidence({
+      slot: slot({ temp: 28, humidity: 65 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.evidence.find((e) => e.label === "더위")?.value).toBe("심함");
+  });
+
+  it("서늘하고 습한 날은 더위가 아니다 — 습도 ≥80% 무조건 warn을 택하지 않은 이유", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: 19, humidity: 92 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.issueLabels).not.toContain("더위");
+  });
+
+  it("더위는 칩 하나로만 센다 — 폭염과 고온다습이 겹쳐도 issueCount가 부풀지 않는다", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: 35, humidity: 85 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.issueLabels.filter((l) => l === "더위")).toHaveLength(1);
+  });
+
+  it("기온 0°↓는 추위 심함", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: -3, humidity: 55 }),
+      hourlyTemps: [-5, -3, 0, 1, -1, -4],
+      hasAiHook: true,
+    });
+    expect(r.issueLabels).toContain("추위");
+    expect(r.state).toBe("caution");
+  });
+
+  it("기온이 결측이면 더위·추위를 만들지 않는다 — 결측을 판정으로 위장하지 않는다", () => {
+    const r = buildHeroEvidence({
+      slot: slot({ temp: null, humidity: 90 }),
+      hourlyTemps: TEMPS,
+      hasAiHook: true,
+    });
+    expect(r.issueLabels).not.toContain("더위");
+    expect(r.issueLabels).not.toContain("추위");
+  });
+});
+
+describe("buildHeroEvidence — 일교차 warn 승격", () => {
+  it(`일교차 ${TEMP_RANGE_WARN}°↑는 warn 칩이 되고 카드가 caution이 된다`, () => {
+    const r = buildHeroEvidence({
+      slot: slot(),
+      hourlyTemps: [18, 22, 26, 27, 24, 19], // 27 − 18 = 9
+      hasAiHook: true,
+    });
+    expect(r.evidence.find((e) => e.label === "일교차")).toMatchObject({
+      value: "9°",
+      tone: "warn",
+    });
+    expect(r.state).toBe("caution");
+  });
+
+  it("임계 미달(7°)은 뉴트럴 칩 그대로 — 무난한 날 칩 공급이 끊기지 않는다", () => {
+    const r = buildHeroEvidence({ slot: slot(), hourlyTemps: TEMPS, hasAiHook: true });
+    expect(r.evidence.find((e) => e.label === "일교차")).toMatchObject({
+      value: "7°",
+      tone: "neutral",
+    });
+    expect(r.state).toBe("normal");
+  });
+});
 
 describe("tempRangeOf — 일교차 표본", () => {
   it("최고−최저를 반올림해 돌려준다", () => {
@@ -392,6 +520,11 @@ describe("buildHeroEvidence — 불변식", () => {
       slot({ wind: "강함" }),
       slot({ humidity: 25 }),
       slot({ pty: 1, pop: 80 }),
+      // 2026-07-27 승격분 — 새 신호도 같은 불변식 아래 둔다. 이게 빠지면 "이슈를 말하는
+      // pill + 뉴트럴 카드"가 다시 생긴다.
+      slot({ temp: 32, humidity: 70 }), // 고온다습
+      slot({ temp: 34, humidity: 30 }), // 폭염 단독
+      slot({ temp: -3 }), // 한파
     ];
     for (const s of cases) {
       const r = buildHeroEvidence({ slot: s, hourlyTemps: TEMPS, hasAiHook: true });

@@ -22,6 +22,11 @@ import {
   buildAiChecklist,
   buildHeroEvidence,
   pickPrimaryPrep,
+  discomfortIndex,
+  DI_WARN,
+  DI_SEVERE,
+  HEAT_SEVERE_TEMP,
+  COLD_SEVERE_TEMP,
 } from "@/lib/hero-brief";
 import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
@@ -265,6 +270,15 @@ const slotNotables = (slot: HomeTimeSlot, conditions: string[] = []): string[] =
 
   if (slot.humidity > 0 && slot.humidity <= 40) warn.push("건조");
   else if (watchDry && slot.humidity > 0 && slot.humidity <= 50) watch.push("건조 주의");
+
+  // 더위·추위 — 히어로 warn 어휘와 **같은 임계**를 쓴다(lib/hero-brief.ts 상단 주석 참조).
+  // 히어로만 더위·고습을 모르던 결함(2026-07-27)을 고치면서 두 곳을 함께 개정했다 —
+  // 한쪽만 바뀌면 "히어로는 더위 경고 / 시간대 카드 특이사항엔 더위 없음"으로 다시 갈린다.
+  const di = discomfortIndex(slot.temp, slot.humidity);
+  if ((di != null && di >= DI_SEVERE) || slot.temp >= HEAT_SEVERE_TEMP) warn.push("더위 매우 심함");
+  else if (di != null && di >= DI_WARN) warn.push("더위 심함");
+
+  if (slot.temp <= COLD_SEVERE_TEMP) warn.push("추위 심함");
 
   return warn.length > 0 ? warn : watch.slice(0, 1);
 };
@@ -1317,7 +1331,14 @@ const Home = () => {
     if (/꽃가루/.test(ctx)) return "꽃가루";
     if (/자외선/.test(ctx)) return "자외선";
     if (/바람/.test(ctx)) return "바람";
-    if (/건조|습도/.test(ctx)) return "습도";
+    if (/건조/.test(ctx)) return "습도";
+    // 더위·추위 — AI가 pill에 "낮 31도 고습"·"폭염"처럼 더위를 1순위로 꼽는 날이 잦다.
+    // 종전엔 이 갈래가 없어 그 칩을 앞으로 올릴 수 없었고, warn 어휘에도 더위가 없어서
+    // 카드가 뉴트럴로 남았다(2026-07-27). "습함/습도"는 더위 쪽으로 붙인다 — 건조와 달리
+    // 고습은 단독 지표가 아니라 불쾌지수(더위)로 판정하기 때문이다.
+    if (/폭염|더위|무더|고온|더운|습/.test(ctx)) return "더위";
+    if (/한파|추위|추운|영하/.test(ctx)) return "추위";
+    if (/일교차/.test(ctx)) return "일교차";
     return null;
   })();
 
@@ -1353,6 +1374,11 @@ const Home = () => {
     자외선: "uv",
     바람: "cold",
     습도: "temp",
+    // heat·cold 아이콘은 HeroDecisionBrief에 처음부터 정의돼 있었지만 매핑이 없어 한 번도
+    // 쓰이지 않았다 — 더위·추위가 warn 어휘에 없었기 때문이다(2026-07-27 승격과 함께 배선).
+    더위: "heat",
+    추위: "cold",
+    일교차: "temp",
   };
   const heroIssue: HeroIssue | undefined =
     heroSt === "caution"

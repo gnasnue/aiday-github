@@ -323,6 +323,12 @@ export type EvidenceSlot = {
   uv: string;
   wind: string;
   humidity: number;
+  /**
+   * 슬롯 기온(°C). 더위·추위 판정에 쓴다 — **선택 필드로 두지 않는다**: 빠뜨리면 신호가
+   * 조용히 사라져 "이슈를 말하는 pill + 뉴트럴 카드"가 다시 만들어진다(2026-07-27).
+   * 체감이 아니라 기온을 받는다 — 습도 몫은 아래 불쾌지수가 담당하므로 체감을 쓰면 이중 계산이다.
+   */
+  temp: number | null;
 };
 
 export type HeroEvidenceInput = {
@@ -380,6 +386,36 @@ export function tempRangeOf(temps: readonly (number | null | undefined)[] = []):
  * 멀쩡한데 warn만 1개인 날까지 행을 통째로 숨기면 주의색 카드에 근거가 사라진다. 그래서
  * caution에서만 하한을 1로 둔다. 결측·평상·폴백은 명세대로 2를 유지한다.
  */
+/* ---- 더위·추위·일교차 임계 ------------------------------------------------
+   전부 **이미 앱에 있던 값을 차용**한다. 새 숫자를 만들지 않는 이유: 이 카드의 warn 어휘가
+   다른 화면과 어긋난 것이 애초의 결함이었다(2026-07-27 — 히어로만 더위·고습을 몰라서
+   pill이 "낮 31도 고습"이라 말하는데 카드는 뉴트럴, 즉 "특이사항 없음"이었다).
+     · DI_WARN 76 / DI_SEVERE 80 / HEAT_SEVERE_TEMP 33 / COLD_SEVERE_TEMP 0
+       → lib/outdoor-index.ts decisiveDeterrent가 "좋음" 라벨을 막는 데 쓰는 것과 같은 값
+     · TEMP_RANGE_WARN 8 → DESIGN.md 2026-07-26이 임계까지 적어두고 보류한 값
+   임계를 바꿀 때는 outdoor-index·slotNotables와 **함께** 바꿔야 한다. */
+/** 불쾌지수 warn — 기상청 기준 75~80이 "다수 불쾌"이며, env 습도 '매우습함'(>75%) 경계와 맞물린다. */
+export const DI_WARN = 76;
+/** 불쾌지수 severe — 80↑ "전원 불쾌". */
+export const DI_SEVERE = 80;
+export const HEAT_SEVERE_TEMP = 33;
+export const COLD_SEVERE_TEMP = 0;
+/** 일교차 warn(°C). */
+export const TEMP_RANGE_WARN = 8;
+
+/**
+ * 기상청 불쾌지수 — `DI = 0.81T + 0.01·RH·(0.99T − 14.3) + 46.3`.
+ * `lib/outdoor-index.ts`와 같은 식·같은 임계를 쓴다(그 화면과 판정이 갈리지 않게).
+ *
+ * **기온 24°C 미만에서는 계산하지 않는다.** 그래서 "고습"은 더운 날에만 신호가 된다 —
+ * 서늘하고 습한 날(가을 비 온 뒤 습도 85% 등)을 더위로 오인하지 않기 위함이고, 이것이
+ * 습도 ≥80%를 무조건 warn으로 칠하는 시간대별 환경 카드 대신 불쾌지수를 택한 이유다.
+ */
+export function discomfortIndex(temp: number | null, humidity: number | null): number | null {
+  if (temp == null || humidity == null || humidity <= 0 || temp < 24) return null;
+  return 0.81 * temp + 0.01 * humidity * (0.99 * temp - 14.3) + 46.3;
+}
+
 export function buildHeroEvidence(input: HeroEvidenceInput): HeroEvidenceResult {
   const { slot, hourlyTemps = [], ctxIssue = null, hasAiHook } = input;
 
@@ -390,7 +426,13 @@ export function buildHeroEvidence(input: HeroEvidenceInput): HeroEvidenceResult 
 
   const range = tempRangeOf(hourlyTemps);
   if (range != null) {
-    measures.push({ label: "일교차", value: `${range}°`, tone: "neutral", priority: 20 });
+    // 일교차 8°C↑는 warn — 아침에 안 입힌 옷은 낮에 입힐 수 없어서 옷 기준을 바꾸는 신호다.
+    // DESIGN.md 2026-07-26이 "heroState 판정을 바꾸는 별건"으로 보류했던 승격(2026-07-27 승인).
+    if (range >= TEMP_RANGE_WARN) {
+      issues.push({ label: "일교차", value: `${range}°`, tone: "warn", priority: 8 });
+    } else {
+      measures.push({ label: "일교차", value: `${range}°`, tone: "neutral", priority: 20 });
+    }
   }
 
   if (slot) {
@@ -424,6 +466,22 @@ export function buildHeroEvidence(input: HeroEvidenceInput): HeroEvidenceResult 
     }
     if (slot.humidity > 0 && slot.humidity <= 40) {
       issues.push({ label: "습도", value: `${slot.humidity}%`, tone: "warn", priority: 5 });
+    }
+
+    // 더위 — 기온 단독(폭염)과 고온다습(불쾌지수)을 **하나의 신호로 합친다**.
+    // outdoor-index가 heatPenalty·diPenalty 중 큰 값만 적용해 중복 감점을 막는 것과 같은 이유:
+    // 같은 더위를 칩 두 개로 세면 issueCount가 부풀고 칩 행(상한 2개)이 더위로 다 찬다.
+    // 값은 등급 표기만 쓴다 — 기온 수치 칩은 우상단 기준값 블록과 중복이라 DESIGN.md가 금지한다.
+    const di = discomfortIndex(slot.temp, slot.humidity);
+    if ((di != null && di >= DI_SEVERE) || (slot.temp != null && slot.temp >= HEAT_SEVERE_TEMP)) {
+      issues.push({ label: "더위", value: "매우 심함", tone: "warn", priority: 6 });
+    } else if (di != null && di >= DI_WARN) {
+      issues.push({ label: "더위", value: "심함", tone: "warn", priority: 6 });
+    }
+
+    // 추위 — 임계는 outdoor-index의 decisiveDeterrent와 같은 0°C.
+    if (slot.temp != null && slot.temp <= COLD_SEVERE_TEMP) {
+      issues.push({ label: "추위", value: "심함", tone: "warn", priority: 7 });
     }
   }
 
