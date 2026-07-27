@@ -177,6 +177,15 @@ describe("canonicalPrep", () => {
     expect(canonicalPrep("자외선차단제")).toBe("선크림");
     expect(canonicalPrep("실내 놀이거리")).toBe("실내놀이");
     expect(canonicalPrep("여벌옷")).toBe("여벌 옷");
+    expect(canonicalPrep("여벌 티셔츠")).toBe("여벌 상의");
+  });
+
+  // "여벌 옷"과 "여벌 상의"는 표기 변형이 아니라 챙길 양이 다른 처방이다 — 별칭으로
+  // 병합하면 비 오는 날 하의·양말까지 필요한 상황이 "상의 1장"으로 뭉개진다 (2026-07-27).
+  it("'여벌 옷'과 '여벌 상의'는 서로 다른 표준명으로 남는다", () => {
+    expect(canonicalPrep("여벌 옷")).toBe("여벌 옷");
+    expect(canonicalPrep("여벌 상의")).toBe("여벌 상의");
+    expect(canonicalPrepList(["여벌 옷", "여벌 상의"])).toEqual(["여벌 옷", "여벌 상의"]);
   });
 
   it("미등록 이름은 trim만 하고 그대로 통과한다", () => {

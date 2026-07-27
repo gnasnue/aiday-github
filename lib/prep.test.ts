@@ -53,7 +53,7 @@ describe("buildPrepKeywords — 우산", () => {
 });
 
 // 보습제 회귀 방지 — 2026-07-20 실사용 지적: 습도 80~90% 여름 아침 등원 카드에
-// 피부 민감 체질 상시 신호가 "보습제"를 띄우고(85점), 실제 유효한 여벌 옷(58)을 밀어냄.
+// 피부 민감 체질 상시 신호가 "보습제"를 띄우고(85점), 실제 유효한 여벌(58)을 밀어냄.
 describe("buildPrepKeywords — 보습제", () => {
   const skin = ["피부 민감 (아토피, 건조)"];
 
@@ -66,8 +66,8 @@ describe("buildPrepKeywords — 보습제", () => {
     expect(buildPrepKeywords(slot({ humidity: 55 }), null, skin, true)).toContain("보습제");
   });
 
-  it("체질 상시 신호는 급성 날씨 신호(여벌 옷 등)를 밀어내지 않는다", () => {
-    // 고온다습(땀 신호) + 강수 예비 신호 슬롯: 우산(55)·여벌 옷(58)이 보습제 상시(52)보다 앞선다
+  it("체질 상시 신호는 급성 날씨 신호(여벌 등)를 밀어내지 않는다", () => {
+    // 고온다습(땀 신호) + 강수 예비 신호 슬롯: 우산(55)·여벌(58)이 보습제 상시(52)보다 앞선다
     const kws = buildPrepKeywords(
       slot({ temp: 29, humidity: 75, pop: 45, popWindow: 45 }),
       null,
@@ -79,6 +79,43 @@ describe("buildPrepKeywords — 보습제", () => {
 
   it("건조(습도 45% 미만)는 체질과 무관한 날씨 신호로 보습제를 낸다", () => {
     expect(buildPrepKeywords(slot({ humidity: 40 }), null)).toContain("보습제");
+  });
+});
+
+// 여벌 어휘 — 2026-07-27 실측: 케어 플랜 칩(규칙)은 "여벌 옷", 오늘 챙길 것 체크리스트(AI)는
+// "여벌 상의"라 한 화면에서 같은 물건을 다르게 불렀다. 두 이름은 챙길 양이 다른 처방이라
+// 별칭 병합 대신 규칙 엔진이 AI와 같은 기준으로 가른다. 기준은 v25 eval 실측에서 도출:
+// AI는 **땀 체질 아이 × 비 없는 날**에만 "여벌 상의"를 쓰고 그 외엔 "여벌 옷"을 쓴다
+// (docs/report-eval/aha-* 9개 파일, sweat=very-much 시나리오 2개에서만 상의).
+describe("buildPrepKeywords — 여벌 이름은 AI와 같은 기준으로 가른다", () => {
+  const sweatKid = (over = {}) =>
+    buildPrepKeywords(slot({ temp: 30, humidity: 80, ...over }), null, [], false, true);
+
+  it("땀 체질 × 비 없는 날이면 '여벌 상의' — 젖는 원인이 땀이라 하의까진 안 젖는다", () => {
+    expect(sweatKid()).toContain("여벌 상의");
+  });
+
+  it("땀 체질이 아니면 같은 고온·고습이라도 '여벌 옷' — AI도 이 경우 옷으로 쓴다", () => {
+    const kws = buildPrepKeywords(slot({ temp: 30, humidity: 80 }), null);
+    expect(kws).toContain("여벌 옷");
+    expect(kws).not.toContain("여벌 상의");
+  });
+
+  it("땀 체질이어도 비 확정 신호가 겹치면 '여벌 옷' — 하의·양말까지 젖는다", () => {
+    expect(sweatKid({ pop: 70, popWindow: 70 })).toContain("여벌 옷");
+    expect(sweatKid({ pty: 1 })).toContain("여벌 옷");
+    expect(sweatKid({ pop: 10, rainWindow: true })).toContain("여벌 옷");
+  });
+
+  it("강수 예비 신호(창 40~50%)로는 이름을 부풀리지 않는다 — 우산 확정 기준과 동일", () => {
+    const kws = sweatKid({ pop: 45, popWindow: 45 });
+    expect(kws).toContain("여벌 상의");
+    expect(kws).not.toContain("여벌 옷");
+  });
+
+  it("땀·더위 체질이면 완화된 임계값(26°C·60%)에서도 낸다", () => {
+    expect(buildPrepKeywords(slot({ temp: 26, humidity: 60 }), null, [], false, true)).toContain("여벌 상의");
+    expect(buildPrepKeywords(slot({ temp: 26, humidity: 60 }), null)).not.toContain("여벌 상의");
   });
 });
 
@@ -113,9 +150,10 @@ describe("isCriticalPrep — 긴급도 기반 강조", () => {
     expect(isCriticalPrep("선크림", slot({ uv: "강함" }), ["아토피"])).toBe(true);
   });
 
-  it("쾌적·보조 준비물(보습제·여벌 옷 등)은 강조하지 않는다", () => {
+  it("쾌적·보조 준비물(보습제·여벌 등)은 강조하지 않는다", () => {
     expect(isCriticalPrep("보습제", slot({ humidity: 30 }))).toBe(false);
     expect(isCriticalPrep("여벌 옷", slot({ temp: 30, humidity: 80 }))).toBe(false);
+    expect(isCriticalPrep("여벌 상의", slot({ temp: 30, humidity: 80 }))).toBe(false);
   });
 
   it("실내놀이(마스크 대체 신호)는 마스크와 같은 환경 근거로 강조한다", () => {
