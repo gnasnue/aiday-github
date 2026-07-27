@@ -7,7 +7,7 @@ import { ageInMonths, canRecommendMask, conditionsForPrompt, sensitivityPhrase, 
 import { kstNow } from "@/lib/kma-time";
 import { checkReportRateLimit } from "@/lib/rate-limit";
 import { pollenLevelOf } from "@/lib/timeline";
-import { isMaskJustified, MASK_PATTERN, sanitizeReportPayload, type ReportPayload } from "@/lib/report-sanitize";
+import { applyTextStyleGates, isMaskJustified, MASK_PATTERN, sanitizeReportPayload, type ReportPayload } from "@/lib/report-sanitize";
 
 // 이 라우트는 Claude 생성을 SSE로 스트리밍한다. 콜드 스타트 + 게이트웨이 연결 +
 // 생성 완료까지 걸리는 시간이 Vercel 함수 기본 타임아웃에 근접하면, done 이벤트가
@@ -411,10 +411,15 @@ export async function POST(req: NextRequest) {
     // 출력 정합성을 결정적으로 강제한다(lib/report-sanitize.ts): 마스크 정책(근거·연령,
     // checklist·prep 항목 제거 + 근거 없는 본문 언급 줄 제거) + prep⊆checklist.
     // 프롬프트 강화 후에도 모델이 규칙을 어기는지 추적하도록 사유별 관측 로그를 남긴다.
-    const { payload, maskAction, maskTextDropped, droppedPrep } = sanitizeReportPayload(base, {
+    const { payload, maskAction, maskTextDropped, styleTextActions, droppedPrep } = sanitizeReportPayload(base, {
       maskJustified,
       maskAllowedForAge,
     });
+    // 2026-07-27 표면 재계약 잔존 누수 방어 — 메타 비교("자체보다")·hook 반복 절삭 내역.
+    // 이 로그가 잦아지면 프롬프트(규칙·예시)가 다시 새는 것이다.
+    if (styleTextActions.length > 0) {
+      perfLog("style_text_gated", ` · 본문 스타일 수술: ${styleTextActions.join(", ")}`);
+    }
     if (maskAction === "removed") perfLog("mask_stripped", " · 미세먼지·꽃가루 정상인데 AI가 마스크 권함 → 제거");
     else if (maskAction === "downgraded") perfLog("mask_to_indoor", " · 만 2세 미만인데 AI가 마스크 권함 → 실내놀이 대체");
     // 2026-07-27 사고 재발 방어 — 근거 없는 날 본문의 마스크 언급(부정·안심 형태 포함)은
@@ -494,6 +499,7 @@ export async function POST(req: NextRequest) {
       let acc = "";
       let sentHook = false;
       let sentMessage = false;
+      let streamedHook = ""; // message 방출 게이트의 hook 반복 드라이런에 쓴다
       // 계측 마커 (epoch ms) — received는 상위 스코프. 미도달 시점은 0.
       let tStreamStart = 0;
       let tFirstDelta = 0;
@@ -532,9 +538,12 @@ export async function POST(req: NextRequest) {
               const hook = extractField(acc, "hook");
               if (hook !== null) {
                 sentHook = true;
+                streamedHook = hook;
                 tHook = Date.now(); // 완성된 hook 추출·전송 시점
                 if (!maskJustified && MASK_PATTERN.test(hook)) {
                   perfLog("hook_mask_withheld", " · 근거 없는 마스크 언급 — hook 스트림 방출 보류");
+                } else if (applyTextStyleGates(hook, "").hook !== hook) {
+                  perfLog("hook_style_withheld", " · 메타 비교 구문 — hook 스트림 방출 보류");
                 } else {
                   send("hook", hook);
                 }
@@ -546,6 +555,9 @@ export async function POST(req: NextRequest) {
                 sentMessage = true;
                 if (!maskJustified && MASK_PATTERN.test(message)) {
                   perfLog("message_mask_withheld", " · 근거 없는 마스크 언급 — message 스트림 방출 보류");
+                } else if (applyTextStyleGates(streamedHook, message).message !== message) {
+                  // 메타 비교·hook 반복이 담긴 message는 조기 방출하지 않는다 — done의 수술본만 전달
+                  perfLog("message_style_withheld", " · 본문 스타일 위반 — message 스트림 방출 보류");
                 } else {
                   send("message", message);
                 }

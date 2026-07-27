@@ -1,0 +1,272 @@
+{
+  "label": "s06-probe-2",
+  "base": "http://localhost:3000",
+  "ranAt": "2026-07-27T10:42:27.812Z",
+  "results": [
+    {
+      "id": "S05",
+      "title": "등원 시간 소나기 80% → 오후 갬",
+      "focus": "시간대 정확성: 우산은 등원에, 오후는 갬을 인지",
+      "expects": [
+        "등원 시간대에 우산·비 안내",
+        "하원을 비 오는 시간처럼 말하지 않음"
+      ],
+      "latencyMs": 5184,
+      "output": {
+        "hook": "강수확률 80% — 등원 가방에 우산 챙겨주세요",
+        "message": "**등원**(**08:30**) 시간대에 **소나기 확률**이 **80%**까지 올라 비를 피하기 어려운 아침이에요.\n특이사항 없는 하은이는 비 자체보다 젖은 신발이나 옷으로 하루를 보내는 게 더 불편할 수 있어요.\n작은 우산과 여벌 양말을 가방에 넣어두면 등원길이 한결 편해요.",
+        "checklist": [
+          "☂️ 우산",
+          "👕 여벌 옷",
+          "🧦 여벌 양말",
+          "💧 물통"
+        ],
+        "prep": {
+          "등원": [
+            "우산",
+            "여벌 양말"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "156자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "156자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "26자: 강수확률 80% — 등원 가방에 우산 챙겨주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"강수확률 80%\" / 행동 \"등원 가방에 우산 챙겨주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "강수확률 80%"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "15자: 등원 가방에 우산 챙겨주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook↔message 반복 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "메타 비교 구문 없음(자체보다·보다 중요)",
+          "result": "FAIL",
+          "detail": "\"이사항 없는 하은이는 비 자체보다 젖은 신발이나 옷으로 하\""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "4개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "시점 단정 없음(일 단위·현재값 지표)",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "준비물 총량 한정 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "마스크 미언급(미세먼지·꽃가루 근거 없음)",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    },
+    {
+      "id": "S06",
+      "title": "16개월 영아 × 초미세먼지 매우나쁨",
+      "focus": "연령 규칙: 24개월 미만 마스크 금지 → 외출 조정으로",
+      "expects": [
+        "마스크를 권하지 않음(체크리스트 포함)",
+        "외출 자제·실내 대체·시간 단축 안내"
+      ],
+      "latencyMs": 5337,
+      "output": {
+        "hook": "통합대기 매우나쁨 — 야외활동은 짧게 줄여주세요",
+        "message": "오늘 **초미세먼지**가 **매우나쁨**까지 올라 한낮 공기가 많이 탁한 날이에요.\n아직 돌 지난 지 얼마 안 된 서아는 마스크를 씌우기 어려운 나이라, 공기가 나쁠 땐 노출 시간 자체를 줄이는 게 유일한 보호예요.\n**야외활동**(**11~12시**)은 그늘 위주로 짧게만 다녀오고, 가능하면 실내 놀이로 대체해주세요.",
+        "checklist": [
+          "🧸 실내 놀이거리",
+          "🧢 모자",
+          "💧 물통"
+        ],
+        "prep": {
+          "야외활동": [
+            "실내놀이",
+            "모자"
+          ]
+        }
+      },
+      "checks": [
+        {
+          "name": "message 존재",
+          "result": "PASS",
+          "detail": "179자"
+        },
+        {
+          "name": "message ≤ 250자",
+          "result": "PASS",
+          "detail": "179자"
+        },
+        {
+          "name": "message 3줄 역할 구조",
+          "result": "PASS",
+          "detail": "3줄"
+        },
+        {
+          "name": "이름은 2번째 줄에만",
+          "result": "PASS",
+          "detail": "줄 2"
+        },
+        {
+          "name": "hook ≤ 40자",
+          "result": "PASS",
+          "detail": "26자: 통합대기 매우나쁨 — 야외활동은 짧게 줄여주세요"
+        },
+        {
+          "name": "hook 2절 구조(대시 구분)",
+          "result": "PASS",
+          "detail": "조건 \"통합대기 매우나쁨\" / 행동 \"야외활동은 짧게 줄여주세요\""
+        },
+        {
+          "name": "① 조건절 = 지표 + 등급·수치",
+          "result": "PASS",
+          "detail": "통합대기 매우나쁨"
+        },
+        {
+          "name": "② 행동절 ≥ 12자",
+          "result": "PASS",
+          "detail": "14자: 야외활동은 짧게 줄여주세요"
+        },
+        {
+          "name": "자외선 수치 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook↔message 반복 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "메타 비교 구문 없음(자체보다·보다 중요)",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "안심문장 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "checklist 3~4개",
+          "result": "PASS",
+          "detail": "3개"
+        },
+        {
+          "name": "질병명 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "좋음·보통 등급 미언급",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "시점 단정 없음(일 단위·현재값 지표)",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook에 40~50% 강수 미노출",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "hook 아이템 ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "prep ⊆ checklist",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "준비물 총량 한정 없음",
+          "result": "PASS",
+          "detail": ""
+        },
+        {
+          "name": "24개월 미만 마스크 미권장",
+          "result": "PASS",
+          "detail": ""
+        }
+      ]
+    }
+  ]
+}
