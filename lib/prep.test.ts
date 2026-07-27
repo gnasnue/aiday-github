@@ -52,6 +52,36 @@ describe("buildPrepKeywords — 우산", () => {
   });
 });
 
+// 모자 회귀 방지 — 2026-07-27 지적: 모자가 31°C 이상 조건 **안에** 들어 있어
+// 24°C·자외선 매우강함인 봄·가을 날엔 선크림만 뜨고 모자는 아예 나오지 않았다.
+// 모자의 목적은 햇빛 차단이므로 판정 근거는 기온이 아니라 자외선이다.
+describe("buildPrepKeywords — 모자", () => {
+  it("기온이 폭염권이 아니어도 자외선 강함 이상이면 모자를 낸다", () => {
+    expect(buildPrepKeywords(slot({ temp: 24, uv: "매우강함" }), null)).toContain("모자");
+    expect(buildPrepKeywords(slot({ temp: 24, uv: "강함" }), null)).toContain("모자");
+  });
+
+  it("자외선 대비는 모자와 선크림이 함께 나온다 — 한쪽만 남지 않는다", () => {
+    const kws = buildPrepKeywords(slot({ temp: 24, uv: "매우강함" }), null);
+    expect(kws).toContain("모자");
+    expect(kws).toContain("선크림");
+  });
+
+  it("폭염이면 자외선이 보통이어도 직사광 차단으로 모자를 낸다 (종전 동작 유지)", () => {
+    expect(buildPrepKeywords(slot({ temp: 33, uv: "보통" }), null)).toContain("모자");
+  });
+
+  it("자외선 낮음(저녁 등)이면 폭염이라도 모자를 내지 않는다", () => {
+    const kws = buildPrepKeywords(slot({ temp: 33, uv: "낮음" }), null);
+    expect(kws).toContain("물통");
+    expect(kws).not.toContain("모자");
+  });
+
+  it("자외선이 보통 이하이고 폭염도 아니면 모자를 내지 않는다", () => {
+    expect(buildPrepKeywords(slot({ temp: 24, uv: "보통" }), null)).not.toContain("모자");
+  });
+});
+
 // 보습제 회귀 방지 — 2026-07-20 실사용 지적: 습도 80~90% 여름 아침 등원 카드에
 // 피부 민감 체질 상시 신호가 "보습제"를 띄우고(85점), 실제 유효한 여벌(58)을 밀어냄.
 describe("buildPrepKeywords — 보습제", () => {

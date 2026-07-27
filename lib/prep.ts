@@ -50,10 +50,20 @@ export function buildPrepKeywords(
     out.push({ keyword: "우산", priority: 55 });
   }
 
-  // 폭염권 기온 — 모자는 햇빛 차단 목적이므로 자외선이 낮은 시간대(저녁 등)엔 제외
+  // 폭염권 기온
   if (slot.temp >= 31) {
     out.push({ keyword: "물통", priority: 90 });
-    if (slot.uv !== "낮음") out.push({ keyword: "모자", priority: 60 });
+  }
+
+  // 모자 — 목적은 햇빛 차단이므로 판정 기준은 자외선이다. 두 경로로 발화한다:
+  //  - 자외선 강함 이상: 기온과 무관. 종전엔 31°C 이상 조건 **안에** 있어서 24°C·자외선
+  //    매우강함인 봄·가을 날엔 모자가 아예 나오지 않았다(2026-07-27 지적). 선크림은
+  //    같은 조건에서 발화하므로 한 화면에서 자외선 대비가 반쪽만 남았다.
+  //  - 폭염(31°C 이상) + 자외선 낮음 아님: 자외선이 보통이어도 폭염엔 직사광 차단이
+  //    필요하다. 종전 동작을 유지하는 경로 — 위 조건 분리로 빠지지 않게 함께 둔다.
+  const uvStrong = slot.uv === "강함" || slot.uv === "매우강함";
+  if (uvStrong || (slot.temp >= 31 && slot.uv !== "낮음")) {
+    out.push({ keyword: "모자", priority: 60 });
   }
   // 한파권 기온
   if (slot.temp <= 0) {
@@ -101,8 +111,9 @@ export function buildPrepKeywords(
     out.push({ keyword: "마스크", priority: 55 });
   }
 
-  // 자외선 (민감 피부면 우선순위 상향)
-  if (slot.uv === "강함" || slot.uv === "매우강함") {
+  // 자외선 (민감 피부면 우선순위 상향). 모자와 같은 uvStrong을 쓴다 — 두 준비물이
+  // 같은 근거에서 나오므로 조건이 갈리면 한쪽만 뜨는 결함이 재발한다.
+  if (uvStrong) {
     out.push({ keyword: "선크림", priority: hasSkin ? 85 : 65 });
   }
 
