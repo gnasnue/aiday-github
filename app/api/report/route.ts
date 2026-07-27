@@ -248,9 +248,26 @@ export async function POST(req: NextRequest) {
   // ── 환경 요약 ──────────────────────────────────────────────
   // 수치(μg/m³)는 프롬프트에 넣지 않는다 — 등급이 판단 정보의 전부이고,
   // 입력에 숫자가 있으면 hook/message로 샐 위험만 있다 (자외선과 동일 원칙).
-  const airSummary = air
-    ? `미세먼지(PM10) ${gradeLabel(air.pm10Grade)}, 초미세먼지(PM2.5) ${gradeLabel(air.pm25Grade)}, 통합대기 ${gradeLabel(air.khaiGrade)}`
-    : "대기질 데이터 없음";
+  // 좋음·보통(등급 3 미만)도 넣지 않는다 — 입력에 등급 단어가 있으면 프롬프트의 언급 금지
+  // 규칙을 넘어 "미세먼지도 좋음이라 걱정할 환경이 없는" 류 근거 나열로 샌다
+  // (uvSummary의 강함 미만 미표기와 동일 원칙, 2026-07-27 eval E-AHA-4 재발).
+  const airBadParts = air
+    ? (
+        [
+          ["미세먼지(PM10)", air.pm10Grade],
+          ["초미세먼지(PM2.5)", air.pm25Grade],
+          ["통합대기", air.khaiGrade],
+        ] as Array<[string, number | null]>
+      )
+        .filter(([, g]) => g != null && g >= 3)
+        .map(([label, g]) => `${label} ${gradeLabel(g)}`)
+    : null;
+  const airSummary =
+    airBadParts == null
+      ? "대기질 데이터 없음"
+      : airBadParts.length > 0
+        ? airBadParts.join(", ")
+        : "대기질 특이사항 없음";
 
   // 자외선지수(UVI) → 라벨 (홈 시간대 카드와 동일 임계값). 하루 최고값은 피크 시각과
   // 함께 요약하고, 일정별 줄에도 해당 시각 등급을 넣는다 — 최고값 숫자만 주면 모델이
@@ -292,8 +309,14 @@ export async function POST(req: NextRequest) {
     ? [pollen.oak, pollen.pine, pollen.weed].filter((v): v is number => v != null)
     : [];
   const pollenMax = pollenVals.length ? Math.max(...pollenVals) : null;
+  // 높음(2) 미만이면 등급을 넣지 않는다 — airSummary와 동일 원칙("꽃가루 낮음"이 입력에
+  // 있으면 무난한 날 근거 나열로 샌다). 임계값은 마스크 근거 게이트(isMaskJustified)와 동일.
   const pollenSummary =
-    pollenMax != null ? `꽃가루 오늘 최고 ${pollenLevelOf(pollenMax)}` : "꽃가루 데이터 없음";
+    pollenMax == null
+      ? "꽃가루 데이터 없음"
+      : pollenMax >= 2
+        ? `꽃가루 오늘 최고 ${pollenLevelOf(pollenMax)}`
+        : "꽃가루 특이사항 없음";
 
   // ── 아이 프로필 ─────────────────────────────────────────────
   const genderLabel = child.gender === "male" ? "남아" : child.gender === "female" ? "여아" : "미지정";

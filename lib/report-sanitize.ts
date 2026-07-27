@@ -26,7 +26,8 @@ import { canonicalPrep } from "./prep-vocab";
  *     · hook: 한 줄이라 부분 제거가 불가능 → 통째로 비운다. 홈 히어로는 hook이 비면
  *       message 첫 줄을 헤드라인으로 쓴다.
  *     · 근거가 있으면 영아여도 언급은 허용 — "쓰기 어려운 나이라" 설명은 정당한 문장이다.
- *  ③ 본문 스타일 게이트 — 메타 비교 부가어("자체보다") 제거 + hook 행동을 되풀이하는
+ *  ③ 본문 스타일 게이트 — 메타 비교 부가어("자체보다") 제거 + 좋음·보통 등급 언급 수술
+ *     ("미세먼지도 좋음이라" 부가절 제거, 2026-07-27 E-AHA-4 재발) + hook 행동을 되풀이하는
  *     message 줄 절삭(히어로가 hook과 message를 한 카드에 렌더하므로 반복=같은 말 두 번).
  *  ④ prep ⊆ checklist — 케어 플랜 칩(prep)이 "오늘 챙길 것"(checklist)에 없는 아이템을
  *     내보내면 화면이 자기모순된다. checklist를 진실원으로 삼아 어긋난 칩을 제거한다(#131 R4).
@@ -81,6 +82,19 @@ const itemName = (entry: string): string =>
 export const stripMetaComparison = (text: string): string =>
   text.replace(/[가-힣0-9·%°C]{1,8} ?자체(보다|가 아니라) ?(더 )?/g, "").replace(/ {2,}/g, " ");
 
+/**
+ * 문제없는 등급 언급 감지 — "미세먼지도 좋음이라", "자외선은 보통이니" 류.
+ * scripts/eval-report.mjs의 '좋음·보통 등급 미언급' 검사와 동일 패턴(변경 시 함께 갱신).
+ * 나쁨·높음 등 문제 등급은 매치하지 않으므로 정당한 경고 문장은 건드리지 않는다.
+ */
+const GRADE_MENTION =
+  /(자외선|미세먼지|초미세먼지|꽃가루|통합대기|대기질)[^\n.!?]{0,12}(보통|좋음|낮음|적정)/;
+// 부가어 수술이 가능한 형태 — 등급 뒤에 연결어미(이라/이니/이고/이어서/인 데다)가 붙어
+// 절 전체를 지워도 문장이 성립하는 경우만. "자외선은 보통이에요"처럼 등급이 서술어인
+// 문장은 수술 불가 → 줄 제거로 폴백.
+const GRADE_ADJUNCT =
+  /(?:자외선|미세먼지|초미세먼지|꽃가루|통합대기|대기질)[은는도만]?\s?\*{0,2}(?:보통|좋음|낮음|적정)\*{0,2}(?:이라|이니|이고|이어서|인 데다)\s?/g;
+
 const dupNorm = (t: string): string =>
   t.replace(/\*\*|__/g, "").replace(/'[^']*'|‘[^’]*’/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
 const dupBigrams = (t: string): Set<string> => {
@@ -126,6 +140,39 @@ export const applyTextStyleGates = (
   if (outHook !== hook) actions.push("meta-comparison:hook");
   let outMessage = stripMetaComparison(message);
   if (outMessage !== message) actions.push("meta-comparison:message");
+
+  // ── 좋음·보통 등급 언급 수술 ────────────────────────────────
+  // "미세먼지도 좋음이라 걱정할 환경이 없는 날이에요" → 부가절만 지우고 문장을 살린다.
+  // 수술 후에도 언급이 남으면(등급이 서술어인 문장) 줄 제거로 폴백 — 유일한 줄이면 유지.
+  if (GRADE_MENTION.test(outHook)) {
+    const trimmedHook = outHook.replace(GRADE_ADJUNCT, "").replace(/ {2,}/g, " ").trim();
+    if (!GRADE_MENTION.test(trimmedHook)) {
+      outHook = trimmedHook;
+      actions.push("grade-mention:hook-trimmed");
+    } else {
+      outHook = "";
+      actions.push("grade-mention:hook-dropped");
+    }
+  }
+  const gradeGated: string[] = [];
+  const msgLines = outMessage.split("\n");
+  for (const line of msgLines) {
+    if (!GRADE_MENTION.test(line)) {
+      gradeGated.push(line);
+      continue;
+    }
+    const trimmed = line.replace(GRADE_ADJUNCT, "").replace(/ {2,}/g, " ").trim();
+    if (!GRADE_MENTION.test(trimmed) && trimmed.length >= 12) {
+      gradeGated.push(trimmed);
+      actions.push("grade-mention:clause-trimmed");
+    } else if (msgLines.length > 1) {
+      actions.push("grade-mention:line-dropped"); // 줄 제거
+    } else {
+      gradeGated.push(line); // 유일한 줄이면 유지(빈 본문 방지) — 관측만
+      actions.push("grade-mention:kept-sole-line");
+    }
+  }
+  if (gradeGated.filter((l) => l.trim()).length > 0) outMessage = gradeGated.join("\n");
 
   const act = hookActionOf(outHook);
   const lines = outMessage.split("\n");

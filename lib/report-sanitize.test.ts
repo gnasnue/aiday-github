@@ -190,6 +190,32 @@ describe("본문 스타일 게이트 — ③", () => {
     expect(message).toBe(line);
   });
 
+  it("좋음 등급 부가절을 지워도 문장이 성립한다 (E-AHA-4 실사례)", () => {
+    const { message, actions } = applyTextStyleGates(
+      "모처럼 무난한 날 — 가볍게 반팔로 보내주세요",
+      "오늘은 **22~26°C**를 오가는 **맑음**에 미세먼지도 **좋음**이라 걱정할 환경이 없는 날이에요.\n특이사항 없는 다온이는 여벌을 챙기면 짐만 늘어요.\n**야외활동** 전에 **물통**만 챙겨 보내면 충분해요."
+    );
+    expect(actions).toContain("grade-mention:clause-trimmed");
+    expect(message).not.toMatch(/좋음/);
+    expect(message).toMatch(/걱정할 환경이 없는 날이에요/);
+  });
+
+  it("등급이 서술어라 수술 불가한 줄은 제거한다 (다른 줄이 남을 때만)", () => {
+    const { message, actions } = applyTextStyleGates(
+      "모처럼 무난한 날 — 가볍게 보내주세요",
+      "자외선은 **보통**이에요.\n다온이는 가볍게 입어도 충분한 날이에요."
+    );
+    expect(actions).toContain("grade-mention:line-dropped");
+    expect(message).toBe("다온이는 가볍게 입어도 충분한 날이에요.");
+  });
+
+  it("나쁨·높음 등 문제 등급 언급은 건드리지 않는다", () => {
+    const msg = "오늘 **미세먼지**가 **나쁨**까지 올라요.\n하준이는 같은 공기도 크게 와닿아요.\n**물**도 자주 마시게 해주세요.";
+    const out = applyTextStyleGates("미세먼지 나쁨 — 등원길 마스크 챙겨주세요", msg);
+    expect(out.actions).toEqual([]);
+    expect(out.message).toBe(msg);
+  });
+
   it("위반이 없으면 아무것도 바꾸지 않는다", () => {
     const msg = "오늘 **32°C**에 습도 **85%**예요.\n지우는 야외활동 뒤가 문제예요.\n여벌은 상의 1장이면 충분해요.";
     const out = applyTextStyleGates("낮 32도 — 땀 젖은 옷은 바로 갈아입혀 주세요", msg);
