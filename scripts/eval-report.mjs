@@ -182,8 +182,9 @@ export const SCENARIOS = [
   {
     id: "S07",
     title: "아토피+땀 많음+더위 탐 × 폭염·고습",
-    focus: "개인화: 체질(땀→피부 자극) 연결 판단",
-    expects: ["땀·습도→피부 자극 연결 (질병명 없이)", "여벌 옷·씻기 등 구체 행동", "민감도(더위 탐)가 반영된 강도"],
+    focus: "개인화: 체질(땀→피부 자극) 연결 판단 — 단 폭염·고온다습(②)이므로 hook은 안전 수칙이 먼저",
+    expects: ["hook = 활동 조정·수분 등 온열 안전 수칙", "땀·습도→피부 자극 연결 (질병명 없이)", "여벌 옷·씻기 등 구체 행동", "민감도(더위 탐)가 반영된 강도"],
+    hookMust: [/짧게|그늘|실내|물|한낮|무리|시간|더위/],
     payload: {
       evalDate: WEEKDAY,
       child: { name: "민준", age: "3세", gender: "male", conditions: ["아토피"], cold: "normal", hot: "very-much", sweat: "very-much", schedule: SCHEDULE_FULL },
@@ -289,9 +290,10 @@ export const SCENARIOS = [
   },
   {
     id: "E-AHA-2",
-    title: "aha 지표 상호작용 — 피부 민감·땀 매우 많음 × 32°C 습도 85%",
-    focus: "더위 자체가 아니라 증발 못 한 땀·젖은 옷이 문제 — 처방은 갈아입히기",
-    expects: ["기온×습도 결합 해석", "젖은 옷·땀 메커니즘", "여벌·갈아입히기 실행"],
+    title: "고온다습 판정 순위 — 피부 민감·땀 매우 많음 × 32°C 습도 85%",
+    focus: "위험 수준(②)의 고온다습: hook은 안전 수칙(활동 조정·수분)이 1순위, 젖은 옷·여벌은 근거·실행에서",
+    expects: ["hook = 활동 조정·수분 등 온열 안전 수칙", "기온×습도 결합 해석(열을 못 식힘)", "여벌·갈아입히기는 문장2·3에서"],
+    hookMust: [/짧게|그늘|실내|물|한낮|무리|시간|더위/],
     mustMatch: [/여벌/, /젖|땀/, /갈아입|상의/],
     payload: {
       evalDate: WEEKDAY,
@@ -340,8 +342,9 @@ export const SCENARIOS = [
   {
     id: "E-MASK-1",
     title: "마스크 음성 대조 — 호흡기 민감·땀 매우 많음 × 31°C 습도 70% × 미세먼지 좋음",
-    focus: "근거(미세먼지·꽃가루) 없으면 호흡기 민감이라도 마스크를 입에 올리지 않는다 — 부정·안심 형태 포함",
-    expects: ["마스크 단어가 hook·message·checklist·prep 어디에도 없음", "습도×땀 → 통풍·여벌·갈아입히기 처방"],
+    focus: "근거(미세먼지·꽃가루) 없으면 호흡기 민감이라도 마스크를 입에 올리지 않는다 — 부정·안심 형태 포함. 고온다습(②)이므로 hook은 온열 안전 수칙",
+    expects: ["마스크 단어가 hook·message·checklist·prep 어디에도 없음", "hook = 활동 조정·수분", "습도×땀 → 통풍·여벌·갈아입히기는 근거·실행에서"],
+    hookMust: [/짧게|그늘|실내|물|한낮|무리|시간|더위/],
     mustMatch: [/여벌|통풍|갈아입/],
     payload: {
       evalDate: WEEKDAY,
@@ -404,7 +407,7 @@ export const runChecks = (s, r) => {
   // 앞 절 = 1순위 지표명 + 등급·수치. 주의 지표가 없는 날은 "모처럼 무난한 날"류를 허용한다.
   // 예외: 강수확률 40~59%는 우산 절제 규칙이 hook 수치를 금지하므로(수치는 입력에도 없음)
   // "비 소식"류 무수치 강수 언급이 규칙이 정한 유일한 표기다 — 유효한 조건절로 인정한다.
-  const METRIC = /미세먼지|초미세먼지|통합대기|꽃가루|자외선|강수|소나기|비|일교차|폭염|한파|습도|바람|기온|도/;
+  const METRIC = /미세먼지|초미세먼지|통합대기|대기질|꽃가루|자외선|강수|소나기|비|일교차|폭염|한파|습도|바람|기온|도/;
   const GRADE = /좋음|보통|나쁨|매우나쁨|높음|매우높음|낮음|강함|매우강함|폭염|한파|건조/;
   const CALM = /무난|특이사항|걱정할|맑|화창|쾌적/;
   const RAIN_SOFT = /(비|소나기)\s*(소식|올 수도)/;
@@ -579,6 +582,9 @@ export const runChecks = (s, r) => {
   // 아침 12도에 맞춰")가 hook으로 이동하는 것이 정상 동작이 됐다 — 카드 전체로 본다.
   const kwText = `${r.hook ?? ""}\n${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
   for (const re of s.mustMatch ?? []) add(`키워드군 /${re.source}/`, re.test(kwText), "");
+  // hookMust: hook 단독으로 만족해야 하는 키워드 — 위험 수준(②)의 날 hook이 안전 수칙인지
+  // (활동 조정·수분)를 고정한다 (2026-07-27: 고온다습 날 hook이 "갈아입히기"였던 판정 전도).
+  for (const re of s.hookMust ?? []) add(`hook 키워드 /${re.source}/`, re.test(r.hook ?? ""), r.hook ?? "");
   for (const re of s.mustNotMatch ?? []) {
     const m = kwText.match(re);
     add(`금지어 /${re.source}/ 없음`, !m, m ? `"${m[0]}"` : "");
