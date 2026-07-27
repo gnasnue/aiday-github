@@ -19,6 +19,7 @@ import {
   toBrief,
   splitHook,
   splitPrepText,
+  buildAiChecklist,
   buildHeroEvidence,
   pickPrimaryPrep,
 } from "@/lib/hero-brief";
@@ -1172,24 +1173,13 @@ const Home = () => {
   // 이름은 canonicalPrep으로 표준화(물통/물병, 선크림/자외선차단제 등 별칭 통일 — 케어
   // 플랜 칩과 같은 어휘), key도 표준화된 이름 기반이라 목록이 교체돼도 같은 준비물의
   // 체크가 유지된다. 같은 이름이 중복 생성되면 뒤 항목에 인덱스를 붙여 key 충돌을 막는다.
-  const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(() => {
-    if (aiChecklist.length > 0) {
-      const seenKeys = new Map<string, number>();
-      return aiChecklist.map((item) => {
-        // "☂️ 우산" 형태 파싱
-        const match = item.match(/^(\p{Emoji_Presentation}|\p{Emoji}️|[\u{1F300}-\u{1FFFF}]|\S+)\s+(.+)$/u);
-        // icon은 화면에 raw로 렌더링되지 않는다 — 체크리스트 UI는 항상 checklistIcon()을
-        // 거쳐 LineIcon/lucide로 매핑되고, 매칭 실패 시 CircleCheck로 fallback된다.
-        // 이 문자열은 키워드 매칭·텍스트 공유용 데이터로만 쓰인다.
-        const icon = match ? match[1] : "✅";
-        const text = canonicalPrep(match ? match[2] : item);
-        const n = seenKeys.get(text) ?? 0;
-        seenKeys.set(text, n + 1);
-        return { icon, text, key: n === 0 ? text : `${text}-${n}` };
-      });
-    }
-    return baseChecklist;
-  }, [aiChecklist, baseChecklist]);
+  // 파싱·표준화·key 부여는 `buildAiChecklist`(lib/hero-brief.ts) 순수 함수로 옮겼다 —
+  // 인라인이던 시절 정규식의 `\S+` 대안이 이모지 없는 항목의 첫 단어를 아이콘으로 먹어
+  // "여벌 상의"를 "상의"로 렌더했고, 화면 JSX 안이라 유닛 테스트로 잡을 수 없었다.
+  const activeChecklist: { icon: string; text: string; key: string }[] = useMemo(
+    () => (aiChecklist.length > 0 ? buildAiChecklist(aiChecklist) : baseChecklist),
+    [aiChecklist, baseChecklist]
+  );
 
 
   // ── 하루 케어 플랜 "지금" 판정 — 슬롯 시각 ±W 밴드 ──────────────────────
