@@ -30,7 +30,14 @@ export interface Recommendation {
 
 // 규칙 기반 추천의 시간대 판정에 필요한 필드만 추린 최소 형태.
 // 홈의 실측 슬롯(HomeTimeSlot)과 mock(TimeSlot) 양쪽을 모두 받기 위한 구조적 타입.
-type RecoSlot = Pick<TimeSlot, "wind" | "pollen" | "dust" | "humidity">;
+// 강수 필드는 HomeTimeSlot에만 있고 mock TimeSlot엔 없어 선택 필드로 둔다 —
+// 여벌의 이름을 젖는 원인별로 가르는 데만 쓰고, 없으면 땀 기준(상의)으로 판정한다.
+type RecoSlot = Pick<TimeSlot, "wind" | "pollen" | "dust" | "humidity"> & {
+  pty?: number | null;
+  pop?: number | null;
+  popWindow?: number | null;
+  rainWindow?: boolean;
+};
 
 // slots: 체크리스트·메시지의 근거가 되는 시간대 데이터. 홈은 실측 슬롯을 넘겨
 // 상단 칩(실측)과 어긋나지 않게 한다. 미지정 시 weather.timeline(mock 포함)으로 폴백.
@@ -106,14 +113,24 @@ export function buildRecommendation(
     itemRecommends.push("**보습제**");
   }
 
-  // 땀 대비 여벌 옷 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요.
+  // 땀 대비 여벌 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요.
   // 케어 플랜(buildPrepKeywords)과 같은 신호·임계값(땀·더위 체질이면 완화)을 써
   // 상단 체크리스트와 시간대 칩이 어긋나지 않게 한다.
   const sweatProne = isSweatProne(profile.hot, profile.sweat);
   if (isSweatWeather(weather.temp, weather.humidity, sweatProne)) {
-    checklist.push({ icon: "👕", text: "여벌 옷 (땀 대비)", key: "여벌옷" });
+    // 이름·사유는 케어 플랜 칩(lib/prep.ts)과 같은 기준으로 — 땀 체질 아이의 땀 체인이
+    // 원인이고 비가 없을 때만 "여벌 상의", 그 외엔 "여벌 옷"(비면 하의·양말까지 젖는다).
+    // 하루 중 한 슬롯이라도 비 확정 신호가 있으면 비로 본다.
+    const rainToday = slots.some((t) => {
+      const w = t.popWindow ?? t.pop;
+      return t.rainWindow === true || (t.pty != null && t.pty > 0) || (w != null && w >= 60);
+    });
+    const topOnly = sweatProne && !rainToday;
+    const label = topOnly ? "여벌 상의" : "여벌 옷";
+    const reason = rainToday ? "비·땀 대비" : "땀 대비";
+    checklist.push({ icon: "👕", text: `${label} (${reason})`, key: label });
     envReasons.push("__덥고 습함__");
-    itemRecommends.push("**여벌 옷**");
+    itemRecommends.push(`**${label}**`);
   }
 
   // 메시지 조합

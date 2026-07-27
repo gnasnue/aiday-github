@@ -24,7 +24,7 @@ export function buildPrepKeywords(
   // 대표 슬롯(하루 첫 슬롯) 여부. 체질 기반 "상시" 키워드(예: 아토피 보습제)는
   // 시간대와 무관한 상수 신호라 이 슬롯에서만 켜, 전 슬롯 반복 노출을 막는다.
   isPrimarySlot = false,
-  // 땀·더위 체질(프로필 hot/sweat). "여벌 옷" 등 땀 대비 준비물의 임계값을 낮춘다.
+  // 땀·더위 체질(프로필 hot/sweat). "여벌 상의" 등 땀 대비 준비물의 임계값을 낮춘다.
   sweatProne = false,
   // 마스크 권장 가능 여부(canRecommendMask) — 24개월 미만이면 false. AI 프롬프트의
   // 동일 규칙과 정렬: 마스크 대신 "실내놀이"(외출 대체) 신호를 낸다.
@@ -60,11 +60,25 @@ export function buildPrepKeywords(
     out.push({ keyword: "방한용품", priority: 90 });
   }
 
-  // 땀 대비 여벌 옷 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요하다.
-  // 상단 AI 리포트가 "27도·습도 높음"에서 여벌 옷을 권하는 신호를 규칙으로 재현.
+  // 땀 대비 여벌 — 고온·고습이면 땀이 차 갈아입힐 옷이 필요하다.
+  // 상단 AI 리포트가 "27도·습도 높음"에서 여벌을 권하는 신호를 규칙으로 재현.
   // 임계값은 상단(buildRecommendation)과 공유하는 isSweatWeather에 단일화돼 있다.
+  //
+  // 이름은 AI 리포트와 같은 기준으로 가른다 — 종전엔 규칙 엔진이 늘 "여벌 옷"이라
+  // 한 화면에서 케어 플랜 칩(규칙)과 체크리스트(AI)가 같은 물건을 다르게 부르던 문제가
+  // 있었다(2026-07-27 실측). 두 이름은 동의어가 아니라 챙길 양이 다른 처방이라
+  // canonicalPrep 별칭으로 합치지 않고 발생 지점에서 맞춘다 — lib/prep-vocab.ts 참조.
+  //
+  // 기준은 v25 eval 실측에서 도출했다(docs/report-eval/aha-* 9개 파일). AI가 "여벌 상의"를
+  // 쓰는 건 **땀 체질 아이의 땀 체인이 그날 처방일 때**뿐이고(sweat=very-much 시나리오 2개,
+  // 매 실행 일관), 땀 체질이 아니면 폭염·비 없는 날에도 "여벌 옷"을 쓴다. few-shot도
+  // 상의 사례(예시 3)의 전제에 "땀 많음"이 들어 있고, 비가 겹친 예시 8은 "여벌 옷"이다.
+  // 즉 상의는 ①땀 체질이고 ②비가 없을 때 — 비가 오면 하의·양말까지 젖어 옷 전체가 필요하다.
   if (isSweatWeather(slot.temp, slot.humidity, sweatProne)) {
-    out.push({ keyword: "여벌 옷", priority: 58 });
+    // 비 판정은 위 우산 **확정** 신호와 같은 기준. 예비 신호(창 40~50%)는 우산도 강조하지
+    // 않는 불확실한 신호라, 그것만으로 상의→옷 전체로 부풀리지 않는다.
+    const rainToo = windowRain || (windowPop != null && windowPop >= 60);
+    out.push({ keyword: sweatProne && !rainToo ? "여벌 상의" : "여벌 옷", priority: 58 });
   }
 
   // 직전 슬롯 대비 기온 급변 (±5°C)
@@ -96,7 +110,7 @@ export function buildPrepKeywords(
   //  - 습도 < 45%: 날씨 기반 신호(상단 건조 임계값과 동일; 종전 ≤40에서 완화). 해당 슬롯마다 노출.
   //  - 민감 피부(아토피 등): 체질 기반 상시 신호. 대표 슬롯에서만, 그리고 습하지 않을 때만.
   //    습도 60% 이상 여름날 "보습제"는 부모에게 비논리로 읽히고(2026-07-20 실사용 지적),
-  //    상수 신호가 급성 날씨 신호(여벌 옷 58 등)를 밀어내지 않도록 우선순위도 그 아래(52)로 둔다.
+  //    상수 신호가 급성 날씨 신호(여벌 58 등)를 밀어내지 않도록 우선순위도 그 아래(52)로 둔다.
   const dry = slot.humidity > 0 && slot.humidity < 45;
   const humid = slot.humidity >= 60;
   if (dry) {
@@ -157,6 +171,6 @@ export function isCriticalPrep(
     case "선크림":
       return slot.uv === "매우강함" || (slot.uv === "강함" && hasSkinCondition(conditions));
     default:
-      return false; // 쾌적·보조 준비물(보습제·여벌 옷·겉옷·모자·바람막이 등)은 중립 칩
+      return false; // 쾌적·보조 준비물(보습제·여벌 옷·여벌 상의·겉옷·모자·바람막이 등)은 중립 칩
   }
 }
