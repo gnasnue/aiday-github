@@ -441,6 +441,54 @@ export const runChecks = (s, r) => {
   const prepKws = [...new Set(Object.values(r.prep ?? {}).flat())];
   const prepMissing = prepKws.filter((kw) => !inText(canonOf(kw), checklistText));
   add("prep ⊆ checklist", prepMissing.length === 0, prepMissing.join(", "));
+  // 준비물 총량 한정 = 카드 자기모순. 부모가 "물통만 챙기면 돼요"를 읽고 바로 아래에서
+  // 체크리스트 3개를 보면 카드가 스스로를 반박한다. v25에서 "덜어내는 결론은 지시형으로"
+  // 규칙이 이 표현을 유도해 빈도가 늘었다(16 시나리오 기준 1건 → 3건, 2026-07-27 PR #172 후속).
+  //
+  // 검사 범위는 hook + message — 부모가 카드에서 함께 읽는 텍스트다. 초기 버전이 message만
+  // 봐서 hook의 "얇은 겉옷 하나만 챙겨주세요"를 통과시켰다(Codex 리뷰 재지적으로 확인).
+  //
+  // 두 패턴을 문장 단위로 본다:
+  //  · A 한정 조사 — "물통만", "여벌 옷 한 벌 정도만" (수식어가 끼어도 잡는다)
+  //  · B 충분 단정 — "겉옷 하나면 끝", "반팔 한 장이면 충분" ("만" 없이 총량을 닫는 형태)
+  // 초기 버전은 "만" 직후 특정 동사만 허용해 "물통만 채워", "물통만 넉넉히 챙겨"를 놓쳤다.
+  // 이제 조사·단정 형태 자체를 보고 동사 목록에 의존하지 않는다.
+  //
+  // 정상으로 통과시키는 것:
+  //  · 위치·대상 조사 — "우산은 등원 가방에만"(에만/에게만/로만/까지만) = 시점·장소 한정
+  //  · 같은 문장에 다른 체크리스트 아이템이 함께 있는 경우 — "아침엔 우산만 챙기고, 마스크는
+  //    하원용으로"가 v25가 노리는 시점 교차 문장이다. 종전엔 message 전체에서 2개를 세어
+  //    범위가 넓었는데(다른 문장에 등장해도 면제), 같은 문장으로 좁혔다.
+  const itemNames = [
+    ...new Set([
+      ...Object.values(ITEM_ALIASES).flat(),
+      ...(r.checklist ?? []).map((c) => c.replace(/[^가-힣\s]/g, "").replace(/\s+/g, " ").trim()),
+    ]),
+  ].filter(Boolean);
+  const QUANT = "(?:하나|한\\s?장|한\\s?벌|한\\s?개|1장|1벌)";
+  const exclusive = `${r.hook ?? ""}\n${r.message ?? ""}`
+    .replace(/\*\*|__/g, "")
+    .split(/[\n.!?]/)
+    .flatMap((sentence) => {
+      // 이 문장이 언급한 체크리스트 아이템 — 2개 이상이면 한정이 아니라 배분이다
+      const inSentence = new Set(
+        itemNames.filter((n) => sentence.includes(n)).map(canonOf)
+      );
+      if (inSentence.size >= 2) return [];
+      return itemNames.flatMap((item) => {
+        const a = sentence.match(new RegExp(`${item}[^,]{0,10}?만(?![은는이가])`));
+        const b = sentence.match(
+          new RegExp(`${item}[^,]{0,6}?${QUANT}(?:면|이면)[^,]{0,8}?(?:충분|끝|돼|되)`)
+        );
+        const hit = [a, b].find((m) => m && !/(에|에게|한테|로|으로|까지)만/.test(m[0]));
+        return hit ? [hit[0].trim()] : [];
+      });
+    })[0];
+  add(
+    "준비물 총량 한정 없음",
+    !exclusive || (r.checklist?.length ?? 0) <= 1,
+    exclusive ? `"${exclusive}" vs checklist ${r.checklist?.length ?? 0}개` : ""
+  );
   // E-AHA 판단 깊이 키워드군 — 시나리오가 지정한 판단 유형(상호작용·시점 교차·실행 디테일)의
   // 흔적이 message+checklist 결합 텍스트에 있는지 AND 판정 (2026-07-27 핸드오프 §4).
   const kwText = `${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
