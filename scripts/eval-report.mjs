@@ -441,6 +441,30 @@ export const runChecks = (s, r) => {
   const prepKws = [...new Set(Object.values(r.prep ?? {}).flat())];
   const prepMissing = prepKws.filter((kw) => !inText(canonOf(kw), checklistText));
   add("prep ⊆ checklist", prepMissing.length === 0, prepMissing.join(", "));
+  // message가 준비물을 하나로 한정("물통만 챙겨")하면 3~4개를 함께 내보내는 checklist와
+  // 어긋나 카드가 자기모순이 된다 — 부모는 "물통만"을 읽고 바로 아래에서 3개를 본다.
+  // v25에서 "덜어내는 결론은 지시형으로" 규칙이 이 표현을 유도해 빈도가 늘었다(16 시나리오
+  // 기준 1건 → 3건, 2026-07-27 PR #172 후속). 시점·장소를 좁히는 "등원 가방에만"은 정상이므로
+  // 위치·대상 조사(에/에게/한테/로/으로)가 붙은 형태는 제외한다.
+  // 단, message가 준비물을 2개 이상 언급하면 그 "만"은 하루 전체가 아니라 시점을 좁힌
+  // 것이므로 정상이다 ("아침엔 우산만 챙기고, 마스크는 하원용으로" — v25가 노리는 시점 교차
+  // 문장이 이 형태다). 모순은 "하나만 필요하다"고 말하면서 3~4개를 내보낼 때만 성립한다.
+  const plainMsg = (r.message ?? "").replace(/\*\*|__/g, "");
+  const itemNames = [
+    ...new Set([
+      ...Object.values(ITEM_ALIASES).flat(),
+      ...(r.checklist ?? []).map((c) => c.replace(/[^가-힣\s]/g, "").replace(/\s+/g, " ").trim()),
+    ]),
+  ].filter(Boolean);
+  const mentioned = new Set(itemNames.filter((n) => plainMsg.includes(n)).map(canonOf));
+  const exclusive = itemNames
+    .map((alias) => plainMsg.match(new RegExp(`${alias}[^.!?\\n]{0,8}?만\\s*(?:챙겨|챙기|넣어|넣고|준비|보내)`)))
+    .find((m) => m && !/(에|에게|한테|로|으로)만/.test(m[0]));
+  add(
+    "준비물 한정 표현 없음",
+    !exclusive || mentioned.size >= 2 || (r.checklist?.length ?? 0) <= 1,
+    exclusive ? `"${exclusive[0]}" vs checklist ${r.checklist?.length ?? 0}개` : ""
+  );
   // E-AHA 판단 깊이 키워드군 — 시나리오가 지정한 판단 유형(상호작용·시점 교차·실행 디테일)의
   // 흔적이 message+checklist 결합 텍스트에 있는지 AND 판정 (2026-07-27 핸드오프 §4).
   const kwText = `${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
