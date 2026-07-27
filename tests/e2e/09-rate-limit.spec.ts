@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
-import { MINIMAL_REPORT_PAYLOAD, mockReport429 } from "./fixtures";
+import {
+  MINIMAL_REPORT_PAYLOAD,
+  mockEnvApisSuccess,
+  mockReport429,
+  mockReportSuccess,
+} from "./fixtures";
 
 /**
  * P0-2 — 게스트 vs 로그인 레이트리밋 차등 동작(429).
@@ -124,4 +129,32 @@ test("TC-RATE-GUEST-CTA(모킹, 회귀용): 게스트 429 화면에 가입 유�
     .soft(signupCta, "BUG-2 회귀: 게스트 429 화면에 가입 유도 문구(\"가입하면 계속 이용\")가 없음")
     .toBeVisible({ timeout: 15_000 });
   await page.screenshot({ path: "screenshots/BUG-2-guest-429-no-signup-cta.png", fullPage: true });
+});
+
+/**
+ * 2026-07-27 회귀: 새로고침이 429를 맞으면 방금 비운 당일 캐시 리포트를 되살려야 한다
+ * (app/(main)/home/page.tsx fatal 분기). 종전엔 캐시가 멀쩡히 있는데도 규칙 폴백("기본 추천")
+ * 으로 떨어져, 한도에 걸린 새로고침 한 번에 아침의 진짜 리포트가 사라졌다.
+ * 캐시 키·profileSig는 페이지 모듈 내부 구현이라 직접 시드하지 않는다 — 성공 모킹으로 앱이
+ * 스스로 캐시를 쓰게 한 뒤(1단계), 429로 재라우팅하고 새로고침을 눌러(2단계) 복원을 검증한다.
+ */
+test("TC-RATE-CACHE(모킹): 429 새로고침은 당일 캐시 리포트를 복원한다 — 기본 추천 아님", async ({ page }) => {
+  await mockEnvApisSuccess(page);
+  await mockReportSuccess(page, "[QA 모킹] 오늘은 맑아요");
+  await page.goto("/home");
+  await expect(page.getByText("오늘은 맑아요", { exact: false }).first()).toBeVisible({
+    timeout: 15_000,
+  });
+
+  await page.unroute("**/api/report");
+  await mockReport429(page);
+  await page.getByRole("button", { name: "리포트 새로고침" }).click();
+
+  // 한도 배너가 뜬 시점 = 429 처리 완료 시점. 그 뒤에도 히어로에는 모킹 리포트의 결론이
+  // 그대로 남아 있어야 하고(캐시 복원), 규칙 폴백 표식("기본 추천")은 없어야 한다.
+  await expect(
+    page.getByText("오늘의 브리핑 생성 한도에 도달했어요", { exact: false }).first()
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText("오늘은 맑아요", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("기본 추천", { exact: false })).toHaveCount(0);
 });
