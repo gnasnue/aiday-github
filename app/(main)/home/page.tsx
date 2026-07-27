@@ -81,12 +81,15 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // v30: 히어로 표면 역할 재계약 — message는 hook의 요약이 아니라 이어 읽는 새 정보(반복 금지),
 // hook 행동절은 하루에 통하는 원칙. 구캐시는 헤드라인·근거·본문이 같은 말을 반복하므로 무효화
 // (2026-07-27 사용자 지적)
-// v31: 무난한 날 좋음·보통 등급 근거 나열 금지("미세먼지도 좋음이라"류) — 입력에서 좋음·보통
+// v31: 고온다습 판정 전도 수정 — 기온 31°C+습도 70%를 위험 수준(②)으로 승격, 위험한 날
+// hook은 온열 안전 수칙(활동 조정·수분)이 1순위(민감도는 순위가 아니라 처방 강도를 바꾼다).
+// 당일 구캐시는 "갈아입히기"가 헤드라인이므로 무효화 (2026-07-27 사용자 지적)
+// v32: 무난한 날 좋음·보통 등급 근거 나열 금지("미세먼지도 좋음이라"류) — 입력에서 좋음·보통
 // 등급 제거(air·pollen) + 런타임 등급 언급 수술. 당일 구캐시에 해당 문장이 남아 있으므로
 // 무효화 (2026-07-27 eval E-AHA-4 재발)
 // 페이로드 스키마 버전. 로컬 캐시 키와 서버 사본(daily_reports.cache_version)이 같은 값을 쓴다 —
 // 서버 사본에 버전이 없으면 규격을 바꾼 당일 구형 리포트가 서버에서 되살아난다.
-const REPORT_CACHE_VERSION = "v31";
+const REPORT_CACHE_VERSION = "v32";
 const reportCacheKey = (childId: string) =>
   `aiday:report:${REPORT_CACHE_VERSION}:${childId}:${localDateStr()}`;
 
