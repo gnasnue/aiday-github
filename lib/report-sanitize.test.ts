@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { isMaskJustified, sanitizeReportPayload, type ReportPayload } from "./report-sanitize";
+import {
+  applyTextStyleGates,
+  isMaskJustified,
+  sanitizeReportPayload,
+  stripMetaComparison,
+  type ReportPayload,
+} from "./report-sanitize";
 
 const payload = (over: Partial<ReportPayload> = {}): ReportPayload => ({
   hook: "",
@@ -145,6 +151,50 @@ describe("sanitizeReportPayload — ③ prep ⊆ checklist", () => {
   it("checklist가 비면 prep을 통째로 지우지 않는다 (과삭제 방지)", () => {
     const out = sanitizeReportPayload(payload({ checklist: [], prep: { 등원: ["우산"] } }), OK);
     expect(out.payload.prep).toEqual({ 등원: ["우산"] });
+  });
+});
+
+describe("본문 스타일 게이트 — ③", () => {
+  it("메타 비교 부가어를 제거해도 문장이 성립한다 (2026-07-27 실사례)", () => {
+    expect(stripMetaComparison("놀이 후 갈아입히는 게 더위 자체보다 중요해요.")).toBe(
+      "놀이 후 갈아입히는 게 중요해요."
+    );
+    expect(stripMetaComparison("특이사항 없는 하은이는 비 자체보다 젖은 신발이 문제예요.")).toBe(
+      "특이사항 없는 하은이는 젖은 신발이 문제예요."
+    );
+    expect(stripMetaComparison("더위 자체가 아니라 젖은 옷이 문제예요.")).toBe("젖은 옷이 문제예요.");
+  });
+
+  it("hook 행동을 되풀이하는 줄은 꼬리절만 남긴다 (S06 실사례)", () => {
+    const { message, actions } = applyTextStyleGates(
+      "미세먼지 매우나쁨 — 야외활동은 실내 놀이로 바꿔주세요",
+      "오늘 초미세먼지가 **매우나쁨**까지 올라요.\n16개월 서아는 아직 마스크로 막아주기 어려운 나이예요.\n**11시** 야외활동은 실내 놀이로 바꾸고, 꼭 나가야 하면 아주 짧게만 다녀오세요."
+    );
+    expect(actions).toContain("hook-echo:clause-trimmed");
+    expect(message.split("\n")[2]).toBe("꼭 나가야 하면 아주 짧게만 다녀오세요.");
+  });
+
+  it("꼬리절이 없으면 줄을 제거한다 (다른 줄이 남을 때만)", () => {
+    const { message, actions } = applyTextStyleGates(
+      "낮 32도 — 야외활동 뒤 옷 갈아입혀 주세요",
+      "오늘 습도가 높은 날이에요.\n야외활동 뒤엔 옷을 꼭 갈아입혀 주세요.",
+    );
+    expect(actions).toContain("hook-echo:line-dropped");
+    expect(message).toBe("오늘 습도가 높은 날이에요.");
+  });
+
+  it("알림장 인용문 안의 행동 반복은 정당한 위임 장치로 허용한다", () => {
+    const line = "여벌은 상의 1장이면 충분해요 — 알림장에 '야외활동 뒤 옷 갈아입혀 주세요' 한 줄 남겨주세요.";
+    const { message, actions } = applyTextStyleGates("낮 32도 — 야외활동 뒤 옷 갈아입혀 주세요", line);
+    expect(actions).toEqual([]);
+    expect(message).toBe(line);
+  });
+
+  it("위반이 없으면 아무것도 바꾸지 않는다", () => {
+    const msg = "오늘 **32°C**에 습도 **85%**예요.\n지우는 야외활동 뒤가 문제예요.\n여벌은 상의 1장이면 충분해요.";
+    const out = applyTextStyleGates("낮 32도 — 땀 젖은 옷은 바로 갈아입혀 주세요", msg);
+    expect(out.actions).toEqual([]);
+    expect(out.message).toBe(msg);
   });
 });
 

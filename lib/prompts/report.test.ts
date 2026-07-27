@@ -85,12 +85,13 @@ describe.each(EXAMPLES)("few-shot 정적 린트 — $label", ({ label, input, ou
   const maskAllowedForAge = !infantOf(input);
 
   it("런타임 새니타이저의 고정점이다 (마스크 정책 + prep⊆checklist)", () => {
-    const { payload, maskAction, maskTextDropped, droppedPrep } = sanitizeReportPayload(
+    const { payload, maskAction, maskTextDropped, styleTextActions, droppedPrep } = sanitizeReportPayload(
       structuredClone(output),
       { maskJustified, maskAllowedForAge }
     );
     expect(maskAction, `${label}: checklist·prep 마스크 정책 위반`).toBe("none");
     expect(maskTextDropped, `${label}: 근거 없는 본문 마스크 언급`).toEqual([]);
+    expect(styleTextActions, `${label}: 본문 스타일 게이트 위반(메타 비교·hook 반복)`).toEqual([]);
     expect(droppedPrep, `${label}: checklist에 없는 prep 칩`).toEqual([]);
     expect(payload).toEqual(output);
   });
@@ -106,6 +107,31 @@ describe.each(EXAMPLES)("few-shot 정적 린트 — $label", ({ label, input, ou
 
   it("메타 비교 구문이 없다 — '더위 자체보다 중요해요'류 AI 말투 (2026-07-27 사용자 피드백)", () => {
     expect(`${output.hook}\n${output.message}`).not.toMatch(/자체보다|자체가 아니라|보다 (더 )?중요/);
+  });
+
+  it("message 3문장 구조를 지킨다 (홈 supportLine 발췌 계약 — eval이 실제 출력에 강제하는 것과 동일)", () => {
+    const lines = output.message.split("\n").map((l) => l.trim()).filter(Boolean);
+    expect(lines.length, `${label}: 3줄이어야 함`).toBe(3);
+  });
+
+  it("hook 행동절을 message가 되풀이하지 않는다 (한 카드 동시 렌더 — eval 'hook↔message 반복 없음'과 동일 지표)", () => {
+    // 정규화 후 문자 bigram containment ≥ 0.7 — scripts/eval-report.mjs와 같은 임계값·가드
+    // (누적 산출물 978줄 소급 캘리브레이션, 오탐 0). 변경 시 함께 갱신.
+    const norm = (t: string) => t.replace(/\*\*|__/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
+    const bigrams = (t: string) => {
+      const set = new Set<string>();
+      for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+      return set;
+    };
+    const parts = output.hook.split(/\s+[—–-]\s+/, 2);
+    const act = bigrams(norm(parts.length === 2 ? parts[1] : output.hook));
+    if (act.size < 8) return; // 짧은 행동절은 판정 불가
+    for (const line of output.message.split("\n")) {
+      const lineBigrams = bigrams(norm(line.replace(/'[^']*'|‘[^’]*’/g, "")));
+      let hit = 0;
+      for (const g of act) if (lineBigrams.has(g)) hit++;
+      expect(hit / act.size, `${label}: hook 반복 줄 "${line.slice(0, 50)}"`).toBeLessThan(0.7);
+    }
   });
 
   it("질병명·입력에 없는 기간 비교를 지어내지 않는다", () => {

@@ -416,6 +416,31 @@ export const runChecks = (s, r) => {
   // 뒤 절만 읽어도 할 일이 성립해야 한다 — 12자 미만은 "우산 챙겨요"처럼 뭉툭해진다.
   add("② 행동절 ≥ 12자", hookAct.length >= 12, `${hookAct.length}자: ${hookAct}`);
   add("자외선 수치 미노출", !/자외선\s*(지수)?\s*\d/.test(body));
+  // ── hook↔message 중복 (2026-07-27 사용자 지적: 헤드라인·근거·펼침 본문이 같은 말 반복) ──
+  // 홈 히어로는 hook 행동절(헤드라인)과 message(문장2=근거 발췌, 문장1·3=펼침 본문)를 한
+  // 카드에 함께 렌더한다 — message가 hook의 행동을 되풀이하면 카드가 같은 말을 두세 번 한다.
+  // 판정: 정규화(볼드·공백·부호 제거, '알림장 인용문' 제외 — 인용은 정당한 위임 장치) 후
+  // 문자 bigram containment |hook행동∩줄| / |hook행동| ≥ 0.7이면 FAIL. 임계값은 누적 산출물
+  // 978줄 소급 캘리브레이션 — ≥0.7 33건 전부 실제 반복, 오탐 0. 행동절이 짧으면(<8 bigram)
+  // 판정 불가로 건너뛴다. lib/prompts/report.test.ts 정적 린트와 동일 지표(변경 시 함께 갱신).
+  {
+    const dupNorm = (t) => (t ?? "").replace(/\*\*|__/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
+    const dupBigrams = (t) => {
+      const set = new Set();
+      for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+      return set;
+    };
+    const actBigrams = dupBigrams(dupNorm(hookAct));
+    if (actBigrams.size >= 8) {
+      const dupLine = msgLines.find((l) => {
+        const lineBigrams = dupBigrams(dupNorm(l.replace(/'[^']*'|‘[^’]*’/g, "")));
+        let hit = 0;
+        for (const g of actBigrams) if (lineBigrams.has(g)) hit++;
+        return hit / actBigrams.size >= 0.7;
+      });
+      add("hook↔message 반복 없음", !dupLine, dupLine ? `행동 "${hookAct}" ↔ "${dupLine.slice(0, 60)}"` : "");
+    }
+  }
   // AI 냄새 메타 비교 (2026-07-27 사용자 피드백) — "갈아입히는 게 더위 자체보다 중요해요"류.
   // 부모끼리는 지표끼리 중요도를 견주며 말하지 않는다 — 행동을 바로 말한다("놀이 후
   // 갈아입혀 주세요"). 이 구문도 few-shot(예시 3 "더위 자체보다 ~가 문제예요")이 시연해
@@ -549,8 +574,10 @@ export const runChecks = (s, r) => {
     exclusive ? `"${exclusive}" vs checklist ${r.checklist?.length ?? 0}개` : ""
   );
   // E-AHA 판단 깊이 키워드군 — 시나리오가 지정한 판단 유형(상호작용·시점 교차·실행 디테일)의
-  // 흔적이 message+checklist 결합 텍스트에 있는지 AND 판정 (2026-07-27 핸드오프 §4).
-  const kwText = `${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
+  // 흔적이 카드 텍스트에 있는지 AND 판정 (2026-07-27 핸드오프 §4). hook 포함으로 확장
+  // (2026-07-27 표면 재계약): message가 hook을 반복하지 못하게 되면서 판단 어휘("기준은
+  // 아침 12도에 맞춰")가 hook으로 이동하는 것이 정상 동작이 됐다 — 카드 전체로 본다.
+  const kwText = `${r.hook ?? ""}\n${r.message ?? ""}\n${(r.checklist ?? []).join(" ")}`;
   for (const re of s.mustMatch ?? []) add(`키워드군 /${re.source}/`, re.test(kwText), "");
   for (const re of s.mustNotMatch ?? []) {
     const m = kwText.match(re);

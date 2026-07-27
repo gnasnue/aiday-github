@@ -78,9 +78,12 @@ import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness
 // (2026-07-27 실사용 사고)
 // v29: 메타 비교 말투 금지("갈아입히는 게 더위 자체보다 중요해요"류) — few-shot 예시 3
 // 재작성 + 말투 규칙. 당일 구캐시에 해당 문장이 남아 있으므로 무효화 (2026-07-27 사용자 피드백)
+// v30: 히어로 표면 역할 재계약 — message는 hook의 요약이 아니라 이어 읽는 새 정보(반복 금지),
+// hook 행동절은 하루에 통하는 원칙. 구캐시는 헤드라인·근거·본문이 같은 말을 반복하므로 무효화
+// (2026-07-27 사용자 지적)
 // 페이로드 스키마 버전. 로컬 캐시 키와 서버 사본(daily_reports.cache_version)이 같은 값을 쓴다 —
 // 서버 사본에 버전이 없으면 규격을 바꾼 당일 구형 리포트가 서버에서 되살아난다.
-const REPORT_CACHE_VERSION = "v29";
+const REPORT_CACHE_VERSION = "v30";
 const reportCacheKey = (childId: string) =>
   `aiday:report:${REPORT_CACHE_VERSION}:${childId}:${localDateStr()}`;
 

@@ -16,7 +16,7 @@ import { canonicalPrep } from "./prep-vocab";
  * 예시가 같은 조합에서 마스크 부정 문장을 시연한 것. 프롬프트는 고쳤지만 확률적이므로,
  * 근거 없는 마스크 언급 줄은 여기서 결정적으로 걷어낸다.
  *
- * 세 가지 규칙:
+ * 네 가지 규칙:
  *  ① 마스크 정책(checklist·prep) — 규칙 엔진(lib/prep.ts)·프롬프트와 같은 정책.
  *     · 근거(미세먼지 나쁨/꽃가루 높음) 없음 → 제거(위험 없음, 습도·더위는 마스크 사유 아님)
  *     · 근거 있으나 만 2세 미만 → "실내놀이"로 대체(질식 위험, 경고는 유지)
@@ -26,7 +26,9 @@ import { canonicalPrep } from "./prep-vocab";
  *     · hook: 한 줄이라 부분 제거가 불가능 → 통째로 비운다. 홈 히어로는 hook이 비면
  *       message 첫 줄을 헤드라인으로 쓴다.
  *     · 근거가 있으면 영아여도 언급은 허용 — "쓰기 어려운 나이라" 설명은 정당한 문장이다.
- *  ③ prep ⊆ checklist — 케어 플랜 칩(prep)이 "오늘 챙길 것"(checklist)에 없는 아이템을
+ *  ③ 본문 스타일 게이트 — 메타 비교 부가어("자체보다") 제거 + hook 행동을 되풀이하는
+ *     message 줄 절삭(히어로가 hook과 message를 한 카드에 렌더하므로 반복=같은 말 두 번).
+ *  ④ prep ⊆ checklist — 케어 플랜 칩(prep)이 "오늘 챙길 것"(checklist)에 없는 아이템을
  *     내보내면 화면이 자기모순된다. checklist를 진실원으로 삼아 어긋난 칩을 제거한다(#131 R4).
  */
 
@@ -67,18 +69,103 @@ const INDOOR_PREP_KEYWORD = "실내놀이";
 const itemName = (entry: string): string =>
   entry.replace(/[^가-힣\s]/g, "").replace(/\s+/g, " ").trim();
 
+// ── 본문 스타일 게이트 유틸 (2026-07-27 사용자 지적 2건의 결정적 강제) ────────
+// 프롬프트 규칙·예시로도 확률적으로 새는 두 구문을 문장 수술로 닫는다. 임계값·정규화는
+// scripts/eval-report.mjs·lib/prompts/report.test.ts와 동일(변경 시 함께 갱신).
+
+/**
+ * 메타 비교 부가어 제거 — "갈아입히는 게 더위 자체보다 중요해요" → "갈아입히는 게 중요해요".
+ * "[명사] 자체보다/자체가 아니라"는 문법상 부가어라 지워도 문장이 성립하는, 안전하게 수술
+ * 가능한 유일한 메타 비교 형태다("보다 중요"류 일반형은 수술 불가 — eval이 감시).
+ */
+export const stripMetaComparison = (text: string): string =>
+  text.replace(/[가-힣0-9·%°C]{1,8} ?자체(보다|가 아니라) ?(더 )?/g, "").replace(/ {2,}/g, " ");
+
+const dupNorm = (t: string): string =>
+  t.replace(/\*\*|__/g, "").replace(/'[^']*'|‘[^’]*’/g, "").replace(/[\s,.'"“”‘’()!?~·—–-]/g, "");
+const dupBigrams = (t: string): Set<string> => {
+  const set = new Set<string>();
+  for (let i = 0; i < t.length - 1; i++) set.add(t.slice(i, i + 2));
+  return set;
+};
+
+/**
+ * hook 행동절 반복 판정 — 정규화(볼드·부호·알림장 인용 제거) 후 문자 bigram containment
+ * |행동∩텍스트|/|행동| ≥ 0.7. 누적 산출물 978줄 소급 캘리브레이션(오탐 0). 행동절이 짧으면
+ * (<8 bigram) 판정 불가로 false.
+ */
+export const echoesHookAction = (hookAction: string, text: string): boolean => {
+  const act = dupBigrams(dupNorm(hookAction));
+  if (act.size < 8) return false;
+  const body = dupBigrams(dupNorm(text));
+  let hit = 0;
+  for (const g of act) if (body.has(g)) hit++;
+  return hit / act.size >= 0.7;
+};
+
+/** hook에서 행동절만 — lib/hero-brief.ts splitHook과 같은 1차 구분자(대시). */
+const hookActionOf = (hook: string): string => {
+  const parts = hook.split(/\s+[—–-]\s+/, 2);
+  return parts.length === 2 ? parts[1] : hook;
+};
+
+/**
+ * 본문 스타일 게이트 — hook·message에 두 수술을 적용한 결과와 수행 내역을 돌려준다.
+ *  · 메타 비교 부가어("자체보다") 제거
+ *  · hook 행동을 되풀이하는 message 줄: 첫 쉼표 뒤 꼬리절이 반복 없이 성립하면 꼬리절만
+ *    남기고("…실내 놀이로 바꾸고, 정 나가야 하면 짧게만" → 뒷절), 아니면 줄 제거(남는 줄이
+ *    있을 때만 — 본문 전체를 비우지 않는다).
+ * 스트리밍 조기 방출 게이트(route.ts)가 드라이런으로도 쓰므로 순수 함수로 둔다.
+ */
+export const applyTextStyleGates = (
+  hook: string,
+  message: string
+): { hook: string; message: string; actions: string[] } => {
+  const actions: string[] = [];
+  let outHook = stripMetaComparison(hook);
+  if (outHook !== hook) actions.push("meta-comparison:hook");
+  let outMessage = stripMetaComparison(message);
+  if (outMessage !== message) actions.push("meta-comparison:message");
+
+  const act = hookActionOf(outHook);
+  const lines = outMessage.split("\n");
+  const gated: string[] = [];
+  for (const line of lines) {
+    if (!echoesHookAction(act, line)) {
+      gated.push(line);
+      continue;
+    }
+    const comma = line.indexOf(", ");
+    const tail = comma > 0 ? line.slice(comma + 2).trim() : "";
+    if (tail.length >= 12 && !echoesHookAction(act, tail)) {
+      gated.push(tail);
+      actions.push("hook-echo:clause-trimmed");
+    } else if (lines.length > 1) {
+      actions.push("hook-echo:line-dropped");
+      // 줄 제거 — gated에 넣지 않는다
+    } else {
+      gated.push(line); // 유일한 줄이면 유지(빈 본문 방지) — 관측만
+      actions.push("hook-echo:kept-sole-line");
+    }
+  }
+  const joined = gated.filter((l) => l.trim()).length > 0 ? gated.join("\n") : outMessage;
+  return { hook: outHook, message: joined, actions };
+};
+
 export type SanitizeOutcome = {
   payload: ReportPayload;
   /** 마스크에 일어난 일(checklist·prep) — 관측 로그용. */
   maskAction: "none" | "removed" | "downgraded";
   /** 근거 없는 마스크 언급으로 제거된 본문 표면 — 관측 로그용. */
   maskTextDropped: Array<"hook" | "message-line">;
+  /** 본문 스타일 게이트 수행 내역(메타 비교 제거·hook 반복 절삭) — 관측 로그용. */
+  styleTextActions: string[];
   /** prep⊆checklist로 떨어진 "슬롯:키워드" 라벨 — 관측 로그용. */
   droppedPrep: string[];
 };
 
 /**
- * 준비물 정합성 정책을 AI 출력에 결정적으로 적용한다. hook·message는 건드리지 않는다.
+ * 출력 정합성 정책(마스크·본문 스타일·prep⊆checklist)을 AI 출력에 결정적으로 적용한다.
  */
 export function sanitizeReportPayload(
   payload: ReportPayload,
@@ -135,7 +222,14 @@ export function sanitizeReportPayload(
     }
   }
 
-  // ── ③ prep ⊆ checklist ─────────────────────────────────────
+  // ── ③ 본문 스타일 게이트 (메타 비교·hook 반복) ────────────────
+  // 프롬프트 규칙·예시(v30)로도 확률적으로 남는 두 구문을 결정적으로 수술한다.
+  const styleGate = applyTextStyleGates(hook, message);
+  hook = styleGate.hook;
+  message = styleGate.message;
+  const styleTextActions = styleGate.actions;
+
+  // ── ④ prep ⊆ checklist ─────────────────────────────────────
   // checklist(진실원)에 없는 준비물 칩을 제거한다. 어휘 별칭은 canonicalPrep으로 흡수해
   // "자외선차단제"(checklist) ↔ "선크림"(prep)이 어긋나 보이지 않게 양쪽을 표준화 비교.
   // checklist가 비면(모델 파싱 실패 등) prep을 통째로 지우지 않는다 — 과삭제 방지.
@@ -157,5 +251,5 @@ export function sanitizeReportPayload(
     prep = filtered;
   }
 
-  return { payload: { ...payload, hook, message, checklist, prep }, maskAction, maskTextDropped, droppedPrep };
+  return { payload: { ...payload, hook, message, checklist, prep }, maskAction, maskTextDropped, styleTextActions, droppedPrep };
 }
