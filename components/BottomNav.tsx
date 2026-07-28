@@ -3,18 +3,23 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { toast } from "sonner";
-import { Home, Wind, Shirt, Heart, User } from "lucide-react";
+import { Home, Wind, Shirt, CalendarCheck2, User } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+// 4번째 탭: 건강팁(/tips) → 하루(/day) 교체 (2026-07-28).
+// 건강팁은 독립 과업이 아니라 환경에서 파생된 설명형 콘텐츠라 홈 하단 "오늘의 건강 팁"
+// 섹션으로 흡수했고, /tips 페이지는 그 섹션에서 진입하는 전체 가이드로 존치한다.
+// 비워진 자리는 아침 판단의 결과가 쌓이는 "하루"가 가져간다 — 제품의 학습 루프가
+// 네비게이션 구조로 드러나야 하기 때문(홈=판단 / 하루=결과와 개인화).
 const navItems: { icon: LucideIcon; label: string; to: string }[] = [
   { icon: Home, label: "홈", to: "/home" },
   { icon: Wind, label: "환경정보", to: "/env" },
   { icon: Shirt, label: "옷차림", to: "/outfit" },
-  { icon: Heart, label: "건강팁", to: "/tips" },
+  { icon: CalendarCheck2, label: "하루", to: "/day" },
   { icon: User, label: "마이", to: "/me" },
 ];
 
-const allowed = ["/home", "/env", "/outfit", "/tips", "/me"];
+const allowed = ["/home", "/env", "/outfit", "/day", "/me"];
 
 const BottomNav = () => {
   const pathname = usePathname();
