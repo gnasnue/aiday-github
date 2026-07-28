@@ -15,6 +15,7 @@ import {
   LogOut,
   Baby,
   MessageSquareText,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
@@ -264,6 +265,12 @@ const My = () => {
             <h2 className="text-[17px] font-bold tracking-tight">계정</h2>
             <div className="mt-3 divide-y divide-border overflow-hidden rounded-2xl bg-card">
               {([
+                {
+                  l: "환절기 케어 패스",
+                  Icon: Sparkles,
+                  action: () => router.push("/pass"),
+                  value: "월 990원",
+                },
                 { l: "알림 설정", Icon: Bell },
                 { l: "위치 설정", Icon: MapPin, action: requestLocation, value: `서울 ${location.gu}` },
                 { l: "데이터 기준 안내", Icon: Database, action: () => router.push("/me/data-sources") },

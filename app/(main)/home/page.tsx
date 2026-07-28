@@ -2120,29 +2120,6 @@ const Home = () => {
               하루 탭(/review)으로 넘긴다. 상태 판정은 카드가 직접 읽는다(홈 diff 최소화). */}
           {!loading && <DayReviewEntryCard childId={cur.id} childName={cur.name} />}
 
-          {/* 환절기 케어 패스 — 첫 유료 상품의 사전예약 진입 (지불 의향 측정 도선).
-              크림(secondary)은 이벤트 강조 토큰(화면당 1곳) — 홈에서 유일한 사용처. */}
-          {!loading && (
-            <button
-              onClick={() => router.push("/pass")}
-              className="mt-8 flex w-full items-center gap-3 rounded-2xl bg-secondary p-5 text-left transition-smooth active:scale-[0.99]"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-[11px] font-bold uppercase tracking-[0.08em] text-accent">
-                  환절기 케어 패스 · 9월 시작
-                </span>
-                <span className="mt-1.5 block text-[16px] font-bold leading-[1.4] tracking-[-0.01em] text-foreground break-keep">
-                  일교차의 계절, 아침 판단을 통째로 맡기세요
-                </span>
-                <span className="mt-1 block text-[13px] text-muted-foreground">
-                  얼리버드 <span className="num font-bold text-foreground">4,900원</span>{" "}
-                  <span className="num text-faint line-through">9,900원</span> · 사전예약
-                </span>
-              </span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} aria-hidden="true" />
-            </button>
-          )}
-
           {/* 공유용 이미지 카드 — 화면 밖에 렌더해두고 공유 시 html-to-image로 PNG 캡처.
               display:none이면 캡처가 레이아웃을 못 잡으므로 off-screen 고정으로 둔다. */}
           {!loading && (
