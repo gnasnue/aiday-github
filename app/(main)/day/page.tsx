@@ -19,12 +19,13 @@
  * 엔진 입력에 실제로 들어가지 않은 개인화 설명.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   Check,
   ChevronRight,
+  IdCard,
   Settings2,
   Share2,
   Sunrise,
@@ -44,6 +45,8 @@ import { loadEnvSnapshot } from "@/lib/env-cache";
 import { buildTimeline, buildTomorrowTimeline } from "@/lib/timeline";
 import { buildCarePlan, applyPastOutcome } from "@/lib/care-plan";
 import { buildTomorrowBrief } from "@/lib/memory/tomorrow-brief";
+import { buildCareCard, careCardToText, isCareCardEmpty } from "@/lib/memory/care-card";
+import CareCardShare from "@/components/CareCardShare";
 import { localDateStr } from "@/lib/date";
 import { loadCheckedKeys, saveCheckedKeys } from "@/lib/memory/checklist-state";
 import {
@@ -153,6 +156,77 @@ const DayPage = () => {
   const prepKey = shownPlan?.prep[0] ?? null;
   const prepDone = prepKey ? checked.includes(prepKey) : false;
 
+  // ── 돌봄 카드 — 축적된 이해를 조부모·시터·어린이집에 건네는 한 장 ──
+  // 반복 설명 노동(역할 분담 25.0% · 기관 추가 전달 16.7%)을 앱이 대신 넘긴다.
+  const careCard = useMemo(
+    () => (child ? buildCareCard({ child, entries, plan: shownPlan }) : null),
+    [child, entries, shownPlan]
+  );
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [cardSharing, setCardSharing] = useState(false);
+
+  // 카드 공유 — 이미지가 본체다(받는 사람이 앱 없이 바로 읽는다). 이미지 경로가 막히면
+  // 텍스트로 폴백한다. 홈 리포트 공유와 같은 방식(html-to-image + Web Share files).
+  const shareCareCard = async () => {
+    if (!careCard || cardSharing) return;
+    setCardSharing(true);
+    const fallbackText = async () => {
+      const text = careCardToText(careCard);
+      const shareFn = (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share;
+      try {
+        if (typeof shareFn === "function") {
+          await shareFn.call(navigator, { text });
+          return;
+        }
+        await navigator.clipboard.writeText(text);
+        toast("돌봄 카드를 텍스트로 복사했어요");
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        toast("공유하지 못했어요 — 잠시 후 다시 시도해주세요");
+      }
+    };
+    try {
+      const node = cardRef.current;
+      if (!node) {
+        await fallbackText();
+        return;
+      }
+      if (typeof document !== "undefined" && document.fonts?.ready) await document.fonts.ready;
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        cacheBust: true,
+        skipFonts: true,
+        backgroundColor: "#FFF8F0",
+      });
+      const blob = await (await fetch(dataUrl)).blob();
+      const file = new File([blob], `aiday-care-card-${child.name}.png`, { type: "image/png" });
+      if (
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] })
+      ) {
+        try {
+          await navigator.share({ files: [file], title: `${child.name} 돌봄 카드` });
+          return;
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+        }
+      }
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `aiday-care-card-${child.name}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast("돌봄 카드 이미지를 저장했어요");
+    } catch {
+      await fallbackText();
+    } finally {
+      setCardSharing(false);
+    }
+  };
+
   const togglePrep = () => {
     if (!prepKey) return;
     const next = prepDone ? checked.filter((k) => k !== prepKey) : [...checked, prepKey];
@@ -200,6 +274,13 @@ const DayPage = () => {
 
   const name = child.name;
   const handoffTarget = shownPlan?.atDaycare ? "어린이집에 전달하기" : "돌봄자에게 전달하기";
+  // 하루 화면은 시간에 따라 얼굴을 바꾼다 — 낮에는 오늘의 실행이 주인공,
+  // 저녁에는 예측과 실제의 대조·회수가 주인공이다(홈이 구조적으로 못 하는 일).
+  const isEvening = new Date().getHours() >= 18;
+  // 마지막 확인 시각 — 없으면 만들지 않는다(추정 금지). 출처를 함께 적는다.
+  const lastReportedAt = today?.ts
+    ? new Date(today.ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <div className="page-shell">
@@ -343,7 +424,32 @@ const DayPage = () => {
           {/* ── 저녁 회수 한 줄 / 결과 반영 후 보상 ─────────────────────── */}
           {today ? (
             <>
+              {/* 예측 ↔ 실제 대조 — 홈이 구조적으로 못 하는 일(아침엔 결과가 없다).
+                  출처·시각을 함께 적어 "언제 누가 확인한 것인지"를 숨기지 않는다. */}
               <section className="mt-6 rounded-2xl bg-card p-5 shadow-soft">
+                {shownPlan && (
+                  <div className="mb-4 rounded-2xl bg-muted p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                      아침 예측
+                    </p>
+                    <p className="mt-1 text-[14px] leading-[1.55] text-muted-foreground break-keep">
+                      {shownPlan.action}
+                    </p>
+                    <div className="mt-3 border-t border-border pt-3">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                        실제
+                      </p>
+                      <p className="mt-1 text-[15px] font-bold leading-[1.5] text-foreground break-keep">
+                        {[fitLabel(today), thermalLabel(today)].filter(Boolean).join(" · ")}
+                      </p>
+                      {lastReportedAt && (
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          마지막 확인 {lastReportedAt} · 보호자 기록
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-center gap-2">
                   <Check className="h-[18px] w-[18px] shrink-0 text-status-good" strokeWidth={2.5} />
                   <p className="flex-1 text-[15px] font-bold">오늘 결과가 반영됐어요</p>
@@ -401,6 +507,51 @@ const DayPage = () => {
             </button>
           )}
 
+          {/* ── 돌봄 카드 — 아이를 맡길 때 반복하던 설명을 한 장으로 넘긴다 ── */}
+          {careCard && !isCareCardEmpty(careCard) && (
+            <section className="mt-8">
+              <h2 className="text-[17px] font-bold tracking-[-0.01em]">{name} 돌봄 카드</h2>
+              <p className="mt-1 text-[13px] leading-[1.6] text-muted-foreground break-keep">
+                조부모·시터·어린이집에 건네면, 같은 설명을 다시 하지 않아도 돼요.
+              </p>
+              <div className="mt-3 rounded-2xl bg-card p-5 shadow-soft">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent"
+                    aria-hidden="true"
+                  >
+                    <IdCard className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-semibold text-foreground">
+                      {careCard.profileLines.length + careCard.observedLines.length}가지 안내
+                      {careCard.todayRequest ? " + 오늘 부탁" : ""}
+                    </p>
+                    <ul className="mt-2 space-y-1">
+                      {[...careCard.profileLines, ...careCard.observedLines].slice(0, 3).map((l) => (
+                        <li
+                          key={l.label + l.text}
+                          className="flex gap-2 text-[13px] leading-[1.55] text-muted-foreground break-keep"
+                        >
+                          <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-status-neutral-dot" />
+                          {l.text}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+                <button
+                  onClick={shareCareCard}
+                  disabled={cardSharing}
+                  className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-muted text-[15px] font-bold text-foreground transition-smooth active:scale-[0.99] disabled:opacity-50"
+                >
+                  <Share2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  {cardSharing ? "카드 만드는 중…" : "돌봄 카드 보내기"}
+                </button>
+              </div>
+            </section>
+          )}
+
           {/* ── 근거: 최근 비슷한 날 (있을 때만, 조용히) ───────────────── */}
           {recent.length > 0 && (
             <section className="mt-8">
@@ -429,6 +580,16 @@ const DayPage = () => {
           <p className="mt-6 text-center text-[12px] leading-[1.6] text-muted-foreground break-keep">
             알려주지 않아도 불이익은 없어요 — 체질 진단이 아니며, 언제든 수정·삭제할 수 있어요.
           </p>
+
+          {/* 공유 캡처 대상 — 화면 밖에 렌더해두고 공유 시 PNG로 굽는다(홈 리포트와 같은 방식) */}
+          {careCard && (
+            <div
+              aria-hidden="true"
+              style={{ position: "fixed", left: -99999, top: 0, pointerEvents: "none", zIndex: -1 }}
+            >
+              <CareCardShare ref={cardRef} card={careCard} />
+            </div>
+          )}
         </main>
       </div>
 
