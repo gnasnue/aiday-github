@@ -7,6 +7,7 @@ import {
   pickEvidence,
   EVIDENCE_MAX,
   buildHeroEvidence,
+  pickSupportLine,
   tempRangeOf,
   type EvidenceSlot,
   heroState,
@@ -621,5 +622,78 @@ describe("buildHeroEvidence — 정렬·중복·결측", () => {
       hasAiHook: true,
     });
     expect(r.evidence).toHaveLength(EVIDENCE_MAX);
+  });
+});
+
+/* ---- pickSupportLine — 근거 문장은 AI 본문에서만 --------------------------
+   2026-07-28 회귀 고정: 랜딩 직후(hook 도착 ~ message 도착 창)에 규칙 엔진 폴백 문장이
+   히어로 근거 자리에 뜨던 결함. PR #94가 "오늘 챙길 것"에서 고친 같은 결함이 PR #167의
+   새 표면(support)에 다시 열렸다 — 인라인 로직이라 테스트가 없었던 것이 재발의 조건이었다. */
+describe("pickSupportLine — 근거 문장 발췌", () => {
+  const AI_MESSAGE =
+    "오늘 **야외활동**(**11시**)은 **31°C**·습도 **70%**예요.\n" +
+    "땀이 매우 많은 도준이는 땀이 마르지 못해 체온이 쉽게 올라요.\n" +
+    "**여벌 상의**를 챙겨 활동 뒤 갈아입혀 주세요.";
+  // 규칙 엔진(lib/recommendation-engine.ts)이 만드는 폴백 문장 — 한 줄에 두 문장.
+  const RULE_FALLBACK =
+    "도준이에게는 오늘 __덥고 습함__이에요. 호흡기가 예민하니 **여벌 상의**를 꼭 챙겨주세요.";
+
+  it("이름이 든 줄(문장2)을 고른다", () => {
+    expect(
+      pickSupportLine({ aiMessage: AI_MESSAGE, childName: "도준", hasHeadline: true })
+    ).toBe("땀이 매우 많은 도준이는 땀이 마르지 못해 체온이 쉽게 올라요.");
+  });
+
+  it("스트리밍 중(본문 미도착)엔 null — 규칙 폴백을 대신 쓰지 않는다", () => {
+    expect(pickSupportLine({ aiMessage: "", childName: "도준", hasHeadline: true })).toBeNull();
+  });
+
+  it("규칙 폴백 문장은 어떤 경로로도 근거가 되지 않는다 (2026-07-28 실사례)", () => {
+    // 폴백 문장을 넘겨도(=종전 코드가 하던 일) 이름 줄이 곧 첫 줄이라 헤드라인과 중복 판정에
+    // 걸린다. 애초에 화면은 폴백 문장을 이 함수에 넘기지 않는다 — 이중 방어.
+    const line = pickSupportLine({
+      aiMessage: RULE_FALLBACK,
+      childName: "도준",
+      hasHeadline: false,
+      firstPlainLine: RULE_FALLBACK.replace(/\*\*|__/g, "").trim(),
+    });
+    expect(line).toBeNull();
+  });
+
+  it("이름 줄이 없으면 둘째 줄로 폴백한다", () => {
+    const msg = "첫 줄 이슈 서술.\n둘째 줄 근거.\n셋째 줄 실행.";
+    expect(pickSupportLine({ aiMessage: msg, childName: "도준", hasHeadline: true })).toBe(
+      "둘째 줄 근거."
+    );
+  });
+
+  it("hook이 없어 본문 첫 줄이 헤드라인이 된 경우, 같은 문장을 근거로 되풀이하지 않는다", () => {
+    const msg = "**도준이**는 오늘 더위가 문제예요.\n둘째 줄.";
+    expect(
+      pickSupportLine({
+        aiMessage: msg,
+        childName: "도준",
+        hasHeadline: false,
+        firstPlainLine: "도준이는 오늘 더위가 문제예요.",
+      })
+    ).toBeNull();
+  });
+
+  it("hook이 있으면 첫 줄과 같아도 숨기지 않는다 (헤드라인은 hook에서 오므로 중복이 아니다)", () => {
+    const msg = "**도준이**는 오늘 더위가 문제예요.\n둘째 줄.";
+    expect(
+      pickSupportLine({
+        aiMessage: msg,
+        childName: "도준",
+        hasHeadline: true,
+        firstPlainLine: "도준이는 오늘 더위가 문제예요.",
+      })
+    ).toBe("**도준이**는 오늘 더위가 문제예요.");
+  });
+
+  it("본문이 한 줄뿐이고 이름이 없으면 근거가 없다", () => {
+    expect(
+      pickSupportLine({ aiMessage: "한 줄뿐인 본문.", childName: "도준", hasHeadline: true })
+    ).toBeNull();
   });
 });
