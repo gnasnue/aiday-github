@@ -1342,7 +1342,10 @@ const Home = () => {
     .map((l) => l.trim())
     .filter((l) => l && l !== supportLine)
     .map((line, i) => (
-      <p key={i} className="text-[16px] leading-[1.6] text-foreground break-keep">
+      // 히어로 본문 단은 15/1.66 하나다(DESIGN.md 2026-07-26 supporting 스펙). supporting과
+      // 이 상세 문단은 같은 AI 리포트 문장을 잘라 놓은 것이라, 크기·행간이 다르면 펼쳤을 때
+      // 한 리포트가 두 종류 글로 읽힌다. 색만 위계로 남긴다(보조 근거=muted / 본문=잉크).
+      <p key={i} className="text-[15px] leading-[1.66] text-foreground break-keep">
         {renderRich(line)}
       </p>
     ));
