@@ -83,7 +83,8 @@ const HomeHealthTips = ({
                 <span className="block text-[16px] font-medium text-foreground break-keep">
                   {tip.title}
                 </span>
-                <span className="mt-0.5 block truncate text-[12px] text-faint">
+                {/* 출처는 신뢰 신호라 잘라내지 않는다 — 2줄까지 허용(기관명+문서명이 길다) */}
+                <span className="mt-0.5 block text-[12px] leading-[1.45] text-faint line-clamp-2 break-keep">
                   {tip.sources[0] ? `${tip.sources[0].org} ${tip.sources[0].docTitle}` : ""}
                 </span>
               </span>

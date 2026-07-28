@@ -41,6 +41,7 @@ import {
 } from "@/lib/profile";
 import { loadTodayReport } from "@/lib/report-cache";
 import { splitHook } from "@/lib/hero-brief";
+import { withSubjectSuffix } from "@/lib/korean";
 import { localDateStr } from "@/lib/date";
 import {
   OVERALL_FIT_OPTIONS,
@@ -175,7 +176,84 @@ const DayPage = () => {
             {["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()]})
           </p>
 
-          {/* ── Hero: 오늘의 변화 (화면당 1곳 L2) ───────────────────────── */}
+          {/* ── 반응 지도: 특성별 병렬 상태 ─────────────────────────────── */}
+          {traits.length > 0 && (
+            <section className="mt-5">
+              <div className="flex items-baseline justify-between gap-2">
+                <h2 className="text-[17px] font-bold tracking-[-0.01em]">
+                  {withSubjectSuffix(name)} 알아가는 중
+                </h2>
+                <p className="shrink-0 text-[12px] font-medium text-muted-foreground">
+                  확인된 경향 <span className="num font-bold text-foreground">
+                    {traits.filter((t) => t.state === "confirmed").length}
+                  </span>개
+                </p>
+              </div>
+              <div className="mt-3 space-y-2">
+                {traits.slice(0, 1).map((t) => {
+                  const Icon = TRAIT_ICON[t.key];
+                  const on = t.state === "confirmed";
+                  return (
+                    <div
+                      key={t.key}
+                      className={`rounded-2xl p-4 ${
+                        on ? "bg-primary-tint" : "border-[1.5px] border-dashed border-border-control bg-card"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          className={`h-[18px] w-[18px] shrink-0 ${on ? "text-accent" : "text-muted-foreground"}`}
+                          strokeWidth={1.75}
+                        />
+                        <p className="flex-1 text-[15px] font-bold text-foreground break-keep">
+                          {t.title}
+                        </p>
+                        {on && (
+                          <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-accent">
+                            다음 판단 반영
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-1.5 text-[13px] leading-[1.55] text-muted-foreground break-keep">
+                        {t.desc}
+                      </p>
+                    </div>
+                  );
+                })}
+                {traits.length > 1 && (
+                  <div className={`grid gap-2 ${traits.length > 2 ? "grid-cols-2" : "grid-cols-1"}`}>
+                    {traits.slice(1, 3).map((t) => {
+                      const Icon = TRAIT_ICON[t.key];
+                      const on = t.state === "confirmed";
+                      return (
+                        <div
+                          key={t.key}
+                          className={`rounded-2xl p-3.5 ${
+                            on
+                              ? "bg-primary-tint"
+                              : "border-[1.5px] border-dashed border-border-control bg-card"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-[18px] w-[18px] ${on ? "text-accent" : "text-muted-foreground"}`}
+                            strokeWidth={1.75}
+                          />
+                          <p className="mt-2 text-[13.5px] font-bold text-foreground break-keep">
+                            {t.title}
+                          </p>
+                          <p className="mt-0.5 text-[12px] leading-[1.45] text-muted-foreground break-keep">
+                            {t.desc}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {/* ── Hero: 오늘의 변화 (오늘 무엇이 달라졌나 / 무엇을 알려줄까) ── */}
           {today ? (
             <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
               <div className="flex items-center gap-2">
@@ -226,7 +304,7 @@ const DayPage = () => {
             /* 첫 진입 — "0에서 시작"이 아니라 "이미 이만큼 알고 있다" */
             <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
               <p className="text-[19px] font-extrabold leading-[1.45] tracking-[-0.02em] break-keep">
-                {name}를 이미
+                {withSubjectSuffix(name)} 이미
                 <br />
                 이만큼 알고 있어요
               </p>
@@ -278,74 +356,6 @@ const DayPage = () => {
               >
                 30초로 알려주기
               </Button>
-            </section>
-          )}
-
-          {/* ── 반응 지도: 특성별 병렬 상태 ─────────────────────────────── */}
-          {traits.length > 0 && (
-            <section className="mt-8">
-              <h2 className="text-[17px] font-bold tracking-[-0.01em]">{name}의 요즘 반응</h2>
-              <div className="mt-3 space-y-2">
-                {traits.slice(0, 1).map((t) => {
-                  const Icon = TRAIT_ICON[t.key];
-                  const on = t.state === "confirmed";
-                  return (
-                    <div
-                      key={t.key}
-                      className={`rounded-2xl p-4 ${
-                        on ? "bg-primary-tint" : "border-[1.5px] border-dashed border-border-control bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          className={`h-[18px] w-[18px] shrink-0 ${on ? "text-accent" : "text-muted-foreground"}`}
-                          strokeWidth={1.75}
-                        />
-                        <p className="flex-1 text-[15px] font-bold text-foreground break-keep">
-                          {t.title}
-                        </p>
-                        {on && (
-                          <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-accent">
-                            다음 판단 반영
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1.5 text-[13px] leading-[1.55] text-muted-foreground break-keep">
-                        {t.desc}
-                      </p>
-                    </div>
-                  );
-                })}
-                {traits.length > 1 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {traits.slice(1, 3).map((t) => {
-                      const Icon = TRAIT_ICON[t.key];
-                      const on = t.state === "confirmed";
-                      return (
-                        <div
-                          key={t.key}
-                          className={`rounded-2xl p-3.5 ${
-                            on
-                              ? "bg-primary-tint"
-                              : "border-[1.5px] border-dashed border-border-control bg-card"
-                          }`}
-                        >
-                          <Icon
-                            className={`h-[18px] w-[18px] ${on ? "text-accent" : "text-muted-foreground"}`}
-                            strokeWidth={1.75}
-                          />
-                          <p className="mt-2 text-[13.5px] font-bold text-foreground break-keep">
-                            {t.title}
-                          </p>
-                          <p className="mt-0.5 text-[12px] leading-[1.45] text-muted-foreground break-keep">
-                            {t.desc}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
             </section>
           )}
 
