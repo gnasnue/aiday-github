@@ -22,6 +22,7 @@ import {
   buildAiChecklist,
   buildHeroEvidence,
   pickPrimaryPrep,
+  pickSupportLine,
   discomfortIndex,
   DI_WARN,
   DI_SEVERE,
@@ -367,6 +368,12 @@ const Home = () => {
   // 마운트 즉시 당일 캐시로 리포트를 이미 그렸는지 — true면 env(uv/pollen) 게이트를
   // 기다리는 동안·재검증 중에도 스켈레톤 없이 캐시 내용을 유지한다(재방문 체감 지연 제거).
   const [reportPrimed, setReportPrimed] = useState(false);
+  // env 단계가 끝나 "리포트를 시도할지 말지"가 정해졌는지. false인 동안 히어로는 스켈레톤을
+  // 유지한다 — 종전엔 `loading`이 env 1차 게이트(weather+air)에서 풀리는데 리포트 착수는
+  // 전체 게이트(+uv·pollen) 뒤라, 그 사이 수백 ms 동안 규칙 기반 카드가 통째로 노출됐다
+  // (2026-07-28 계측: 랜딩 6.1초 지점에 규칙 문장이 헤드라인으로 떴다 사라짐).
+  // weather 실패로 리포트를 아예 못 만드는 경우에도 true가 되어 폴백 카드가 정상 노출된다.
+  const [reportAttempted, setReportAttempted] = useState(false);
   const [sharing, setSharing] = useState(false); // 공유 이미지 생성 중
   const shareCardRef = useRef<HTMLDivElement>(null); // 공유 캡처 대상(off-screen)
   const forceRefreshRef = useRef(false); // 수동 새로고침: 당일 캐시 무시하고 재생성
@@ -620,6 +627,8 @@ const Home = () => {
         );
         // 새로고침 env 재조회 종료 — 이제 리포트 생성(aiLoading)이 이어받는다.
         setRefreshing(false);
+        // env 단계 종료 — 아래 분기로 리포트 착수 여부가 확정된다. 히어로 스켈레톤 해제 조건.
+        setReportAttempted(true);
         if (w && !w.error) {
           setAiLoading(true); // 리포트 effect 착수(캐시 재검증) — primed면 스켈레톤은 안 뜸
           // 이미 캐시로 그려둔 경우엔 지우지 않는다(재검증 중 잔상·깜빡임 방지).
@@ -642,6 +651,8 @@ const Home = () => {
         if (!controller.signal.aborted) {
           setLoading(false);
           setRefreshing(false);
+          // env가 통째로 실패해도 스켈레톤에 갇히지 않게 한다 — 폴백 카드로 넘긴다.
+          setReportAttempted(true);
         }
       }
     };
@@ -1298,29 +1309,44 @@ const Home = () => {
     .map((l) => l.replace(/\*\*|__/g, "").trim())
     .filter(Boolean);
 
+  // 로딩 게이트 — 캐시 리포트가 프라임돼 있으면 스켈레톤을 건너뛴다(랜딩 지연 최적화 유지).
+  // `!reportAttempted`를 함께 본다 — env 1차 게이트에서 loading이 풀린 뒤 리포트 착수(전체
+  // 게이트) 전까지의 공백에 규칙 기반 카드가 통째로 노출되던 구멍을 막는다(2026-07-28).
+  const briefLoading = (loading || !reportAttempted || aiLoading || refreshing) && !reportPrimed;
+  const listLoading =
+    (loading || !reportAttempted || aiLoading || aiStreaming || refreshing) && !reportPrimed;
+
+  // AI 본문 대기 구간 — hook은 왔는데 message는 아직인 SSE 창(실측 2~3초).
+  // 이 구간엔 규칙 엔진 폴백 문장을 "AI 판단"인 척 어떤 표면에도 쓰지 않는다. 종전엔
+  // `aiMessage || fallbackMessage`가 근거 자리에 규칙 문장을 대입해 랜딩 직후 낯선 문장이
+  // 잠깐 떴다(2026-07-28 사용자 제보). PR #94가 "오늘 챙길 것"에서 이미 닫은 구멍이
+  // PR #167의 새 표면(support·자세히)에 다시 열린 것 — 같은 게이트를 여기서도 건다.
+  // 리포트가 아직 정착하지 않은 전 구간을 덮는다: ①로딩(스켈레톤) 중 ②hook만 온 스트리밍 창.
+  // ①까지 포함하는 이유 — 화면 밖 공유 카드는 스켈레톤과 무관하게 항상 렌더돼 있어서,
+  // 로딩 중 공유를 누르면 규칙 문장이 "오늘의 AI 리포트"로 내보내진다(2026-07-28 계측에서
+  // 462px 오프스크린 <p>로 확인). AI 실패가 확정된 폴백 상태에서는 규칙 문장이 정직한
+  // 내용이므로 그대로 쓴다.
+  const aiBodyPending = briefLoading || (!!aiHook && !aiMessage);
+  // 본문 표면(자세히·공유)이 쓸 텍스트. 대기 구간엔 비운다 — 폴백 상태(AI 실패)에서는
+  // 종전대로 규칙 문장을 그대로 쓴다(그때는 그게 정직한 화면이다).
+  const displayBody = aiBodyPending ? "" : message;
+
   // 아이 특성 근거 문장 — 프롬프트 규칙상 체질 연결 문장에는 아이 이름이 들어간다.
   // 없으면 두 번째 문장(첫 문장은 이슈 서술)으로 폴백한다. 잘라내지 않는다 — 개인화 근거를
-  // 자르면 유료 서비스의 핵심이 사라진다.
-  const supportLine = (() => {
-    const lines = (aiMessage || message)
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (!lines.length) return null;
-    const line = lines.find((l) => l.includes(cur.name)) ?? lines[1] ?? null;
-    // hook이 없으면 헤드라인이 본문 첫 줄(plainLines[0])을 그대로 쓴다 — 같은 문장이
-    // 근거 자리(support)에 또 나오면 제목·본문이 중복된다(2026-07-27 규칙 폴백에서 확인,
-    // 폴백 메시지는 한 줄이라 이름 포함 줄 = 첫 줄). 마크다운 표기만 다른 동일 문장이면 숨긴다.
-    if (line && !brief.headline && line.replace(/\*\*|__/g, "").trim() === (plainLines[0] ?? ""))
-      return null;
-    return line;
-  })();
+  // 자르면 유료 서비스의 핵심이 사라진다. 발췌 규칙은 lib/hero-brief.ts에 순수 함수로 두고
+  // 유닛 테스트로 고정한다 — 인라인 로직이라 회귀를 못 잡았던 것이 2026-07-28 재발의 조건이었다.
+  const supportLine = pickSupportLine({
+    aiMessage,
+    childName: cur.name,
+    hasHeadline: !!brief.headline,
+    firstPlainLine: plainLines[0] ?? null,
+  });
 
   // 상세 본문 문단 — v3 body 규격(16/400/1.6). 접힘이 기본이라 랜딩 높이에 영향이 없고,
   // 펼쳤을 때는 "읽는 리포트"가 되어야 하므로 14px·foreground/80(스케일 밖 반투명)을 버렸다.
   // 히어로 근거 문장으로 이미 쓴 줄은 제외한다 — 상세가 같은 카드 안으로 들어온 뒤로는
   // 같은 문장이 네 줄 아래 또 나오면 "복사해 붙인 글"처럼 읽힌다(2026-07-26).
-  const detailParagraphs = message
+  const detailParagraphs = displayBody
     .split("\n")
     .map((l) => l.trim())
     .filter((l) => l && l !== supportLine)
@@ -1463,8 +1489,6 @@ const Home = () => {
       : null;
 
   // 로딩 게이트 — 캐시 리포트가 프라임돼 있으면 스켈레톤을 건너뛴다(랜딩 지연 최적화 유지).
-  const briefLoading = (loading || aiLoading || refreshing) && !reportPrimed;
-  const listLoading = (loading || aiLoading || aiStreaming || refreshing) && !reportPrimed;
 
   // 오늘 챙길 것 스켈레톤 — 히어로 전체 로딩(briefLoading)과 목록만 로딩(listLoading) 두
   // 경로가 같은 골격을 그려야 한다. 이제 한 카드 안이라 골격이 갈리면 높이가 튄다.
@@ -1495,7 +1519,7 @@ const Home = () => {
     lines.push(reportMeta);
     if (aiHook) lines.push("", splitHook(aiHook).join(" "));
     // 자세한 리포트 본문 — 마크다운 강조(**)는 평문에서 노이즈이므로 제거해 공유.
-    const bodyText = message
+    const bodyText = displayBody
       .split("\n")
       .map((l) => l.replace(/\*\*/g, "").trim())
       .filter(Boolean)
@@ -1517,7 +1541,7 @@ const Home = () => {
     childName: cur.name,
     dateLabel: reportMeta,
     hook: aiHook ? splitHook(aiHook).join(" ") : "",
-    paragraphs: message
+    paragraphs: displayBody
       .split("\n")
       .map((l) => l.replace(/\*\*/g, "").trim())
       .filter(Boolean),
@@ -1787,9 +1811,22 @@ const Home = () => {
               headline={brief.headline || plainLines[0] || ""}
               prepNames={prepItems.map((it) => it.title)}
               now={heroNow}
-              support={supportLine ? renderRich(supportLine) : null}
+              support={
+                // AI 본문 대기 중엔 스켈레톤. 헤드라인만 먼저 온 상태에서 이 자리를 규칙
+                // 문장으로 메우면 "AI가 그렇게 판단한 것"처럼 읽힌다. 2줄 골격은 실제 근거
+                // 문장(15/1.66 2줄)과 같은 높이라 본문이 도착해도 카드가 튀지 않는다.
+                aiBodyPending ? (
+                  <span aria-busy="true" className="block space-y-1.5 py-1">
+                    <Skeleton className="block h-3.5 w-full rounded-full" />
+                    <Skeleton className="block h-3.5 w-4/6 rounded-full" />
+                  </span>
+                ) : supportLine ? (
+                  renderRich(supportLine)
+                ) : null
+              }
               detail={
-                heroSt === "fallback" ? null : (
+                // 대기 중엔 상세도 열지 않는다 — 열면 규칙 문장이 "자세한 리포트"로 나온다.
+                heroSt === "fallback" || aiBodyPending ? null : (
                   <>
                     {detailParagraphs}
                     {/* 잠정본 안내 — 결론 옆이 아니라 이 상세 안. 조건과 결론 사이에 읽을 것을

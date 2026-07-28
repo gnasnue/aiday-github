@@ -574,3 +574,54 @@ export function buildAiChecklist(
     return { icon, text, key: n === 0 ? text : `${text}-${n}` };
   });
 }
+
+/* ============================================================
+   5. 근거 문장(support) 발췌 — AI 본문 전용
+   ============================================================ */
+
+/**
+ * 히어로 근거 자리에 넣을 문장을 **AI 본문에서만** 고른다. 규칙 엔진 폴백 문장은 절대
+ * 쓰지 않는다 — 그게 이 함수가 존재하는 이유다.
+ *
+ * 배경(2026-07-28 사용자 제보): 랜딩 직후 히어로에 "○○에게는 오늘 덥고 습함이에요…"라는
+ * 낯선 문장이 잠깐 떴다. AI 리포트가 아니라 규칙 엔진(lib/recommendation-engine.ts)의
+ * 폴백 문장이 AI 근거 자리에 대입된 것. 경로는 SSE 스트리밍의 hook→message 구간이다:
+ * hook 도착 즉시 `aiLoading=false`가 되어(헤드라인을 빨리 보여주려는 의도) 히어로가
+ * 스켈레톤에서 빠져나오는데, 그 시점엔 `aiMessage`가 아직 비어 있어 종전 코드의
+ * `aiMessage || message`(= `aiMessage || fallbackMessage`)가 규칙 문장으로 떨어졌다.
+ *
+ * 같은 결함을 PR #94(2026-07-15)가 "오늘 챙길 것"에서 이미 고쳤다 —
+ * `aiLoading || aiStreaming`으로 게이트해 "규칙 폴백이 잠깐 노출됐다 AI 결과로 바뀌던
+ * 잔상"을 없앴다. 그러나 PR #167(Decision Brief 재설계)이 같은 `message`를 읽는 **근거
+ * 표면을 새로 만들면서** 그 게이트를 물려주지 않아 같은 구멍이 새 표면에 다시 열렸다.
+ * 화면 JSX 안의 인라인 로직이라 유닛 테스트로 잡히지도 않았다(buildAiChecklist와 같은
+ * 교훈) — 그래서 순수 함수로 분리해 여기 고정한다.
+ *
+ * 스트리밍 중(본문 미도착)에는 null이 돌아오고, 화면은 근거 자리에 스켈레톤을 그린다
+ * (app/(main)/home/page.tsx). 규칙 폴백 상태(AI 실패)에서도 null이며, 이는 종전 동작과
+ * 같다 — 폴백 메시지는 한 줄이라 헤드라인과 같은 문장이 되어 중복 가드에 걸렸었다.
+ */
+export function pickSupportLine(input: {
+  /** AI 본문. 스트리밍 중이거나 폴백이면 빈 문자열 */
+  aiMessage: string;
+  childName: string;
+  /** AI hook에서 뽑은 헤드라인이 있는지 — 없으면 본문 첫 줄이 헤드라인 자리로 승격된다 */
+  hasHeadline: boolean;
+  /** 헤드라인으로 쓰이는 본문 첫 줄(마크다운 제거본). 중복 판정에만 쓴다 */
+  firstPlainLine?: string | null;
+}): string | null {
+  const { aiMessage, childName, hasHeadline, firstPlainLine = null } = input;
+  const lines = aiMessage
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (!lines.length) return null;
+  // 프롬프트 계약상 아이 이름은 문장2(= 이 아이의 근거)에만 들어간다(lib/prompts/report.ts).
+  // 이름 줄이 없으면 둘째 줄로 폴백한다 — 첫 줄은 이슈 서술이라 근거가 아니다.
+  const line = lines.find((l) => l.includes(childName)) ?? lines[1] ?? null;
+  // hook이 없으면 헤드라인이 본문 첫 줄을 그대로 쓴다 — 같은 문장이 근거 자리에 또 나오면
+  // 제목·본문이 중복된다. 마크다운 표기만 다른 동일 문장이면 숨긴다.
+  if (line && !hasHeadline && line.replace(/\*\*|__/g, "").trim() === (firstPlainLine ?? ""))
+    return null;
+  return line;
+}
