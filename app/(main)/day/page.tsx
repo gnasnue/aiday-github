@@ -1,42 +1,37 @@
 "use client";
 
 /**
- * 하루 탭 — "AiDay가 아이를 어떻게 알아가고 있는지" 보는 화면.
+ * 하루 탭 — **오늘의 케어 실행 하나**를 끝내는 화면.
  *
- * 시안: docs/reviews/2026-07-28-day-tab-home-tips-mockup.html (v6)
- * 계획: docs/01-plan/features/day-review-family-memory.plan.md
+ * 시안·합의: docs/reviews/2026-07-28-review-codex-day-preview.md (조정 합의 3라운드)
  *
- * **이 화면은 기록함이 아니다.** 제품은 기록 앱이 아니라 판단 앱이므로(MANIFESTO —
- * "신생아 기록 앱이 아니다", 문제정의 v3 — "유아기 이후의 Job은 기록이 아니라 판단"),
- * 사용자에게 보이는 언어에서 기록·트래킹·N일째·연속을 쓰지 않는다. 대신:
- *   Hero      = 오늘의 변화(결과가 반영됐다 / 아직 안 닫혔다 / 이미 이만큼 안다)
- *   반응 지도 = 특성별 병렬 상태 — 전역 진행 단계를 만들지 않는다(더위는 반영 중인데
- *               추위는 정보가 적을 수 있고, 그 병렬성이 실제 데이터 구조다)
- *   근거      = 최근 비슷한 날(조건 · 추천 · 결과 3요소)
- * 입력(/review)은 이 화면을 갱신하는 가벼운 액션이지 메인 콘텐츠가 아니다.
+ * 이 화면의 Job은 하나다: **오늘 아이에게 생길 수 있는 실패를 막는 행동 1개를,
+ * 내가 챙기고(준비) 남에게 넘기게(전달) 한다.** 저녁에는 그 결과를 한 번 회수한다.
+ *
+ * 이전 버전이 실패한 이유(2026-07-29 사용자 지적, 스크린샷 `2026-07-29-day-current-prod.png`):
+ *   ① 첫 화면에 "오늘 할 일"이 없었다 — 카드가 전부 '내일' 또는 '우리가 아는 것'이었다.
+ *   ② "지우를 이미 이만큼 알고 있어요"는 부모가 **자기가 입력한 정보를 되돌려 받는** 카드였다.
+ *   ③ 반응 지도·현황판은 제품의 진척이지 부모의 효용이 아니다(3회 지적).
+ * 그래서 프로필 카드·반응 지도·상시 내일 카드를 **삭제**했다. 내일 준비는 결과를
+ * 알려준 뒤의 **보상**으로만 등장한다.
+ *
+ * 금지(조정 합의): "가장 중요한·1순위·놓치면 안 될" 같은 순위 주장, 기록·트래킹 어휘,
+ * 엔진 입력에 실제로 들어가지 않은 개인화 설명.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
+  ArrowRight,
+  Check,
   ChevronRight,
-  CloudRain,
-  Droplets,
   Settings2,
-  Shirt,
-  Snowflake,
-  Sun,
+  Share2,
+  Sunrise,
   Trash2,
-  Wind,
   X,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import PageHeader, { headerBtn } from "@/components/PageHeader";
-import { useLocation } from "@/lib/useLocation";
-import { loadEnvSnapshot } from "@/lib/env-cache";
-import { buildTomorrowTimeline } from "@/lib/timeline";
-import { buildTomorrowBrief } from "@/lib/memory/tomorrow-brief";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
   ChildProfile,
@@ -44,28 +39,26 @@ import {
   isDemoProfile,
   loadProfiles,
 } from "@/lib/profile";
-import { loadTodayReport } from "@/lib/report-cache";
-import { splitHook } from "@/lib/hero-brief";
-import { withSubjectSuffix } from "@/lib/korean";
+import { useLocation } from "@/lib/useLocation";
+import { loadEnvSnapshot } from "@/lib/env-cache";
+import { buildTimeline, buildTomorrowTimeline } from "@/lib/timeline";
+import { buildCarePlan, applyPastOutcome } from "@/lib/care-plan";
+import { buildTomorrowBrief } from "@/lib/memory/tomorrow-brief";
 import { localDateStr } from "@/lib/date";
+import { loadCheckedKeys, saveCheckedKeys } from "@/lib/memory/checklist-state";
 import {
   OVERALL_FIT_OPTIONS,
   THERMAL_OPTIONS,
-  buildNextJudgementLine,
-  buildTraitMap,
   clearEntries,
   deleteEntry,
   loadEntries,
   type DayReviewEntry,
-  type TraitCard,
 } from "@/lib/memory/day-review";
 
-/** 특성 키 → 아이콘 (Lucide 단일 세트 — 이모지 금지) */
-const TRAIT_ICON: Record<TraitCard["key"], LucideIcon> = {
-  heat: Sun,
-  cold: Snowflake,
-  prep: Shirt,
-  airway: Wind,
+const shortDate = (iso: string) => {
+  const [, m, d] = iso.split("-").map(Number);
+  const dow = ["일", "월", "화", "수", "목", "금", "토"][new Date(iso + "T00:00:00").getDay()];
+  return `${m}.${d} ${dow}`;
 };
 
 const fitLabel = (e: DayReviewEntry) =>
@@ -73,23 +66,17 @@ const fitLabel = (e: DayReviewEntry) =>
 const thermalLabel = (e: DayReviewEntry) =>
   e.thermalOutcome ? THERMAL_OPTIONS.find((o) => o.value === e.thermalOutcome)?.label : null;
 
-/** "7.27 일" */
-const shortDate = (iso: string) => {
-  const [, m, d] = iso.split("-").map(Number);
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][new Date(iso + "T00:00:00").getDay()];
-  return `${m}.${d} ${dow}`;
-};
-
 const DayPage = () => {
   const router = useRouter();
+  const { location } = useLocation();
   const [mounted, setMounted] = useState(false);
   const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
   const [active, setActive] = useState<string>(defaultProfiles[0].id);
   const [entries, setEntries] = useState<DayReviewEntry[]>([]);
-  const [todayHook, setTodayHook] = useState<string | null>(null);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [shared, setShared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // localStorage 읽기는 마운트 이후에만 — SSR 첫 렌더와의 하이드레이션 불일치 방지(홈 패턴)
   useEffect(() => {
     const list = loadProfiles();
     setProfiles(list);
@@ -102,37 +89,106 @@ const DayPage = () => {
     setMounted(true);
   }, []);
 
-  // 활성 아이가 바뀌면 그 아이의 결과·오늘 판단을 다시 읽는다
   useEffect(() => {
     if (!mounted) return;
     setEntries(loadEntries(active));
-    const report = loadTodayReport(active);
-    setTodayHook(report?.hook ?? null);
+    setChecked(loadCheckedKeys(active));
+    setShared(false);
     try {
       localStorage.setItem("aiweather:activeProfileId", active);
     } catch {}
   }, [active, mounted]);
 
-  const { location } = useLocation();
-
   const child = profiles.find((p) => p.id === active) ?? profiles[0];
   const today = entries.find((e) => e.date === localDateStr()) ?? null;
 
-  // 내일 아침 준비 — 홈이 저장해 둔 env 스냅샷(≤90분)을 재사용한다(이 탭은 페치하지
-  // 않는다). 스냅샷·내일 예보가 없으면 카드를 그리지 않는다 — 지어내지 않는다.
-  const tomorrow = useMemo(() => {
+  // 환경은 홈이 저장해 둔 스냅샷을 재사용한다(이 탭은 페치하지 않는다 — 판정 입력 단일화)
+  const snap = useMemo(() => {
     if (!mounted) return null;
-    const snap = loadEnvSnapshot({ station: location.station, lat: location.lat, lon: location.lon });
-    if (!snap) return null;
-    const slots = buildTomorrowTimeline(child?.schedule, snap.env);
-    return buildTomorrowBrief(slots, child?.conditions ?? [], today);
-  }, [mounted, location.station, location.lat, location.lon, child, today]);
-  const traits = useMemo(() => buildTraitMap(entries), [entries]);
-  const nextLine = useMemo(() => buildNextJudgementLine(traits), [traits]);
-  const recent = entries.filter((e) => e.date !== localDateStr()).slice(0, 3);
-  const hookAction = todayHook ? (splitHook(todayHook)[1] ?? todayHook) : null;
+    return loadEnvSnapshot({
+      station: location.station,
+      lat: location.lat,
+      lon: location.lon,
+    });
+  }, [mounted, location.station, location.lat, location.lon]);
 
-  const refresh = () => setEntries(loadEntries(active));
+  // 오늘의 실행 — 슬롯 전이에서 실패 조건을 찾는다. 없으면 null(지어내지 않는다).
+  const plan = useMemo(() => {
+    if (!snap || !child) return null;
+    const slots = buildTimeline(child.schedule, snap.env);
+    if (!slots) return null;
+    return buildCarePlan({
+      slots,
+      childName: child.name,
+      conditions: child.conditions,
+      hot: child.hot,
+      sweat: child.sweat,
+    });
+  }, [snap, child]);
+
+  // 과거 결과 반영 — 같은 종류의 결과가 있을 때만. 없으면 반영 문장을 만들지 않는다.
+  const pastThermal = useMemo(() => {
+    const past = entries.filter((e) => e.date !== localDateStr() && e.thermalOutcome);
+    const warm = past.filter((e) => e.thermalOutcome === "too_warm").length;
+    const cold = past.filter((e) => e.thermalOutcome === "too_cold").length;
+    if (warm >= 2 && warm > cold) return "too_warm" as const;
+    if (cold >= 2 && cold > warm) return "too_cold" as const;
+    return null;
+  }, [entries]);
+
+  const adjusted = useMemo(
+    () => (plan ? applyPastOutcome(plan, pastThermal) : null),
+    [plan, pastThermal]
+  );
+  const shownPlan = adjusted?.plan ?? plan;
+
+  // 결과를 알려준 뒤의 보상 — 내일 아침 준비(오늘 결과 반영)
+  const tomorrow = useMemo(() => {
+    if (!today || !snap || !child) return null;
+    const slots = buildTomorrowTimeline(child.schedule, snap.env);
+    return buildTomorrowBrief(slots, child.conditions ?? [], today);
+  }, [today, snap, child]);
+
+  const recent = entries.filter((e) => e.date !== localDateStr()).slice(0, 3);
+  const prepKey = shownPlan?.prep[0] ?? null;
+  const prepDone = prepKey ? checked.includes(prepKey) : false;
+
+  const togglePrep = () => {
+    if (!prepKey) return;
+    const next = prepDone ? checked.filter((k) => k !== prepKey) : [...checked, prepKey];
+    setChecked(next);
+    saveCheckedKeys(active, next);
+  };
+
+  // 전달 — 공유 시트를 먼저 시도하고(한 탭에 끝난다), 미지원이면 복사로 폴백한다.
+  const share = async () => {
+    if (!shownPlan) return;
+    const text = shownPlan.handoff;
+    if (typeof navigator === "undefined") return;
+    // Web Share는 lib.dom 버전에 따라 타입에 없을 수 있어 함수 존재로 판정한다
+    const shareFn = (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share;
+    const copy = async () => {
+      await navigator.clipboard.writeText(text);
+      setShared(true);
+      toast("전달 문구를 복사했어요");
+    };
+    try {
+      if (typeof shareFn === "function") {
+        await shareFn.call(navigator, { text });
+        setShared(true);
+        return;
+      }
+      await copy();
+    } catch (err) {
+      // 사용자가 공유 시트를 닫은 것(AbortError)은 실패가 아니다
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      try {
+        await copy();
+      } catch {
+        toast("전달 문구를 복사하지 못했어요 — 문장을 길게 눌러 복사해주세요");
+      }
+    }
+  };
 
   if (!mounted) {
     return (
@@ -143,6 +199,7 @@ const DayPage = () => {
   }
 
   const name = child.name;
+  const handoffTarget = shownPlan?.atDaycare ? "어린이집에 전달하기" : "돌봄자에게 전달하기";
 
   return (
     <div className="page-shell">
@@ -160,9 +217,8 @@ const DayPage = () => {
         />
 
         <main className="container-mobile pt-5">
-          {/* 아이 전환 — 2명 이상일 때만. Family Memory는 아이별로 쌓인다 */}
           {profiles.length > 1 && (
-            <div className="flex shrink-0 items-center gap-1 self-start rounded-full bg-muted p-1">
+            <div className="flex w-fit items-center gap-1 rounded-full bg-muted p-1">
               {profiles.map((p) => (
                 <button
                   key={p.id}
@@ -185,260 +241,174 @@ const DayPage = () => {
             </div>
           )}
 
-          <h1 className="mt-4 text-[20px] font-bold leading-[1.35] tracking-[-0.02em]">
-            {name}의 하루
-          </h1>
-          <p className="tabular mt-1 text-[13px] font-medium text-muted-foreground">
-            {new Date().getMonth() + 1}월 {new Date().getDate()}일 (
-            {["일", "월", "화", "수", "목", "금", "토"][new Date().getDay()]})
-          </p>
-
-          {/* ── 내일 아침 준비 (L2, must-have 훅) — "오늘을 닫으면 내일이 준비된다".
-              전날 확인(워크어라운드 1위 41.7%)의 자동화이자 전날 밤 알림(수요 2위
-              64.7%)의 화면 버전. 오늘 결과가 있으면 준비물 순서에 **실반영**된다. */}
-          {tomorrow && (
-            <section className="mt-5 rounded-2xl bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                  내일 아침 준비 · {tomorrow.slotLabel} <span className="num">{tomorrow.hour}</span>
-                </p>
-                {tomorrow.rain ? (
-                  <CloudRain className="h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-                ) : (
-                  <Sun className="h-5 w-5 shrink-0 text-muted-foreground" strokeWidth={1.5} />
-                )}
-              </div>
-              <p className="mt-2 text-[19px] font-extrabold leading-[1.45] tracking-[-0.02em] text-foreground break-keep">
-                내일 {tomorrow.slotLabel}길 <span className="num">{tomorrow.temp}°</span>
-                {tomorrow.rain ? " · 비 소식이 있어요" : " — 이렇게 준비하면 돼요"}
+          {/* ── 오늘의 실행 (이 화면의 유일한 L2) ───────────────────────── */}
+          {shownPlan ? (
+            <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                오늘의 실행
               </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {tomorrow.preps.map((prep, i) => {
-                  const highlight = i === 0 && tomorrow.adjusted?.name === prep;
-                  return (
-                    <span
-                      key={prep}
-                      className={`rounded-full px-3 py-1.5 text-[13px] ${
-                        highlight
-                          ? "bg-primary-tint font-bold text-foreground"
-                          : "bg-muted font-medium text-foreground"
-                      }`}
-                    >
-                      {prep}
-                    </span>
-                  );
-                })}
-              </div>
-              {tomorrow.adjusted ? (
-                <div className="mt-3 rounded-2xl bg-secondary p-3.5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-accent">
-                    오늘 결과 반영
-                  </p>
-                  <p className="mt-1 text-[13.5px] leading-[1.6] text-foreground break-keep">
-                    {tomorrow.adjusted.name} — {tomorrow.adjusted.reason}
-                  </p>
-                </div>
-              ) : (
-                !today && (
-                  <p className="mt-3 text-[12.5px] leading-[1.6] text-muted-foreground break-keep">
-                    오늘 결과를 알려주면 내일 준비에 바로 반영해요.
-                  </p>
-                )
-              )}
-            </section>
-          )}
+              <h1 className="mt-2 text-[26px] font-extrabold leading-[1.34] tracking-[-0.028em] text-foreground break-keep">
+                {shownPlan.action}
+              </h1>
 
-          {/* ── Hero: 오늘의 변화 (오늘 무엇이 달라졌나 / 무엇을 알려줄까) ── */}
-          {today ? (
-            <section className="mt-5 rounded-2xl bg-card p-5 shadow-soft">
-              <div className="flex items-center gap-2">
-                <p className="flex-1 text-[15px] font-bold text-foreground">
-                  오늘 결과가 반영됐어요
+              {/* 근거 — 원인 슬롯 → 결과 슬롯. 판단에 쓴 값을 그대로 보여준다 */}
+              <div className="mt-4 rounded-2xl bg-muted p-4">
+                {shownPlan.evidence.map((e, i) => (
+                  <div key={e.slot} className={i === 0 ? "" : "mt-3 border-t border-border pt-3"}>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-[13px] font-bold text-foreground">{e.slot}</span>
+                      <span className="num text-[13px] font-bold text-foreground">{e.value}</span>
+                    </div>
+                    <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground break-keep">
+                      {e.why}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {adjusted && (
+                <p className="mt-3 text-[13px] leading-[1.6] text-accent break-keep">
+                  {adjusted.note}
                 </p>
+              )}
+
+              {/* ① 내가 챙길 것 */}
+              {prepKey && (
                 <button
-                  onClick={() => router.push("/review?edit=1")}
-                  className="-mr-2 flex min-h-11 items-center rounded-full px-2 text-[13px] font-semibold text-muted-foreground transition-smooth hover:text-foreground"
+                  onClick={togglePrep}
+                  aria-pressed={prepDone}
+                  className="mt-5 flex min-h-14 w-full items-center gap-3 rounded-2xl bg-muted px-4 text-left transition-smooth active:scale-[0.99]"
                 >
-                  수정
+                  <span
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
+                      prepDone
+                        ? "border-status-good bg-status-good text-white"
+                        : "border-border-control bg-card"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {prepDone && <Check className="h-4 w-4" strokeWidth={3} />}
+                  </span>
+                  <span
+                    className={`flex-1 text-[16px] font-semibold ${
+                      prepDone ? "text-muted-foreground line-through" : "text-foreground"
+                    }`}
+                  >
+                    {prepKey} 가방에 넣기
+                  </span>
                 </button>
-              </div>
-              <p className="mt-2 text-[19px] font-extrabold leading-[1.45] tracking-[-0.02em] text-foreground break-keep">
-                {traits.some((t) => t.state === "confirmed")
-                  ? `${name}의 반응이 조금 더 또렷해졌어요`
-                  : `오늘 ${name}의 하루가 더해졌어요`}
-              </p>
-
-              <p className="mt-4 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                오늘 알려준 내용
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {[fitLabel(today), thermalLabel(today), ...today.tags.slice(0, 2)]
-                  .filter((s): s is string => !!s)
-                  .map((s) => (
-                    <span
-                      key={s}
-                      className="rounded-full bg-muted px-3 py-1.5 text-[13px] font-medium text-foreground"
-                    >
-                      {s}
-                    </span>
-                  ))}
-              </div>
-
-              {nextLine && (
-                <div className="mt-4 rounded-2xl bg-secondary p-4">
-                  <p className="text-[14.5px] font-bold leading-[1.55] text-foreground break-keep">
-                    {nextLine}
-                  </p>
-                  <p className="mt-1 text-[12.5px] leading-[1.6] text-muted-foreground break-keep">
-                    아래 ‘최근 비슷한 날’의 결과를 참고했어요
-                  </p>
-                </div>
               )}
-            </section>
-          ) : entries.length === 0 ? (
-            /* 첫 진입 — "0에서 시작"이 아니라 "이미 이만큼 알고 있다" */
-            <section className="mt-5 rounded-2xl bg-card p-5 shadow-soft">
-              <p className="text-[19px] font-extrabold leading-[1.45] tracking-[-0.02em] break-keep">
-                {withSubjectSuffix(name)} 이미
-                <br />
-                이만큼 알고 있어요
-              </p>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {(child.conditions?.length ? child.conditions : ["프로필 정보"])
-                  .slice(0, 3)
-                  .map((c) => (
-                    <span
-                      key={c}
-                      className="rounded-full bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
-                    >
-                      {c}
-                    </span>
-                  ))}
-              </div>
-              <p className="mt-4 text-[13.5px] leading-[1.65] text-muted-foreground break-keep">
-                하루의 실제 결과를 가볍게 알려주면, 프로필만으로는 알 수 없는 {name}의 반응을
-                다음 판단에 더해갈 수 있어요.
-              </p>
-              <Button
-                className="mt-4 h-12 w-full rounded-[14px] bg-primary text-[16px] font-bold text-primary-foreground hover:bg-primary-hover"
-                onClick={() => router.push("/review")}
+
+              {/* ② 남에게 넘길 일 — 이 화면의 유일한 primary CTA */}
+              <button
+                onClick={share}
+                className={`mt-2 flex h-13 min-h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[17px] font-bold transition-smooth active:scale-[0.99] ${
+                  shared
+                    ? "bg-status-good-bg text-status-good"
+                    : "bg-primary text-primary-foreground hover:bg-primary-hover"
+                }`}
               >
-                오늘 {name}에게 어땠는지 알려주기
-              </Button>
+                {shared ? (
+                  <>
+                    <Check className="h-5 w-5" strokeWidth={2.5} />
+                    전달했어요
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-5 w-5" strokeWidth={1.75} />
+                    {handoffTarget}
+                  </>
+                )}
+              </button>
+              <p className="mt-2 rounded-2xl bg-secondary p-3.5 text-[13px] leading-[1.6] text-foreground break-keep">
+                “{shownPlan.handoff}”
+              </p>
             </section>
           ) : (
-            /* 오늘 미입력 — 질문형 Hero + 아침 판단 인용 */
-            <section className="mt-5 rounded-2xl bg-card p-5 shadow-soft">
-              <p className="text-[19px] font-extrabold leading-[1.45] tracking-[-0.02em] break-keep">
-                오늘 {name}에게
-                <br />
-                실제로 어땠나요?
+            <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
+              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                오늘의 실행
               </p>
-              {hookAction && (
-                <div className="mt-3 rounded-2xl bg-muted p-3.5">
-                  <p className="text-[12.5px] leading-[1.55] text-muted-foreground break-keep">
-                    아침에는 <span className="font-semibold text-foreground">“{hookAction}”</span>
-                    라고 안내했어요.
-                  </p>
-                </div>
-              )}
-              <p className="mt-2.5 text-[13.5px] leading-[1.6] text-muted-foreground break-keep">
-                한 번만 알려주면, 다음 비슷한 날의 판단에 참고할게요.
+              <h1 className="mt-2 text-[22px] font-extrabold leading-[1.4] tracking-[-0.02em] break-keep">
+                오늘은 따로 챙길 것이 없어요
+              </h1>
+              <p className="mt-2 text-[14px] leading-[1.65] text-muted-foreground break-keep">
+                {snap
+                  ? `시간대별 기온 변화와 ${name}의 일과를 확인했는데, 오늘은 미리 맞춰둘 케어가 보이지 않아요.`
+                  : "홈에서 오늘 환경을 먼저 불러오면 오늘의 실행을 보여드릴게요."}
               </p>
-              <Button
-                className="mt-4 h-12 w-full rounded-[14px] bg-primary text-[16px] font-bold text-primary-foreground hover:bg-primary-hover"
-                onClick={() => router.push("/review")}
-              >
-                30초로 알려주기
-              </Button>
             </section>
           )}
 
-          {/* ── 반응 지도: 특성별 병렬 상태 ─────────────────────────────── */}
-          {traits.length > 0 && (
-            <section className="mt-8">
-              <div className="flex items-baseline justify-between gap-2">
-                <h2 className="text-[17px] font-bold tracking-[-0.01em]">
-                  {withSubjectSuffix(name)} 알아가는 중
-                </h2>
-                <p className="shrink-0 text-[12px] font-medium text-muted-foreground">
-                  확인된 경향 <span className="num font-bold text-foreground">
-                    {traits.filter((t) => t.state === "confirmed").length}
-                  </span>개
-                </p>
-              </div>
-              <div className="mt-3 space-y-2">
-                {traits.slice(0, 1).map((t) => {
-                  const Icon = TRAIT_ICON[t.key];
-                  const on = t.state === "confirmed";
-                  return (
-                    <div
-                      key={t.key}
-                      className={`rounded-2xl p-4 ${
-                        on ? "bg-primary-tint" : "border-[1.5px] border-dashed border-border-control bg-card"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          className={`h-[18px] w-[18px] shrink-0 ${on ? "text-accent" : "text-muted-foreground"}`}
-                          strokeWidth={1.75}
-                        />
-                        <p className="flex-1 text-[15px] font-bold text-foreground break-keep">
-                          {t.title}
-                        </p>
-                        {on && (
-                          <span className="shrink-0 rounded-full bg-card px-2.5 py-1 text-[11px] font-bold text-accent">
-                            다음 판단 반영
-                          </span>
-                        )}
-                      </div>
-                      <p className="mt-1.5 text-[13px] leading-[1.55] text-muted-foreground break-keep">
-                        {t.desc}
-                      </p>
-                    </div>
-                  );
-                })}
-                {traits.length > 1 && (
-                  <div className={`grid gap-2 ${traits.length > 2 ? "grid-cols-2" : "grid-cols-1"}`}>
-                    {traits.slice(1, 3).map((t) => {
-                      const Icon = TRAIT_ICON[t.key];
-                      const on = t.state === "confirmed";
-                      return (
-                        <div
-                          key={t.key}
-                          className={`rounded-2xl p-3.5 ${
-                            on
-                              ? "bg-primary-tint"
-                              : "border-[1.5px] border-dashed border-border-control bg-card"
+          {/* ── 저녁 회수 한 줄 / 결과 반영 후 보상 ─────────────────────── */}
+          {today ? (
+            <>
+              <section className="mt-6 rounded-2xl bg-card p-5 shadow-soft">
+                <div className="flex items-center gap-2">
+                  <Check className="h-[18px] w-[18px] shrink-0 text-status-good" strokeWidth={2.5} />
+                  <p className="flex-1 text-[15px] font-bold">오늘 결과가 반영됐어요</p>
+                  <button
+                    onClick={() => router.push("/review?edit=1")}
+                    className="-mr-2 flex min-h-11 items-center rounded-full px-2 text-[13px] font-semibold text-muted-foreground"
+                  >
+                    수정
+                  </button>
+                </div>
+                {tomorrow && (
+                  <div className="mt-3 rounded-2xl bg-muted p-4">
+                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                      <Sunrise className="h-3.5 w-3.5" strokeWidth={2} />
+                      내일 {tomorrow.slotLabel} <span className="num">{tomorrow.hour}</span> ·{" "}
+                      <span className="num">{tomorrow.temp}°</span>
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {tomorrow.preps.map((p, i) => (
+                        <span
+                          key={p}
+                          className={`rounded-full px-3 py-1.5 text-[13px] ${
+                            i === 0 && tomorrow.adjusted?.name === p
+                              ? "bg-primary-tint font-bold text-foreground"
+                              : "bg-card font-medium text-foreground"
                           }`}
                         >
-                          <Icon
-                            className={`h-[18px] w-[18px] ${on ? "text-accent" : "text-muted-foreground"}`}
-                            strokeWidth={1.75}
-                          />
-                          <p className="mt-2 text-[13.5px] font-bold text-foreground break-keep">
-                            {t.title}
-                          </p>
-                          <p className="mt-0.5 text-[12px] leading-[1.45] text-muted-foreground break-keep">
-                            {t.desc}
-                          </p>
-                        </div>
-                      );
-                    })}
+                          {p}
+                        </span>
+                      ))}
+                    </div>
+                    {tomorrow.adjusted && (
+                      <p className="mt-2 text-[12.5px] leading-[1.6] text-muted-foreground break-keep">
+                        {tomorrow.adjusted.reason}
+                      </p>
+                    )}
                   </div>
                 )}
-              </div>
-            </section>
+              </section>
+            </>
+          ) : (
+            <button
+              onClick={() => router.push("/review")}
+              className="mt-6 flex w-full items-center gap-3 rounded-2xl bg-card p-5 text-left shadow-soft transition-smooth active:scale-[0.99]"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-bold tracking-[-0.01em] break-keep">
+                  오늘 {name}에게 어땠는지 한 번만 알려주세요
+                </span>
+                <span className="mt-0.5 block text-[13px] leading-[1.5] text-muted-foreground break-keep">
+                  30초면 끝나고, 내일 아침 준비에 바로 반영해요
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
+            </button>
           )}
 
-          {/* ── 근거: 최근 비슷한 날 (조건 · 추천 · 결과) ─────────────────── */}
+          {/* ── 근거: 최근 비슷한 날 (있을 때만, 조용히) ───────────────── */}
           {recent.length > 0 && (
             <section className="mt-8">
               <h2 className="text-[17px] font-bold tracking-[-0.01em]">최근 비슷한 날</h2>
               <div className="mt-3 divide-y divide-border rounded-2xl bg-card shadow-soft">
                 {recent.map((e) => (
                   <div key={e.date} className="px-5 py-3.5">
-                    <p className="tabular text-[12px] text-faint">
+                    <p className="tabular text-[12px] text-muted-foreground">
                       {shortDate(e.date)}
                       {e.conditionLabel ? ` · ${e.conditionLabel}` : ""}
                     </p>
@@ -462,7 +432,7 @@ const DayPage = () => {
         </main>
       </div>
 
-      {/* 결과 관리 시트 — 개인정보 통제(수정·삭제)는 여기 모은다 */}
+      {/* 결과 관리 시트 — 개인정보 통제 */}
       {settingsOpen && (
         <div
           className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/30"
@@ -495,7 +465,7 @@ const DayPage = () => {
                   className="flex min-h-14 w-full items-center gap-3 px-4 text-left"
                 >
                   <span className="flex-1 text-[15px] font-medium">오늘 결과 수정</span>
-                  <ChevronRight className="h-4 w-4 text-faint" strokeWidth={2} />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
                 </button>
               )}
               {entries.slice(0, 5).map((e) => (
@@ -506,7 +476,7 @@ const DayPage = () => {
                   <button
                     onClick={() => {
                       deleteEntry(active, e.date);
-                      refresh();
+                      setEntries(loadEntries(active));
                       toast("이 날의 결과를 삭제했어요");
                     }}
                     aria-label={`${shortDate(e.date)} 결과 삭제`}
@@ -523,13 +493,12 @@ const DayPage = () => {
                 onClick={() => {
                   if (!confirm(`${name}의 하루 결과를 모두 삭제할까요? 되돌릴 수 없어요.`)) return;
                   clearEntries(active);
-                  refresh();
+                  setEntries(loadEntries(active));
                   setSettingsOpen(false);
                   toast("모든 결과를 삭제했어요");
                 }}
-                className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-muted text-[14px] font-semibold text-status-bad"
+                className="mt-4 flex min-h-12 w-full items-center justify-center rounded-[14px] bg-muted text-[14px] font-semibold text-status-bad"
               >
-                <Droplets className="h-4 w-4" strokeWidth={1.75} />
                 전체 삭제
               </button>
             )}
