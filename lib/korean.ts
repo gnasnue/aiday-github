@@ -27,3 +27,10 @@ export const withTopicParticle = (name: string): string => {
 export const withDativeParticle = (name: string): string => {
   return hasJongseong(name) ? `${name}이에게는` : `${name}에게는`;
 };
+
+// Nominative particle: "지우" -> "지우가", "지원" -> "지원이가"
+// 돌봄자에게 보내는 문장처럼 아이가 행위 주체인 자리에 쓴다
+// ("지우가 땀에 젖으면" — 여기에 dative를 쓰면 "지우에게는 땀이 젖으면"으로 어색해진다).
+export const withNominativeParticle = (name: string): string => {
+  return hasJongseong(name) ? `${name}이가` : `${name}가`;
+};
