@@ -5,9 +5,13 @@
  *
  * 왜 존재하나: 지불 의향은 기능을 더 쌓아서 증명되는 게 아니라 **결제 도선을 놓고
  * 측정**해야 한다(시장선별 v2 결론 — "점수를 올리는 방법은 아이디어가 아니라 검증의
- * 실행"). 상품 정의는 그 문서의 확정안 그대로다: 2026-09-01~10-31 8주, 정가 9,900원
- * (얼리버드 4,900원), 첫 주 불만족 시 전액 환불. 페인 근거: 환절기가 어려움 상황 1위
- * (82.4%), 월내 준비 실패 52.8% — 실패 1회 비용(재준비·긴급 구매)이 패스 가격을 넘는다.
+ * 실행"). 페인 근거: 환절기가 어려움 상황 1위(82.4%), 월내 준비 실패 52.8% —
+ * 실패 1회 비용(재준비·긴급 구매)이 한 달 구독료를 크게 넘는다.
+ *
+ * 가격: **월 990원** (2026-07-29 사용자 결정). 시장선별 v2의 확정안(8주 9,900원 /
+ * 월 4,900~6,900원, Huckleberry·Napper 벤치마크)보다 낮은 진입 가격이며, 첫 코호트의
+ * **결제 전환 자체를 먼저 측정**하려는 선택이다. 원가(가구당 LLM 월 300~500원)를 감안하면
+ * 이 가격의 매출총이익률은 확정안보다 낮으므로, 가격 상향은 전환율 확인 후 판단한다.
  *
  * **정직성**: 지금 결제를 받지 않는다 — 사전예약(의향 표시)만 수집하고 그 사실을
  * 화면에 명시한다. 수집은 기존 `feedback` 채널(자발 제출, anon 허용)을 재사용해
@@ -16,11 +20,20 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Leaf, ShieldCheck, Sunrise, Moon, CalendarRange } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarRange,
+  Check,
+  IdCard,
+  Leaf,
+  Moon,
+  ShieldCheck,
+  Sunrise,
+} from "lucide-react";
 import { toast } from "sonner";
 import { sendFeedback } from "@/lib/analytics";
 
-const RESERVED_KEY = "aiday:pass:reserved:2026-fall";
+const RESERVED_KEY = "aiday:pass:reserved:monthly";
 
 const BENEFITS: { icon: typeof Sunrise; title: string; desc: string }[] = [
   {
@@ -37,6 +50,11 @@ const BENEFITS: { icon: typeof Sunrise; title: string; desc: string }[] = [
     icon: Leaf,
     title: "환절기 특화 케어",
     desc: "일교차 큰 시간대 안내, 겉옷 레이어링, 비염·피부 민감 아이 케어",
+  },
+  {
+    icon: IdCard,
+    title: "돌봄 카드 공유",
+    desc: "조부모·시터·어린이집에 아이 케어 요약을 한 장으로 건네요",
   },
   {
     icon: ShieldCheck,
@@ -64,8 +82,8 @@ const PassPage = () => {
     // 자발 제출 채널(feedback) 재사용 — 예약 의향과 상품 식별자만 남긴다(개인정보 없음)
     const ok = await sendFeedback({
       kind: "general",
-      message: "[사전예약] 환절기 케어 패스 2026 가을 (얼리버드)",
-      props: { product: "season-pass-2026-fall", price_krw: 4900, list_price_krw: 9900 },
+      message: "[사전예약] 환절기 케어 패스 — 월 990원 구독",
+      props: { product: "care-pass-monthly", price_krw: 990, billing: "monthly" },
     });
     setSending(false);
     if (ok) {
@@ -99,7 +117,7 @@ const PassPage = () => {
           <section className="rounded-3xl bg-secondary p-6 shadow-card">
             <p className="inline-flex items-center gap-1.5 rounded-full bg-card px-3 py-1.5 text-[12px] font-bold text-accent">
               <CalendarRange className="h-3.5 w-3.5" strokeWidth={2} />
-              2026. 9. 1 – 10. 31 · 8주
+              2026년 9월 시작 · 월 구독
             </p>
             <h1 className="mt-4 text-[26px] font-extrabold leading-[1.35] tracking-[-0.02em] text-foreground break-keep">
               일교차의 계절,
@@ -108,14 +126,11 @@ const PassPage = () => {
             </h1>
             <p className="mt-3 text-[14px] leading-[1.65] text-muted-foreground break-keep">
               부모들이 가장 어려워하는 시기가 일교차 큰 환절기예요(자체 조사 82.4%).
-              아침 4°, 낮 18° — 뭘 입혀 보낼지 매일 고민하는 8주를 AiDay가 대신 판단해요.
+              아침 4°, 낮 18° — 뭘 입혀 보낼지 매일 고민하던 판단을 AiDay가 대신해요.
             </p>
-            <div className="mt-5 flex items-baseline gap-2">
-              <span className="num text-[28px] font-extrabold text-foreground">4,900원</span>
-              <span className="num text-[15px] font-medium text-faint line-through">9,900원</span>
-              <span className="rounded-full bg-primary-tint px-2.5 py-1 text-[11px] font-bold text-accent">
-                얼리버드
-              </span>
+            <div className="mt-5 flex items-baseline gap-1.5">
+              <span className="num text-[28px] font-extrabold text-foreground">월 990원</span>
+              <span className="text-[14px] font-medium text-muted-foreground">· 언제든 해지</span>
             </div>
           </section>
 
@@ -143,7 +158,7 @@ const PassPage = () => {
               <Check className="mx-auto h-6 w-6 text-status-good" strokeWidth={2.5} />
               <p className="mt-2 text-[16px] font-bold text-foreground">사전예약이 완료됐어요</p>
               <p className="mt-1 text-[13px] leading-[1.6] text-muted-foreground break-keep">
-                8월에 얼리버드 결제 안내를 가장 먼저 보내드릴게요.
+                9월 시작에 맞춰 결제 안내를 가장 먼저 보내드릴게요.
               </p>
             </section>
           ) : (
@@ -153,7 +168,7 @@ const PassPage = () => {
                 disabled={sending}
                 className="flex h-13 min-h-12 w-full items-center justify-center rounded-[14px] bg-primary text-[17px] font-bold text-primary-foreground transition-smooth hover:bg-primary-hover active:scale-[0.99] disabled:opacity-50"
               >
-                {sending ? "예약하는 중…" : "얼리버드 사전예약하기"}
+                {sending ? "예약하는 중…" : "월 990원 사전예약하기"}
               </button>
               <p className="mt-2.5 text-center text-[12px] leading-[1.6] text-muted-foreground break-keep">
                 지금 결제하지 않아요 — 출시 시 안내를 받아보는 예약이에요.
