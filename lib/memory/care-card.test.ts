@@ -15,7 +15,7 @@ const child = (over: Partial<ChildProfile> = {}): ChildProfile =>
     ...over,
   }) as ChildProfile;
 
-const TODAY = "2026-07-29";
+const TODAY = new Date(2026, 6, 29); // 로컬 자정 고정 — TZ 무관
 const entry = (daysAgo: number, thermal: DayReviewEntry["thermalOutcome"]): DayReviewEntry => {
   const d = new Date(2026, 6, 29 - daysAgo);
   const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -44,7 +44,7 @@ const plan: CarePlan = {
 
 describe("buildCareCard — 첫날부터 건넬 수 있다", () => {
   it("기록이 0건이어도 프로필만으로 카드가 성립한다", () => {
-    const card = buildCareCard({ child: child(), entries: [], now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries: [], now: TODAY });
     expect(card.profileLines.length).toBeGreaterThan(0);
     expect(card.observedLines).toEqual([]);
     expect(isCareCardEmpty(card)).toBe(false);
@@ -54,13 +54,13 @@ describe("buildCareCard — 첫날부터 건넬 수 있다", () => {
     const card = buildCareCard({
       child: child({ conditions: [], hot: "보통이에요", sweat: "보통이에요", cold: "보통이에요" }),
       entries: [],
-      now: new Date(TODAY),
+      now: TODAY,
     });
     expect(card.profileLines).toEqual([]);
   });
 
   it("땀·피부 프로필은 돌봄자가 바로 행동할 문장으로 나온다", () => {
-    const card = buildCareCard({ child: child(), entries: [], now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries: [], now: TODAY });
     const texts = card.profileLines.map((l) => l.text).join(" ");
     expect(texts).toContain("젖었는지");
     expect(texts).toContain("젖은 옷이 오래 닿지");
@@ -70,7 +70,7 @@ describe("buildCareCard — 첫날부터 건넬 수 있다", () => {
 describe("buildCareCard — 관찰은 확정된 것만", () => {
   it("확정 경향(3회+신뢰도)은 근거와 함께 실린다", () => {
     const entries = [entry(0, "too_warm"), entry(1, "too_warm"), entry(2, "too_warm")];
-    const card = buildCareCard({ child: child(), entries, now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries, now: TODAY });
     const heat = card.observedLines.find((l) => l.label.includes("더운"));
     expect(heat).toBeDefined();
     expect(heat!.source).toBe("기록");
@@ -79,13 +79,13 @@ describe("buildCareCard — 관찰은 확정된 것만", () => {
 
   it("관찰 중(미확정)은 카드에 싣지 않는다 — 남에게 건네는 문서라 문턱이 높다", () => {
     const entries = [entry(0, "too_warm"), entry(1, "too_warm")]; // 2건 = 미확정
-    const card = buildCareCard({ child: child(), entries, now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries, now: TODAY });
     expect(card.observedLines).toEqual([]);
   });
 
   it("카드 어디에도 진단·학습 단정이 없다", () => {
     const entries = [entry(0, "too_warm"), entry(1, "too_warm"), entry(2, "too_warm")];
-    const card = buildCareCard({ child: child(), entries, plan, now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries, plan, now: TODAY });
     const all = [...card.profileLines, ...card.observedLines]
       .map((l) => l.text + (l.evidence ?? ""))
       .join(" ");
@@ -95,12 +95,12 @@ describe("buildCareCard — 관찰은 확정된 것만", () => {
 
 describe("buildCareCard — 오늘 부탁", () => {
   it("오늘의 실행이 있으면 전달 문구가 그대로 들어간다", () => {
-    const card = buildCareCard({ child: child(), entries: [], plan, now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries: [], plan, now: TODAY });
     expect(card.todayRequest).toBe(plan.handoff);
   });
 
   it("오늘의 실행이 없으면 그 줄을 만들지 않는다", () => {
-    const card = buildCareCard({ child: child(), entries: [], plan: null, now: new Date(TODAY) });
+    const card = buildCareCard({ child: child(), entries: [], plan: null, now: TODAY });
     expect(card.todayRequest).toBeNull();
   });
 });
@@ -109,7 +109,7 @@ describe("careCardToText — 텍스트 폴백", () => {
   it("오늘 부탁·프로필·기록과 출처 고지를 담는다", () => {
     const entries = [entry(0, "too_warm"), entry(1, "too_warm"), entry(2, "too_warm")];
     const text = careCardToText(
-      buildCareCard({ child: child(), entries, plan, now: new Date(TODAY) })
+      buildCareCard({ child: child(), entries, plan, now: TODAY })
     );
     expect(text).toContain("[지우 돌봄 카드]");
     expect(text).toContain("오늘 부탁:");
@@ -123,7 +123,7 @@ describe("careCardToText — 텍스트 폴백", () => {
       child: child({ conditions: [], hot: "보통이에요", sweat: "보통이에요", cold: "보통이에요" }),
       entries: [],
       plan: null,
-      now: new Date(TODAY),
+      now: TODAY,
     });
     expect(isCareCardEmpty(card)).toBe(true);
   });

@@ -47,6 +47,10 @@ export type CareCard = {
 const dateLabel = (d = new Date()) =>
   `${d.getMonth() + 1}월 ${d.getDate()}일 (${["일", "월", "화", "수", "목", "금", "토"][d.getDay()]})`;
 
+/** 로컬 기준 YYYY-MM-DD — 관찰 창의 기준일을 호출자가 준 시각에서 뽑는다(결정성) */
+const localDateOf = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 /**
  * 돌봄 카드를 만든다. 프로필만 있어도 성립한다 — 첫날부터 건넬 수 있어야
  * "기록이 쌓여야 쓸모 있다"는 콜드 스타트를 만들지 않는다.
@@ -89,7 +93,9 @@ export const buildCareCard = (input: {
 
   // ── 기록에서 확인된 것 — buildTraitMap의 확정(confirmed) 항목만 ──
   // 관찰 중(watching)은 카드에 싣지 않는다. 남에게 건네는 문서라 확신의 문턱이 더 높다.
-  const observedLines: CareCardLine[] = buildTraitMap(entries)
+  // 기준일을 넘긴다 — 넘기지 않으면 실행 환경의 오늘(서버·CI는 UTC)에 따라 관찰 창이
+  // 달라져 같은 입력이 다른 카드를 만든다(2026-07-29 CI 실패로 발견).
+  const observedLines: CareCardLine[] = buildTraitMap(entries, localDateOf(now))
     .filter((t) => t.state === "confirmed")
     .map((t) => ({
       label: t.title.replace(/ 반응$/, ""),
