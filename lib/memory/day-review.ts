@@ -12,6 +12,7 @@
 //     "체질" 단정은 금지(MANIFESTO 안티패턴, 리포트 v22 질병명 단정 제거와 같은 원칙).
 
 import { localDateStr } from "@/lib/date";
+import { hasJongseong, withTopicParticle } from "@/lib/korean";
 
 /* ---------- 타입 ---------- */
 
@@ -23,6 +24,15 @@ export type ThermalOutcome = "too_warm" | "comfortable" | "too_cold" | "unknown"
 
 /** Step 2 필수 — 아이 하루 컨디션 */
 export type DayComfort = "comfortable" | "some_discomfort" | "high_discomfort" | "unknown";
+
+/** 준비물을 실제로 썼는지 — 아침 체크 상태를 프리필한 뒤 확인만 받는다 */
+export type ActionExecution = "done" | "not_done" | "not_needed";
+
+/** 그날 아침 판단의 1순위 이슈를 검증하는 동적 질문의 축 */
+export type DynamicAxis = "thermal" | "airway" | null;
+
+/** 호흡기 축(대기질·꽃가루 경고일 때만 묻는다) 응답 */
+export type AirwayOutcome = "none" | "rubbing" | "cough" | "unknown";
 
 export type DayReviewEntry = {
   childId: string;
@@ -38,6 +48,16 @@ export type DayReviewEntry = {
   note?: string;
   /** 저장 시각(ms) */
   ts: number;
+
+  /* --- v6: "최근 비슷한 날" 행과 리캡 문장을 만들기 위한 그날의 맥락 --- */
+  /** 그날 hook 조건절 ("낮 30도 습도 85%") — 없으면 생략 */
+  conditionLabel?: string;
+  /** 그날 준비물 표준명 요약 (최대 3) */
+  prepSummary?: string[];
+  /** 준비물별 실제 사용 여부 — 아침 체크 프리필 후 확인/수정한 결과 */
+  actionOutcomes?: { name: string; execution: ActionExecution }[];
+  /** 동적 질문이 호흡기 축이었던 날의 응답 */
+  airwayOutcome?: AirwayOutcome;
 };
 
 /* ---------- 선택지 사전 (화면·저장이 같은 소스를 쓴다) ---------- */
@@ -62,6 +82,37 @@ export const DAY_COMFORT_OPTIONS: { value: DayComfort; label: string }[] = [
   { value: "high_discomfort", label: "많이 힘들어했어요" },
   { value: "unknown", label: "잘 모르겠어요" },
 ];
+
+/** 호흡기 축 — 대기질·꽃가루가 경고였던 날에만 묻는다(관찰 어휘, 진단형 금지) */
+export const AIRWAY_OPTIONS: { value: AirwayOutcome; label: string }[] = [
+  { value: "none", label: "없었어요" },
+  { value: "rubbing", label: "코·눈을 자주 비볐어요" },
+  { value: "cough", label: "기침·콧물이 있었어요" },
+  { value: "unknown", label: "잘 모르겠어요" },
+];
+
+export const ACTION_EXECUTION_OPTIONS: { value: ActionExecution; label: string }[] = [
+  { value: "done", label: "했어요" },
+  { value: "not_done", label: "못 했어요" },
+  { value: "not_needed", label: "필요 없었어요" },
+];
+
+/** 의류계 준비물 판정 — 이 어휘가 있던 날만 옷차림 체감을 묻는다 (표준명 기준) */
+export const CLOTHING_PREP_RE = /옷|상의|내복|긴팔|반팔|가디건|바람막이|외투|겉옷|목수건/;
+
+/**
+ * 그날 아침 판단의 1순위 이슈로 3번째 질문을 정한다 — 매일 같은 걸 묻지 않는다.
+ * 우선순위: 호흡기(대기질·꽃가루 경고) > 옷차림(의류 준비물 존재) > 없음.
+ * 호흡기를 앞에 두는 이유: 의류는 거의 매일 있어 항상 이기면 축이 고정된다.
+ */
+export const pickDynamicAxis = (input: {
+  preps: string[];
+  airwayAlert: boolean;
+}): DynamicAxis => {
+  if (input.airwayAlert) return "airway";
+  if (input.preps.some((p) => CLOTHING_PREP_RE.test(p))) return "thermal";
+  return null;
+};
 
 /** "특별한 일 없었어요" — 다른 태그와 상호배타 */
 export const TAG_NONE = "특별한 일 없었어요";
@@ -128,6 +179,14 @@ export const saveEntry = (entry: DayReviewEntry): void => {
 
 export const loadTodayEntry = (childId: string): DayReviewEntry | null =>
   loadEntries(childId).find((e) => e.date === localDateStr()) ?? null;
+
+/** 특정 날짜 결과 삭제 — 하루 탭의 결과 관리(개인정보 통제)에서 호출 */
+export const deleteEntry = (childId: string, date: string): void =>
+  persist(loadAll().filter((e) => !(e.childId === childId && e.date === date)));
+
+/** 이 아이의 결과 전체 삭제 (다른 아이 기록은 보존) */
+export const clearEntries = (childId: string): void =>
+  persist(loadAll().filter((e) => e.childId !== childId));
 
 /* ---------- 파생 통계 ---------- */
 
@@ -233,6 +292,159 @@ export const memoryStatusCopy = (
         title: "아직 결과가 일정하지 않아요",
         body: "상황에 따라 달라질 수 있어, 조금 더 지켜본 뒤 반영할게요.",
       };
+  }
+};
+
+/* ---------- 오늘의 한 줄 리캡 (규칙 조립 — LLM 호출 없음) ---------- */
+
+const COMFORT_CLAUSE: Record<DayComfort, string> = {
+  comfortable: "대체로 편안하게 보냈어요",
+  some_discomfort: "조금 불편해한 순간이 있었어요",
+  high_discomfort: "힘들어한 순간이 있었어요",
+  unknown: "하루를 보냈어요",
+};
+
+/**
+ * "덥고 습한 날이었지만, 얇은 옷과 여벌 상의로 대체로 편안하게 보냈어요."
+ *
+ * 조건절(그날 hook) + 실제로 쓴 준비물 + 컨디션을 잇는다. 조건이나 준비물이 없으면
+ * 그 절을 빼고 자연스럽게 줄인다 — 없는 정보를 지어내지 않는다.
+ */
+export const buildRecapLine = (entry: DayReviewEntry, childName: string): string => {
+  const used = (entry.actionOutcomes ?? [])
+    .filter((a) => a.execution === "done")
+    .map((a) => a.name);
+  const comfort = COMFORT_CLAUSE[entry.dayComfort];
+  const head = entry.conditionLabel ? `${entry.conditionLabel} 날이었지만, ` : "";
+  // 조사는 받침에 따라 갈린다 — "여벌 상의로" / "물통으로", "얇은 옷과" / "모자와"
+  const joined =
+    used.length > 1
+      ? `${used[0]}${hasJongseong(used[0]) ? "과" : "와"} ${used[1]}`
+      : (used[0] ?? "");
+  const withPrep = used.length
+    ? `${joined}${used.length > 2 ? " 등" : ""}${hasJongseong(used.length > 2 ? "등" : joined) ? "으로" : "로"} `
+    : "";
+  if (!head && !withPrep) return `${withTopicParticle(childName)} 오늘 ${comfort}.`;
+  return `${head}${withPrep}${comfort}.`;
+};
+
+/* ---------- 반응 지도 (특성별 상태 — 전역 단계가 아니다) ---------- */
+
+/** 특성 카드 상태: 프로필 정보 / 알아보는 중 / 반복 확인·반영 */
+export type TraitState = "profile" | "watching" | "confirmed";
+
+export type TraitCard = {
+  key: "heat" | "cold" | "prep" | "airway";
+  title: string;
+  /** 관찰 서술 — 진단·학습 단정 금지 */
+  desc: string;
+  state: TraitState;
+};
+
+/**
+ * 특성별 반응 지도를 만든다. **전역 진행 단계를 만들지 않는다** — 더위는 반영 중인데
+ * 추위는 정보가 적을 수 있고, 그 병렬 상태가 실제 데이터 구조다.
+ * 확정 기준은 detectMemoryStatus와 같은 규칙(유효 관찰 ≥3 + 신뢰도 ≥0.67)을 쓴다.
+ */
+export const buildTraitMap = (
+  entries: DayReviewEntry[],
+  today = localDateStr()
+): TraitCard[] => {
+  const cards: TraitCard[] = [];
+  const status = detectMemoryStatus(entries, today);
+  const cutoff = addDays(today, -(OBSERVATION_WINDOW_DAYS - 1));
+  const recent = entries.filter((e) => e.date >= cutoff && e.date <= today);
+
+  // 1) 더위·추위 — 옷차림 체감 관찰에서
+  const warm = recent.filter((e) => e.thermalOutcome === "too_warm").length;
+  const cold = recent.filter((e) => e.thermalOutcome === "too_cold").length;
+  if (status.kind === "pattern" && status.trait === "heat_sensitivity_observed") {
+    cards.push({
+      key: "heat",
+      title: "더운 날 반응",
+      desc: `비슷한 날 ${status.total}번 중 ${status.evidence}번 더워했어요`,
+      state: "confirmed",
+    });
+  } else if (warm > 0) {
+    cards.push({
+      key: "heat",
+      title: "더운 날 반응",
+      desc: "비슷한 결과가 몇 번 있었어요 · 조금 더 알아보는 중",
+      state: "watching",
+    });
+  }
+  if (status.kind === "pattern" && status.trait === "cold_sensitivity_observed") {
+    cards.push({
+      key: "cold",
+      title: "추운 날 반응",
+      desc: `비슷한 날 ${status.total}번 중 ${status.evidence}번 추워했어요`,
+      state: "confirmed",
+    });
+  } else if (cold > 0) {
+    cards.push({
+      key: "cold",
+      title: "추운 날 반응",
+      desc: "비슷한 결과가 몇 번 있었어요 · 조금 더 알아보는 중",
+      state: "watching",
+    });
+  }
+
+  // 2) 도움이 된 준비물 — 같은 준비물을 실제로 쓴 날이 3번 이상이면 확정
+  const usedCount = new Map<string, number>();
+  recent.forEach((e) =>
+    (e.actionOutcomes ?? [])
+      .filter((a) => a.execution === "done")
+      .forEach((a) => usedCount.set(a.name, (usedCount.get(a.name) ?? 0) + 1))
+  );
+  const topPrep = [...usedCount.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topPrep) {
+    const [name, n] = topPrep;
+    cards.push({
+      key: "prep",
+      title: name,
+      desc:
+        n >= MIN_OBSERVATIONS
+          ? `사용한 ${n}번 모두 도움이 됐어요`
+          : `${n}번 사용했어요 · 조금 더 알아보는 중`,
+      state: n >= MIN_OBSERVATIONS ? "confirmed" : "watching",
+    });
+  }
+
+  // 3) 호흡기 반응 — 동적 질문에서 불편이 관찰된 날
+  const airway = recent.filter(
+    (e) => e.airwayOutcome === "rubbing" || e.airwayOutcome === "cough"
+  ).length;
+  if (airway > 0) {
+    cards.push({
+      key: "airway",
+      title: "야외활동 뒤 반응",
+      desc:
+        airway >= MIN_OBSERVATIONS
+          ? `비슷한 날 ${airway}번 코·기침 반응이 있었어요`
+          : `${airway}번 관찰됐어요 · 조금 더 알아보는 중`,
+      state: airway >= MIN_OBSERVATIONS ? "confirmed" : "watching",
+    });
+  }
+
+  return cards;
+};
+
+/**
+ * 확정된 특성이 있으면 다음 판단 예고 문장을 만든다(예고형 — 반영 완료 주장 금지).
+ * 없으면 null → 화면은 예고 밴드를 그리지 않는다.
+ */
+export const buildNextJudgementLine = (traits: TraitCard[]): string | null => {
+  const confirmed = traits.find((t) => t.state === "confirmed");
+  if (!confirmed) return null;
+  switch (confirmed.key) {
+    case "heat":
+      return "다음 비슷한 날에는 얇고 갈아입기 쉬운 옷을 먼저 안내할게요";
+    case "cold":
+      return "다음 비슷한 날에는 한 겹 더 챙기는 쪽으로 먼저 안내할게요";
+    case "airway":
+      return "다음 비슷한 날에는 야외활동 시간과 귀가 후 케어를 먼저 안내할게요";
+    default:
+      return `다음 비슷한 날에는 ${confirmed.title}을 먼저 안내할게요`;
   }
 };
 

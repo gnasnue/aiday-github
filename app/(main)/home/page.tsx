@@ -55,6 +55,9 @@ import { localDateStr } from "@/lib/date";
 import { REPORT_CACHE_VERSION, reportCacheKey } from "@/lib/report-cache";
 import { fetchDailyReport, saveDailyReport } from "@/lib/daily-report-store";
 import DayReviewEntryCard from "@/components/DayReviewEntryCard";
+import HomeHealthTips from "@/components/HomeHealthTips";
+import type { EnvData } from "@/lib/env-data";
+import { saveCheckedKeys } from "@/lib/memory/checklist-state";
 import { isProvisionalReport, needsMorningRefresh } from "@/lib/report-freshness";
 
 /* ---- AI 리포트 당일 캐시: 날짜 키 + 환경 급변 판정 ---- */
@@ -634,6 +637,25 @@ const Home = () => {
   const cur = profiles.find((p) => p.id === active) ?? profiles[0];
   // 최신 활성 프로필 id를 렌더마다 동기 반영 — 리포트 요청의 stale 판정 기준 (effect 순서 무관)
   activeIdRef.current = cur?.id ?? null;
+
+  // 홈이 이미 받아온 env 원시값을 건강 팁 셀렉터의 입력 형태로 어댑트한다 —
+  // **재페치하지 않는다.** 같은 순간에 홈 팁과 /tips 화면이 다른 등급을 말하면 안 되므로
+  // 판정 입력은 하나여야 한다(lib/env-data가 존재하는 이유와 같은 원칙). weather가 없으면
+  // 팁을 만들지 않는다(fail-closed는 selectTips가 처리).
+  const tipsEnv: EnvData | null = useMemo(() => {
+    if (!envRaw) return null;
+    const w = envRaw.weather as EnvData["weather"] | null;
+    return {
+      weather: w,
+      air: envRaw.air as EnvData["air"],
+      pollen: envRaw.pollen as EnvData["pollen"],
+      uv: envRaw.uv as EnvData["uv"],
+      weekly: null,
+      missing: (["weather", "air", "pollen", "uv"] as const).filter(
+        (k) => envRaw[k] == null
+      ) as EnvData["missing"],
+    };
+  }, [envRaw]);
 
   // 수동 새로고침 쿨다운 — 중복 탭으로 인한 불필요한 Claude 호출(비용) 방지
   const REFRESH_COOLDOWN = 60 * 1000;
@@ -1613,7 +1635,14 @@ const Home = () => {
       item: key,
       checked: !checked.includes(key),
     });
-    setChecked((p) => (p.includes(key) ? p.filter((x) => x !== key) : [...p, key]));
+    setChecked((p) => {
+      const next = p.includes(key) ? p.filter((x) => x !== key) : [...p, key];
+      // 저녁 "오늘의 마무리"가 실행 여부를 프리필하는 재료 — 분석 이벤트(append-only)는
+      // 다시 읽을 수 없어 제품 상태로 따로 남긴다. 부모가 아침에 답한 것을 저녁에 또
+      // 묻지 않기 위한 최소 저장이다(서버 승격은 P1).
+      if (cur) saveCheckedKeys(cur.id, next);
+      return next;
+    });
   };
 
   return (
@@ -2078,9 +2107,14 @@ const Home = () => {
             )}
           </section>
 
+          {/* 오늘의 건강 팁 — 오늘 환경·체질에 걸린 근거 가이드로의 진입(제목+출처만).
+              오늘의 정보 계열(판단 → 환경 → 케어)의 마지막 자리. 관련 팁이 없는 날은
+              컴포넌트가 스스로 렌더를 건너뛴다(홈에 안심 배너를 얹지 않는다). */}
+          {!loading && <HomeHealthTips env={tipsEnv} child={cur} />}
+
           {/* 오늘의 마무리 — 아침 판단의 결과 회수(Family Memory 원료, PRD S-003).
-              하루의 반대쪽 끝: 홈은 판단, 이 카드는 그 판단이 맞았는지의 회수 진입점.
-              상태·표시 판정은 카드가 스스로 localStorage에서 읽는다(홈 diff 최소화). */}
+              오늘의 정보가 아니라 '다음 행동'이라 스크롤 끝 마감 위치에 두고, 여기서
+              하루 탭(/review)으로 넘긴다. 상태 판정은 카드가 직접 읽는다(홈 diff 최소화). */}
           {!loading && <DayReviewEntryCard childId={cur.id} childName={cur.name} />}
 
           {/* 공유용 이미지 카드 — 화면 밖에 렌더해두고 공유 시 html-to-image로 PNG 캡처.

@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>시안 v6 — 홈 '오늘의 건강 팁' + '하루' 탭 (반응 지도 + 특성 승격 보상) (2026-07-28)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{
+    --bg:#F6F4F2; --card:#FFFFFF; --primary:#F97316; --primary-fg:#FFFFFF;
+    --tint:#FFEDDD; --accent:#C2540A; --ink:#26201B; --muted-fg:#6E655D;
+    --faint:#9C938A; --muted:#F3F0ED; --border:#F0EDEA; --cream:#FFF2E0;
+    --good:#3D8B5F; --warn:#D4622A; --neutral-dot:#B9AFA5;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Pretendard Variable",Pretendard,-apple-system,sans-serif;background:#E9E5E1;color:var(--ink);padding:32px 24px 64px}
+  h1{font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .sub{margin-top:6px;font-size:13px;color:var(--muted-fg);line-height:1.6}
+  .row{display:flex;flex-wrap:wrap;gap:28px;margin-top:28px;align-items:flex-start}
+  .frame-wrap>p{font-size:13px;font-weight:700;margin-bottom:10px;max-width:390px}
+  .frame-wrap>p span{display:block;font-weight:400;color:var(--muted-fg);margin-top:2px;line-height:1.5}
+  .phone{width:390px;background:var(--bg);border-radius:24px;overflow:hidden;box-shadow:0 8px 32px rgba(38,32,27,.14);position:relative}
+  .screen{padding:0 20px 84px}
+  .l1{border-radius:20px;background:var(--card);box-shadow:0 1px 3px rgba(38,32,27,.05)}
+  .hero{border-radius:24px;background:var(--card);box-shadow:0 2px 12px rgba(38,32,27,.08)}
+  .sec-h{font-size:17px;font-weight:700;letter-spacing:-.01em}
+  .cap{font-size:13px;color:var(--muted-fg)}
+  .num{font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+  .nav{position:absolute;left:0;right:0;bottom:0;background:var(--bg);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);box-shadow:0 -4px 16px rgba(59,45,31,.04)}
+  .nav a{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0 10px;font-size:11px;font-weight:500;color:var(--muted-fg);text-decoration:none}
+  .nav a.on{font-weight:600;color:var(--ink)}
+  .nav .pill{display:flex;align-items:center;justify-content:center;height:32px;width:56px;border-radius:999px}
+  .nav a.on .pill{background:var(--cream)}
+  .nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+  .nav a.on svg{stroke:var(--accent);stroke-width:2.2}
+  svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+  .tile{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
+  .chev{width:16px;height:16px;stroke:var(--faint);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .cta{display:flex;align-items:center;justify-content:center;height:48px;border-radius:14px;background:var(--primary);color:var(--primary-fg);font-size:16px;font-weight:700}
+  .cta2{display:flex;align-items:center;justify-content:center;height:44px;border-radius:14px;background:var(--muted);color:var(--ink);font-size:14px;font-weight:600}
+  .ghost{display:flex;align-items:center;justify-content:center;min-height:44px;font-size:14px;font-weight:600;color:var(--muted-fg)}
+  .dim{opacity:.45}
+  .seg{display:inline-flex;gap:4px;background:var(--muted);border-radius:999px;padding:4px}
+  .seg b{display:flex;align-items:center;height:36px;padding:0 16px;border-radius:999px;font-size:14px}
+  .seg b.on{background:var(--card);box-shadow:0 1px 3px rgba(38,32,27,.08);font-weight:700}
+  .seg b.off{font-weight:500;color:var(--muted-fg)}
+  /* 7일 스트립 */
+  .strip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:12px}
+  .strip .d{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 0;border-radius:12px}
+  .strip .d p{font-size:11px;color:var(--faint)}
+  .strip .dot{width:10px;height:10px;border-radius:999px}
+  .strip .today{background:var(--cream)}
+  /* 액션 실행 3택 */
+  .tri{display:flex;gap:6px;margin-top:8px}
+  .tri span{flex:1;display:flex;align-items:center;justify-content:center;height:36px;border-radius:999px;font-size:12.5px;font-weight:500;background:var(--card);box-shadow:0 1px 3px rgba(38,32,27,.06);color:var(--muted-fg)}
+  .tri span.on{background:var(--tint);color:var(--ink);font-weight:700}
+  .note{margin-top:32px;font-size:12px;line-height:1.7;color:#7d726a;background:#fff;border-radius:10px;padding:12px 14px;max-width:840px}
+</style>
+</head>
+<body>
+
+<h1>시안 v6 — 홈 '오늘의 건강 팁' + '하루' 탭 (반응 지도 + 특성 승격 보상)</h1>
+<p class="sub">2026-07-28 v6 · v5 서사 유지 + ChatGPT 혼합안 채택: 글로벌 스텝퍼 제거 → <b>특성별 반응 지도</b>(큰 카드+2열 타일, 상태별 시각 언어), 오늘 결과를 <b>Hero에 통합</b>, "n/3" 퀘스트 노출 제거(자연어 완화), 저장 보상 = <b>특성 카드가 점선→tint로 승격되는 순간</b>. 첫 진입은 "이미 이만큼 알고 있어요".</p>
+
+<div class="row">
+
+<!-- ═══════════ A. 홈 하단 ═══════════ -->
+<div class="frame-wrap">
+<p>A. 홈 — 하단부 (v1 승인 순서 유지)
+<span>케어 플랜 꼬리 → <b>오늘의 건강 팁</b> → <b>오늘의 마무리</b>(맨 아래 마감 위치). 팁은 severity 통과분만 최대 2행, 무난한 날 미노출.</span></p>
+<div class="phone"><div class="screen">
+  <div class="dim" style="padding-top:20px">
+    <div style="display:flex;gap:12px">
+      <div style="display:flex;flex-direction:column;align-items:center"><span style="margin-top:20px;width:12px;height:12px;border-radius:999px;background:#DDD6CE"></span></div>
+      <div class="l1" style="flex:1;padding:16px;margin-bottom:10px">
+        <p style="font-size:15px"><b class="num">21:00</b> <b>저녁</b> <span class="cap"><span class="num">27°</span> · 더위 심함</span></p>
+        <div style="margin-top:12px"><span style="border:1px solid #E3DDD6;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:600">여벌 상의</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:26px">
+    <h2 class="sec-h">오늘의 건강 팁</h2>
+    <div class="l1" style="margin-top:14px;padding:4px 0">
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;min-height:64px">
+        <span class="tile" style="background:var(--muted);color:var(--muted-fg)"><svg class="i" viewBox="0 0 24 24"><path d="M12 2v8"/><path d="M8 6a7 7 0 1 0 8 0"/></svg></span>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:16px;font-weight:500">폭염 속 아이 체온 관리</p>
+          <p style="font-size:12px;color:var(--faint);margin-top:2px">질병관리청 「기후변화에 의한 폭염」</p>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div style="height:1px;background:var(--border);margin:0 20px"></div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px 20px;min-height:64px">
+        <span class="tile" style="background:var(--muted);color:var(--muted-fg)"><svg class="i" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5S12.5 6 12 2c-.5 4-2 5.9-4 7.5S5 13 5 15a7 7 0 0 0 7 7Z"/></svg></span>
+        <div style="flex:1;min-width:0">
+          <p style="font-size:16px;font-weight:500">땀 흘린 뒤 피부 관리</p>
+          <p style="font-size:12px;color:var(--faint);margin-top:2px">대한아토피피부염학회 「아토피피부염 관리 가이드」</p>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+    </div>
+    <p class="cap" style="margin-top:10px;font-size:12px;line-height:1.6">공공기관·의료학회가 공개한 가이드를 오늘 환경에 맞춰 골라 보여드려요.</p>
+  </div>
+
+  <div style="margin-top:32px">
+    <h2 class="sec-h">오늘의 마무리</h2>
+    <div class="l1" style="margin-top:14px;padding:20px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <span class="tile" style="background:var(--tint);color:var(--accent)"><svg class="i" viewBox="0 0 24 24"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M18.4 2.6a2.1 2.1 0 0 1 3 3L13 14l-4 1 1-4Z"/></svg></span>
+        <div>
+          <p style="font-size:16px;font-weight:700;letter-spacing:-.01em">오늘 지우에게 어땠는지 알려주세요</p>
+          <p class="cap" style="margin-top:5px;line-height:1.6">아침 추천이 실제로 맞았는지 알려주면 다음 판단을 지우에게 더 맞게 조정할 수 있어요. 약 30초</p>
+        </div>
+      </div>
+      <div class="cta" style="margin-top:16px">하루 돌아보기</div>
+      <div class="ghost">오늘은 건너뛸게요</div>
+    </div>
+  </div>
+</div>
+<nav class="nav">
+  <a class="on"><span class="pill"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>홈</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span>환경정보</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>옷차림</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>하루</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>마이</a>
+</nav>
+</div>
+</div>
+
+<!-- ═══════════ B. 팁 시트 (v1 동일) ═══════════ -->
+<div class="frame-wrap">
+<p>B. 팁 상세 — 바텀 시트 (v1 동일)
+<span>기존 /tips 카드의 본문·출처·확인일 재사용 + "모두 보기 → /tips".</span></p>
+<div class="phone">
+<div class="screen" style="filter:brightness(.75)">
+  <div style="margin-top:24px"><h2 class="sec-h">오늘의 건강 팁</h2><div class="l1" style="margin-top:14px;height:130px"></div></div>
+  <div style="margin-top:24px" class="l1"><div style="height:180px"></div></div>
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;background:var(--card);border-radius:24px 24px 0 0;box-shadow:0 -8px 32px rgba(38,32,27,.18);padding:12px 20px 28px">
+  <div style="width:40px;height:4px;border-radius:999px;background:#E3DDD6;margin:0 auto"></div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-top:16px">
+    <span style="display:inline-flex;align-items:center;gap:6px;background:var(--muted);border-radius:999px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--warn)"><span style="width:5px;height:5px;border-radius:999px;background:var(--warn)"></span>폭염 주의</span>
+    <svg class="i" style="width:20px;height:20px;color:var(--muted-fg)" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </div>
+  <h3 style="font-size:20px;font-weight:700;letter-spacing:-.01em;margin-top:12px">폭염 속 아이 체온 관리</h3>
+  <p style="font-size:15px;line-height:1.66;margin-top:10px;word-break:keep-all">체감온도가 높은 날에는 갈증을 느끼기 전부터 수시로 물을 마시게 해 주세요. 바깥 활동은 가장 더운 낮 시간을 피하고, 땀에 젖은 옷은 바로 갈아입혀 체온이 오래 오르지 않게 합니다.</p>
+  <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+    <p style="font-size:12px;color:var(--faint);line-height:1.6">출처 · 질병관리청 「기후변화에 의한 폭염」 (2024)<br>2026-07-24 원문 확인 · 기관 승인·감수를 받은 것은 아니에요</p>
+  </div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px;background:var(--muted);border-radius:14px;padding:14px 16px">
+    <p style="font-size:14px;font-weight:600">근거 기반 가이드 모두 보기</p>
+    <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+  </div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════ C. 하루 탭 — 오늘 결과 반영됨 (v6) ═══════════ -->
+<div class="frame-wrap">
+<p>C. 하루 탭 — 오늘 결과 반영됨 (v6)
+<span>글로벌 스텝퍼 제거. Hero에 <b>오늘 결과 + 오늘 알려준 내용 + 다음 판단</b>을 통합(방금 입력이 반영됐는지 최상단에서 확인). 중단은 <b>특성별 반응 지도</b>(큰 카드 1 + 2열 타일) — 특성마다 상태가 다름을 정직하게.</span></p>
+<div class="phone"><div class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px">
+    <b style="font-size:15px;color:var(--accent)">AiDay <span style="color:var(--ink)">아이데이</span></b>
+    <svg class="i" style="width:20px;height:20px;color:var(--muted-fg)" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+  </div>
+  <div style="margin-top:16px" class="seg"><b class="on">지우</b><b class="off">도윤</b></div>
+  <h1 style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:16px">지우의 하루</h1>
+  <p class="cap num" style="margin-top:4px">7월 28일 (화)</p>
+
+  <!-- Hero: 오늘의 변화 (L2) -->
+  <div class="hero" style="margin-top:16px;padding:20px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <svg class="i" style="width:18px;height:18px;color:var(--good)" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+      <p style="font-size:15px;font-weight:700">오늘 결과가 반영됐어요</p>
+      <span style="margin-left:auto;font-size:13px;font-weight:600;color:var(--muted-fg)">수정</span>
+    </div>
+    <p style="font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.45;margin-top:14px;word-break:keep-all">더운 날 지우의 반응이 조금 더 또렷해졌어요</p>
+    <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted-fg);margin-top:14px">오늘 알려준 내용</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+      <span style="background:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500">더워했어요</span>
+      <span style="background:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:500">여벌 상의 사용</span>
+    </div>
+    <div style="margin-top:14px;background:var(--cream);border-radius:14px;padding:14px 16px">
+      <p style="font-size:14.5px;font-weight:700;line-height:1.55;word-break:keep-all">다음 비슷한 날에는 얇고 갈아입기 쉬운 옷을 먼저 안내할게요</p>
+      <p style="font-size:12.5px;color:var(--muted-fg);margin-top:5px;word-break:keep-all">비슷한 날 <b class="num" style="color:var(--ink)">4</b>번 중 <b class="num" style="color:var(--ink)">3</b>번의 결과를 참고했어요</p>
+    </div>
+    <p style="font-size:13px;font-weight:600;color:var(--muted-fg);margin-top:12px">판단 근거 보기 — 아래 '최근 비슷한 날'</p>
+  </div>
+
+  <div style="margin-top:28px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <h2 class="sec-h">지우의 요즘 반응</h2>
+      <span style="font-size:13px;font-weight:600;color:var(--muted-fg)">모두 보기</span>
+    </div>
+    <div style="margin-top:12px;display:grid;gap:8px">
+      <div style="background:var(--tint);border-radius:16px;padding:16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="color:var(--accent);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+          <p style="font-size:15px;font-weight:700;flex:1">더운 날 반응</p>
+          <span style="background:var(--card);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--accent)">다음 판단 반영</span>
+        </div>
+        <p style="font-size:13px;color:var(--muted-fg);line-height:1.55;margin-top:6px;word-break:keep-all">비슷한 날 더워하는 경우가 많았어요</p>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--tint);border-radius:16px;padding:14px">
+          <span style="color:var(--accent);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>
+          <p style="font-size:13.5px;font-weight:700;margin-top:8px;word-break:keep-all">여벌 상의</p>
+          <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.45;word-break:keep-all">실제로 도움이 됐어요</p>
+        </div>
+        <div style="background:var(--card);border:1.5px dashed #E3DDD6;border-radius:16px;padding:14px">
+          <span style="color:var(--faint);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5S12.5 6 12 2c-.5 4-2 5.9-4 7.5S5 13 5 15a7 7 0 0 0 7 7Z"/></svg></span>
+          <p style="font-size:13.5px;font-weight:700;margin-top:8px;word-break:keep-all">피부 반응</p>
+          <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.45;word-break:keep-all">조금 더 알아보는 중</p>
+        </div>
+      </div>
+    </div>
+  </div>  <div style="margin-top:28px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <h2 class="sec-h">최근 비슷한 날</h2>
+      <span style="font-size:13px;font-weight:600;color:var(--muted-fg)">전체 보기</span>
+    </div>
+    <div class="l1" style="margin-top:12px;padding:4px 0">
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.27 일</span> · <span class="num">31°</span> · 매우 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">얇은 옷 + 물통 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">적당했어요</span>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--border);margin:0 20px"></div>
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.25 금</span> · <span class="num">30°</span> · 매우 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">여벌 상의 + 선크림 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">더워했어요</span>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--border);margin:0 20px"></div>
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.18 금</span> · <span class="num">29°</span> · 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">반팔 + 얇은 겉옷 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">더워했어요</span>
+        </div>
+      </div>
+    </div>
+  </div>  <p class="cap" style="margin-top:16px;text-align:center;font-size:12px;line-height:1.6;word-break:keep-all">알려주지 않아도 불이익은 없어요 — 체질 진단이 아니며, 언제든 수정·삭제할 수 있어요.</p>
+</div>
+<nav class="nav">
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>홈</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span>환경정보</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>옷차림</a>
+  <a class="on"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>하루</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>마이</a>
+</nav>
+</div>
+</div>
+
+<!-- ═══════════ D. 하루 탭 — 오늘 미입력 ═══════════ -->
+<div class="frame-wrap">
+<p>D. 하루 탭 — 오늘 미입력 (v6)
+<span>Hero 질문형 카피("실제로 어땠나요?"). "확인 중 n/3" 노출 제거 — 자연어("비슷한 결과가 몇 번 있었어요")로 완화. CTA를 안 눌러도 반응 지도에서 가치를 얻는다.</span></p>
+<div class="phone"><div class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px">
+    <b style="font-size:15px;color:var(--accent)">AiDay <span style="color:var(--ink)">아이데이</span></b>
+    <svg class="i" style="width:20px;height:20px;color:var(--muted-fg)" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+  </div>
+  <div style="margin-top:16px" class="seg"><b class="on">지우</b><b class="off">도윤</b></div>
+  <h1 style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:16px">지우의 하루</h1>
+  <p class="cap num" style="margin-top:4px">7월 28일 (화)</p>
+
+  <div class="hero" style="margin-top:16px;padding:20px">
+    <p style="font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.45;word-break:keep-all">오늘 지우에게<br>실제로 어땠나요?</p>
+    <div style="margin-top:12px;background:var(--muted);border-radius:14px;padding:12px 14px">
+      <p style="font-size:12.5px;color:var(--muted-fg);line-height:1.55;word-break:keep-all">아침에는 <b style="color:var(--ink)">"야외활동 짧게, 그늘 위주로"</b>라고 안내했어요.</p>
+    </div>
+    <p style="font-size:13.5px;color:var(--muted-fg);line-height:1.6;margin-top:10px;word-break:keep-all">한 번만 알려주면, 다음 비슷한 날의 판단에 참고할게요.</p>
+    <div class="cta" style="margin-top:14px">30초로 알려주기</div>
+  </div>
+
+  <div style="margin-top:28px">
+    <h2 class="sec-h">지우의 요즘 반응</h2>
+    <div style="margin-top:12px;display:grid;gap:8px">
+        <div style="background:var(--card);border:1.5px dashed #E3DDD6;border-radius:16px;padding:14px">
+          <span style="color:var(--faint);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+          <p style="font-size:13.5px;font-weight:700;margin-top:8px;word-break:keep-all">더운 날 반응</p>
+          <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.45;word-break:keep-all">비슷한 결과가 몇 번 있었어요 · 조금 더 알아보는 중</p>
+        </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--muted);border-radius:16px;padding:14px">
+          <span style="color:var(--muted-fg);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>
+          <p style="font-size:13.5px;font-weight:700;margin-top:8px;word-break:keep-all">체질 프로필</p>
+          <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.45;word-break:keep-all">아토피 · 비염 · 땀 많은 편</p>
+        </div>
+        <div style="background:var(--muted);border-radius:16px;padding:14px">
+          <span style="color:var(--muted-fg);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M12 2v20M17 7l-5 5-5-5M7 17l5-5 5 5"/></svg></span>
+          <p style="font-size:13.5px;font-weight:700;margin-top:8px;word-break:keep-all">추운 날 반응</p>
+          <p style="font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.45;word-break:keep-all">아직 정보가 적어요</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:28px">
+    <div style="display:flex;align-items:baseline;justify-content:space-between">
+      <h2 class="sec-h">최근 비슷한 날</h2>
+      <span style="font-size:13px;font-weight:600;color:var(--muted-fg)">전체 보기</span>
+    </div>
+    <div class="l1" style="margin-top:12px;padding:4px 0">
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.27 일</span> · <span class="num">31°</span> · 매우 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">얇은 옷 + 물통 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">적당했어요</span>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--border);margin:0 20px"></div>
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.25 금</span> · <span class="num">30°</span> · 매우 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">여벌 상의 + 선크림 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">더워했어요</span>
+        </div>
+      </div>
+      <div style="height:1px;background:var(--border);margin:0 20px"></div>
+      <div style="padding:13px 20px">
+        <p style="font-size:12px;color:var(--faint)"><span class="num">7.18 금</span> · <span class="num">29°</span> · 습함</p>
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:4px">
+          <p style="font-size:14px;font-weight:500;min-width:0">반팔 + 얇은 겉옷 추천</p>
+          <span style="font-size:13px;font-weight:600;color:var(--muted-fg);flex:none">더워했어요</span>
+        </div>
+      </div>
+    </div>
+  </div>  <p class="cap" style="margin-top:16px;text-align:center;font-size:12px;line-height:1.6;word-break:keep-all">알려주지 않아도 불이익은 없어요 — 체질 진단이 아니며, 언제든 수정·삭제할 수 있어요.</p>
+</div>
+<nav class="nav">
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>홈</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span>환경정보</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>옷차림</a>
+  <a class="on"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>하루</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>마이</a>
+</nav>
+</div>
+</div>
+
+<!-- ═══════════ E. 하루 탭 — 첫 진입 ═══════════ -->
+<div class="frame-wrap">
+<p>E. 하루 탭 — 첫 진입 (v6)
+<span>"0에서 시작"이 아니라 <b>"이미 이만큼 알고 있다"</b> — 프로필 자산 칩으로 시작하고, 하루의 결과가 그 위에 더해진다고 말한다. 스텝퍼·링·숫자 없음.</span></p>
+<div class="phone"><div class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px">
+    <b style="font-size:15px;color:var(--accent)">AiDay <span style="color:var(--ink)">아이데이</span></b>
+    <svg class="i" style="width:20px;height:20px;color:var(--muted-fg)" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.6a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7v.2a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.6a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2Z"/><circle cx="12" cy="12" r="3"/></svg>
+  </div>
+  <div style="margin-top:16px" class="seg"><b class="on">지우</b><b class="off">도윤</b></div>
+  <h1 style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:16px">지우의 하루</h1>
+  <p class="cap num" style="margin-top:4px">7월 28일 (화)</p>
+
+  <div class="hero" style="margin-top:16px;padding:20px">
+    <p style="font-size:19px;font-weight:800;letter-spacing:-.02em;line-height:1.45;word-break:keep-all">지우를 이미<br>이만큼 알고 있어요</p>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+      <span style="background:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600">땀이 많은 편</span>
+      <span style="background:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600">피부 민감</span>
+      <span style="background:var(--muted);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600">호흡기 민감</span>
+    </div>
+    <p style="font-size:13.5px;color:var(--muted-fg);line-height:1.65;margin-top:14px;word-break:keep-all">하루의 실제 결과를 가볍게 알려주면, 프로필만으로는 알 수 없는 지우의 반응을 다음 판단에 더해갈 수 있어요.</p>
+    <div class="cta" style="margin-top:16px">오늘 지우에게 어땠는지 알려주기</div>
+  </div>
+  <p class="cap" style="margin-top:16px;text-align:center;font-size:12px;line-height:1.6;word-break:keep-all">알려주지 않아도 불이익은 없어요 — 체질 진단이 아니며, 언제든 수정·삭제할 수 있어요.</p>
+</div>
+<nav class="nav">
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>홈</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M17.7 7.7A2.5 2.5 0 1 1 19.5 12H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg></span>환경정보</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M20.4 6.5 17 5l-2-2h-2l-1 1-1-1H9L7 5 3.6 6.5a1 1 0 0 0-.5 1.3l1.4 2.8 2.5-.9V21h10V9.7l2.5.9 1.4-2.8a1 1 0 0 0-.5-1.3Z"/></svg></span>옷차림</a>
+  <a class="on"><span class="pill"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></span>하루</a>
+  <a><span class="pill"><svg viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>마이</a>
+</nav>
+</div>
+</div>
+
+<!-- ═══════════ G. 저장 직후 — 특성 승격 ═══════════ -->
+<div class="frame-wrap">
+<p>G. 저장 직후 — "짠" 보상 (v6)
+<span>숫자 +1이 아니라 <b>하나의 불확실한 관찰이 추천 근거로 승격되는 순간</b>: 점선 카드가 tint로 뒤집히며 NEW → 내일 미리보기. 오늘 새 변화 표시는 24시간 후 제거.</span></p>
+<div class="phone"><div class="screen">
+  <div style="display:flex;align-items:center;justify-content:center;height:56px;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px">
+    <p style="font-size:14px;font-weight:600">오늘의 마무리</p>
+  </div>
+
+  <h1 style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:24px;word-break:keep-all">오늘 결과가 반영됐어요</h1>
+
+  <!-- 승격 전 상태 (참고용 잔상) -->
+  <div style="margin-top:16px;background:var(--card);border:1.5px dashed #E3DDD6;border-radius:16px;padding:12px 14px;opacity:.5">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:var(--faint);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+      <p style="font-size:13.5px;font-weight:600;color:var(--muted-fg)">더운 날 반응 · 조금 더 알아보는 중</p>
+    </div>
+  </div>
+  <p style="text-align:center;margin:8px 0;color:var(--faint)"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></svg></p>
+
+  <!-- 승격 후 -->
+  <div style="background:var(--tint);border-radius:16px;padding:16px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:var(--accent);display:flex"><svg class="i" style="width:16px;height:16px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></span>
+      <p style="font-size:15px;font-weight:700;flex:1">더운 날 반응</p>
+      <span style="background:var(--card);border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;color:var(--accent)">NEW</span>
+    </div>
+    <p style="font-size:14px;line-height:1.6;margin-top:8px;word-break:keep-all">반복되는 결과가 확인됐어요 — 다음 비슷한 날의 판단에 반영할게요.</p>
+  </div>
+
+  <div style="margin-top:14px;background:var(--cream);border-radius:20px;padding:18px 20px">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--accent)">다음 비슷한 날 미리보기</p>
+    <p style="font-size:16px;font-weight:700;line-height:1.5;margin-top:8px;word-break:keep-all">얇고 갈아입기 쉬운 옷차림을 먼저 안내할게요</p>
+    <p style="font-size:13px;color:var(--muted-fg);line-height:1.6;margin-top:6px;word-break:keep-all">오늘 알려주신 결과가 다음 판단의 근거가 됐어요.</p>
+  </div>
+
+  <div class="cta" style="margin-top:20px">마무리하기</div>
+  <div class="ghost">지우의 하루 보러 가기</div>
+</div>
+</div>
+</div>
+
+<!-- ═══════════ F. Step 1 — 액션 실행 확인 추가 ═══════════ -->
+<div class="frame-wrap">
+<p>F. 마무리 Step 1 — ⑦ 액션 실행 확인 (아침 체크 프리필)
+<span>기존 Step 1(적합도+체감)에 "추천 행동, 실제로 했나요?" 추가 — 최대 3개, 아침 체크리스트에서 체크한 항목은 '했어요' 미리 선택(수정 가능). 전부 선택 사항이라 30초 예산 유지.</span></p>
+<div class="phone"><div class="screen">
+  <div style="display:flex;align-items:center;justify-content:space-between;height:56px;border-bottom:1px solid var(--border);margin:0 -20px;padding:0 20px">
+    <svg class="i" style="width:20px;height:20px" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+    <p style="font-size:14px;font-weight:600">오늘의 마무리</p>
+    <p class="cap num">1 / 2</p>
+  </div>
+
+  <h1 style="font-size:20px;font-weight:700;letter-spacing:-.02em;margin-top:24px;word-break:keep-all">아침 추천은 오늘 어땠나요?</h1>
+  <p class="cap" style="margin-top:8px;line-height:1.6">정답을 평가하는 것이 아니라, 지우에게 실제로 어땠는지 알려주세요.</p>
+
+  <div class="l1" style="margin-top:20px;padding:16px 20px">
+    <p style="font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--muted-fg)">오늘 아침 AIDAY의 판단</p>
+    <p style="font-size:15px;font-weight:600;line-height:1.5;margin-top:8px;word-break:keep-all">낮 30도 습도 85% — 야외활동 짧게, 그늘 위주로 보내주세요</p>
+  </div>
+
+  <div style="margin-top:24px">
+    <h2 style="font-size:16px;font-weight:700;letter-spacing:-.01em">오늘 전체적으로 얼마나 잘 맞았나요?</h2>
+    <div style="margin-top:12px;display:grid;gap:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--tint);border-radius:16px;padding:14px 16px;font-size:15px;font-weight:600">일부만 맞았어요 <svg class="i" style="width:16px;height:16px;color:var(--accent)" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></div>
+      <div class="l1" style="padding:14px 16px;font-size:15px;font-weight:500">잘 맞았어요</div>
+    </div>
+    <p style="font-size:12px;color:var(--faint);margin-top:6px">…나머지 선택지 생략(기존과 동일)</p>
+  </div>
+
+  <!-- ⑦ 액션 실행 확인 -->
+  <div style="margin-top:24px">
+    <h2 style="font-size:16px;font-weight:700;letter-spacing:-.01em">추천한 준비물, 실제로 썼나요?</h2>
+    <p style="font-size:12px;color:var(--faint);margin-top:4px">아침에 체크한 항목은 미리 선택돼 있어요 · 선택 사항</p>
+
+    <div class="l1" style="margin-top:12px;padding:14px 16px">
+      <p style="font-size:14px;font-weight:600">여벌 상의</p>
+      <div class="tri">
+        <span class="on">했어요</span><span>못 했어요</span><span>필요 없었어요</span>
+      </div>
+    </div>
+    <div class="l1" style="margin-top:8px;padding:14px 16px">
+      <p style="font-size:14px;font-weight:600">물통</p>
+      <div class="tri">
+        <span class="on">했어요</span><span>못 했어요</span><span>필요 없었어요</span>
+      </div>
+    </div>
+    <div class="l1" style="margin-top:8px;padding:14px 16px">
+      <p style="font-size:14px;font-weight:600">선크림</p>
+      <div class="tri">
+        <span>했어요</span><span>못 했어요</span><span class="on">필요 없었어요</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta" style="margin-top:24px">다음</div>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="note">
+<b>설계 메모 (v6 — v5 기반 + ChatGPT 혼합안 채택)</b><br>
+· <b>글로벌 스텝퍼 제거</b> — Family Memory는 특성별 병렬 상태(더위=반영 / 추위=정보 적음)라 전역 단계 하나는 거짓 단순화이고, 마지막 단계 도달 시 "완료된 제품"처럼 보인다. 대체 = <b>특성별 반응 지도</b>: 가장 중요한 반응 1개 큰 카드 + 2열 타일 + 모두 보기. 상태 시각 언어: 프로필(muted) / 알아보는 중(점선) / 확인·반영(피치 tint + 배지). 아이콘은 Lucide(이모지 금지).<br>
+· <b>"확인 중 n/3" 노출 제거</b> — 퀘스트화는 편향 응답 유도 + 데이터 수집 인상. 외부는 자연어("비슷한 결과가 몇 번 있었어요 · 조금 더 알아보는 중"), 내부 판정(3회·0.67)은 유지.<br>
+· <b>오늘 결과를 Hero에 통합</b> — 입력 직후 사용자가 가장 먼저 확인하고 싶은 것은 "방금 알려준 게 반영됐는가". Hero = 오늘 결과 헤드라인("더운 날 반응이 조금 더 또렷해졌어요") + 오늘 알려준 내용 칩 + 크림 다음 판단 + 수정.<br>
+· <b>G 저장 보상 = 특성 승격의 순간</b> — 숫자 +1이 아니라 점선 카드(알아보는 중)가 tint(반영)로 뒤집히는 변화 + NEW(24시간 후 제거) + 내일 미리보기.<br>
+· D 미입력: 질문형 Hero("오늘 지우에게 실제로 어땠나요?") + 아침 안내 인용 + CTA를 안 눌러도 반응 지도가 가치를 준다. E 첫 진입: "0에서 시작"이 아니라 "이미 이만큼 알고 있어요"(프로필 칩) — 링·스텝퍼·숫자 전부 없음.<br>
+· 어휘: 기록/트래킹/N일째/관찰 수/n/3/경향 1개 사용자 노출 금지. "관리"는 설정(톱니) 메뉴 안으로 — 메뉴 구성: AiDay가 참고하는 정보 / 오늘 결과 수정 / 과거 결과 보기 / 전체 삭제.<br>
+· 기각 2건: 아바타 방사형 반응 지도(모바일 비현실 — ChatGPT도 타일 권장), "10초로 알려주기"(과대약속 위험 — 30초 유지).<br>
+· "최근 비슷한 날"(조건·추천·결과)·무패널티 고지·F(Step 1 프리필)·A·B(홈 건강 팁·시트)는 승인안 유지. 주간 한 줄 요약은 v6에서 제거(Hero가 오늘의 변화를 이미 말함).<br>
+· 마이크로 리액션 인라인 입력은 P1.
+</div>
+
+</body>
+</html>

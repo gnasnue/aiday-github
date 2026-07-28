@@ -18,17 +18,16 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, ChevronRight, NotebookPen } from "lucide-react";
 import {
-  daysLogged,
-  detectMemoryStatus,
+  buildNextJudgementLine,
+  buildTraitMap,
   dismissedKey,
   loadEntries,
-  memoryStatusCopy,
 } from "@/lib/memory/day-review";
 import { localDateStr } from "@/lib/date";
 
 type CardState =
   | { kind: "todo" }
-  | { kind: "done"; days: number; statusLine: string }
+  | { kind: "done"; line: string }
   | { kind: "hidden" };
 
 const DayReviewEntryCard = ({ childId, childName }: { childId: string; childName: string }) => {
@@ -45,10 +44,13 @@ const DayReviewEntryCard = ({ childId, childName }: { childId: string; childName
     const entries = loadEntries(childId);
     const today = entries.find((e) => e.date === localDateStr());
     if (today) {
+      // 완료 상태는 한 줄로 축소된다 — 콘텐츠(반응 지도·근거)는 하루 탭에만 둔다.
+      // "기록 N일째" 같은 누적 카운트는 쓰지 않는다(트래킹 어휘 금지, 2026-07-28 v6).
+      const traits = buildTraitMap(entries);
+      const next = buildNextJudgementLine(traits);
       setState({
         kind: "done",
-        days: daysLogged(entries),
-        statusLine: memoryStatusCopy(detectMemoryStatus(entries), childName).title,
+        line: next ?? `${childName}의 반응을 조금 더 알아가는 중이에요`,
       });
     } else {
       setState({ kind: "todo" });
@@ -100,7 +102,7 @@ const DayReviewEntryCard = ({ childId, childName }: { childId: string; childName
         </div>
       ) : (
         <button
-          onClick={() => router.push("/review")}
+          onClick={() => router.push("/day")}
           className="mt-4 flex w-full items-center gap-3 rounded-2xl bg-card p-5 text-left shadow-soft transition-smooth active:scale-[0.99]"
         >
           <span
@@ -111,10 +113,10 @@ const DayReviewEntryCard = ({ childId, childName }: { childId: string; childName
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-bold tracking-[-0.01em] break-keep">
-              오늘 기록 완료 · 기록 <span className="num">{state.days}</span>일째
+              오늘 결과가 반영됐어요
             </span>
             <span className="mt-0.5 block text-[13px] leading-[1.5] text-muted-foreground break-keep">
-              {state.statusLine}
+              {state.line}
             </span>
           </span>
           <ChevronRight className="h-4 w-4 shrink-0 text-faint" strokeWidth={2} aria-hidden="true" />
