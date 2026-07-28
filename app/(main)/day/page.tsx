@@ -43,12 +43,14 @@ import {
 import { useLocation } from "@/lib/useLocation";
 import { loadEnvSnapshot } from "@/lib/env-cache";
 import { buildTimeline, buildTomorrowTimeline } from "@/lib/timeline";
-import { buildCarePlan, applyPastOutcome } from "@/lib/care-plan";
+import { buildCarePlan } from "@/lib/care-plan";
+import { loadTodayReport } from "@/lib/report-cache";
 import { buildTomorrowBrief } from "@/lib/memory/tomorrow-brief";
 import { buildCareCard, careCardToText, isCareCardEmpty } from "@/lib/memory/care-card";
 import CareCardShare from "@/components/CareCardShare";
+import WeekRadar from "@/components/WeekRadar";
+import NoteboardCard from "@/components/NoteboardCard";
 import { localDateStr } from "@/lib/date";
-import { loadCheckedKeys, saveCheckedKeys } from "@/lib/memory/checklist-state";
 import {
   OVERALL_FIT_OPTIONS,
   THERMAL_OPTIONS,
@@ -76,7 +78,6 @@ const DayPage = () => {
   const [profiles, setProfiles] = useState<ChildProfile[]>(defaultProfiles);
   const [active, setActive] = useState<string>(defaultProfiles[0].id);
   const [entries, setEntries] = useState<DayReviewEntry[]>([]);
-  const [checked, setChecked] = useState<string[]>([]);
   const [shared, setShared] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -95,7 +96,6 @@ const DayPage = () => {
   useEffect(() => {
     if (!mounted) return;
     setEntries(loadEntries(active));
-    setChecked(loadCheckedKeys(active));
     setShared(false);
     try {
       localStorage.setItem("aiweather:activeProfileId", active);
@@ -115,7 +115,17 @@ const DayPage = () => {
     });
   }, [mounted, location.station, location.lat, location.lon]);
 
-  // 오늘의 실행 — 슬롯 전이에서 실패 조건을 찾는다. 없으면 null(지어내지 않는다).
+  // 오늘 부탁 문구 — 슬롯 전이에서 실패 조건을 찾아 **돌봄자에게 보낼 한 문장**을 만든다.
+  // 없으면 null(지어내지 않는다).
+  //
+  // 2026-07-29: 이 엔진의 결과를 화면 헤드라인으로 쓰던 '오늘의 실행' L2 카드는 폐기했다.
+  // 계측 결과 평년 날씨에서 발동률이 11%(36케이스 중 4)에 그쳤고, 무엇보다 이 카드를 만든
+  // 근거였던 문제정의 §8-2의 대표 실패일(아침 20°→낮 28°→저녁 17°)조차 발동하지 않았다 —
+  // 원인 슬롯 쌍을 '야외활동 → 바로 다음 슬롯'으로 고정한 탓에 하루의 **승온 구간**(11시→15시,
+  // 항상 −2~−3°)을 보고 있었기 때문이다. 그래서 판단·근거·준비물을 화면에 펼치는 역할은
+  // 홈 히어로에 남기고, 여기서는 **다른 어디에도 없는 기능 하나**만 살렸다: 남에게 넘기는 문구
+  // (`plan.handoff` → 돌봄 카드의 '오늘 부탁'). MANIFESTO 1층(운영 책임의 집중)을 실제로
+  // 덜어내는 부분이 그것이다. 계측 근거·되살릴 때 고칠 지점은 `lib/care-plan.ts` 헤더 주석 참조.
   const plan = useMemo(() => {
     if (!snap || !child) return null;
     const slots = buildTimeline(child.schedule, snap.env);
@@ -129,22 +139,6 @@ const DayPage = () => {
     });
   }, [snap, child]);
 
-  // 과거 결과 반영 — 같은 종류의 결과가 있을 때만. 없으면 반영 문장을 만들지 않는다.
-  const pastThermal = useMemo(() => {
-    const past = entries.filter((e) => e.date !== localDateStr() && e.thermalOutcome);
-    const warm = past.filter((e) => e.thermalOutcome === "too_warm").length;
-    const cold = past.filter((e) => e.thermalOutcome === "too_cold").length;
-    if (warm >= 2 && warm > cold) return "too_warm" as const;
-    if (cold >= 2 && cold > warm) return "too_cold" as const;
-    return null;
-  }, [entries]);
-
-  const adjusted = useMemo(
-    () => (plan ? applyPastOutcome(plan, pastThermal) : null),
-    [plan, pastThermal]
-  );
-  const shownPlan = adjusted?.plan ?? plan;
-
   // 결과를 알려준 뒤의 보상 — 내일 아침 준비(오늘 결과 반영)
   const tomorrow = useMemo(() => {
     if (!today || !snap || !child) return null;
@@ -153,14 +147,19 @@ const DayPage = () => {
   }, [today, snap, child]);
 
   const recent = entries.filter((e) => e.date !== localDateStr()).slice(0, 3);
-  const prepKey = shownPlan?.prep[0] ?? null;
-  const prepDone = prepKey ? checked.includes(prepKey) : false;
+
+  // 아침에 부모가 실제로 본 결론(홈 히어로 hook) — 저녁 대조의 인용 출처.
+  // 캐시가 없으면(다른 기기·정리됨) 만들지 않는다 — 추정 인용 금지.
+  const morningHook = useMemo(() => {
+    if (!mounted || !child) return null;
+    return loadTodayReport(child.id)?.hook?.trim() || null;
+  }, [mounted, child]);
 
   // ── 돌봄 카드 — 축적된 이해를 조부모·시터·어린이집에 건네는 한 장 ──
   // 반복 설명 노동(역할 분담 25.0% · 기관 추가 전달 16.7%)을 앱이 대신 넘긴다.
   const careCard = useMemo(
-    () => (child ? buildCareCard({ child, entries, plan: shownPlan }) : null),
-    [child, entries, shownPlan]
+    () => (child ? buildCareCard({ child, entries, plan }) : null),
+    [child, entries, plan]
   );
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardSharing, setCardSharing] = useState(false);
@@ -227,17 +226,11 @@ const DayPage = () => {
     }
   };
 
-  const togglePrep = () => {
-    if (!prepKey) return;
-    const next = prepDone ? checked.filter((k) => k !== prepKey) : [...checked, prepKey];
-    setChecked(next);
-    saveCheckedKeys(active, next);
-  };
-
-  // 전달 — 공유 시트를 먼저 시도하고(한 탭에 끝난다), 미지원이면 복사로 폴백한다.
-  const share = async () => {
-    if (!shownPlan) return;
-    const text = shownPlan.handoff;
+  // 오늘 부탁만 텍스트로 전달 — 카톡에 한 줄 붙여넣는 쓰임새가 카드 이미지와 다르다.
+  // 공유 시트를 먼저 시도하고(한 탭에 끝난다), 미지원이면 복사로 폴백한다.
+  const shareHandoff = async () => {
+    if (!plan) return;
+    const text = plan.handoff;
     if (typeof navigator === "undefined") return;
     // Web Share는 lib.dom 버전에 따라 타입에 없을 수 있어 함수 존재로 판정한다
     const shareFn = (navigator as Navigator & { share?: (d: ShareData) => Promise<void> }).share;
@@ -273,14 +266,117 @@ const DayPage = () => {
   }
 
   const name = child.name;
-  const handoffTarget = shownPlan?.atDaycare ? "어린이집에 전달하기" : "돌봄자에게 전달하기";
-  // 하루 화면은 시간에 따라 얼굴을 바꾼다 — 낮에는 오늘의 실행이 주인공,
+  const handoffTarget = plan?.atDaycare ? "어린이집에 보내기" : "돌봄자에게 보내기";
+  // 하루 화면은 시간에 따라 얼굴을 바꾼다 — 낮에는 앞보기(컨디션 예보)가 먼저,
   // 저녁에는 예측과 실제의 대조·회수가 주인공이다(홈이 구조적으로 못 하는 일).
   const isEvening = new Date().getHours() >= 18;
   // 마지막 확인 시각 — 없으면 만들지 않는다(추정 금지). 출처를 함께 적는다.
   const lastReportedAt = today?.ts
     ? new Date(today.ts).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })
     : null;
+
+  // ── 저녁 회수 블록 — 이 화면의 key 기능(2026-07-29 결정: 저녁엔 최상단 승격) ──
+  // 낮에는 아직 물을 결과가 없으므로 종전 위치(실행 아래)를 유지하고, 저녁(18시~)에는
+  // 회수 CTA·결과 반영 카드가 첫 화면이 된다 — "시간에 따라 얼굴을 바꾼다" 원칙의 구현.
+  const reviewMt = isEvening ? "mt-4" : "mt-8";
+  const reviewBlock = today ? (
+    /* 예측 ↔ 실제 대조 — 홈이 구조적으로 못 하는 일(아침엔 결과가 없다).
+       출처·시각을 함께 적어 "언제 누가 확인한 것인지"를 숨기지 않는다.
+       인용하는 "아침 예측"은 **부모가 실제로 본 문장**(홈 히어로 hook)이다 — 종전에는
+       케어 플랜의 실행문을 인용했는데, 그 카드를 폐기한 뒤로는 부모가 한 번도 보지 못한
+       문장을 "예측"이라 부르게 되므로 인용 출처를 홈 리포트로 바꿨다(2026-07-29). */
+    <section className={`${reviewMt} rounded-3xl bg-card p-5 shadow-card`}>
+      {morningHook && (
+        <div className="mb-4 rounded-2xl bg-muted p-4">
+          <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            아침 예측
+          </p>
+          <p className="mt-1 text-[14px] leading-[1.55] text-muted-foreground break-keep">
+            {morningHook}
+          </p>
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              실제
+            </p>
+            <p className="mt-1 text-[15px] font-bold leading-[1.5] text-foreground break-keep">
+              {[fitLabel(today), thermalLabel(today)].filter(Boolean).join(" · ")}
+            </p>
+            {lastReportedAt && (
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                마지막 확인 {lastReportedAt} · 보호자 기록
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <Check className="h-[18px] w-[18px] shrink-0 text-status-good" strokeWidth={2.5} />
+        <p className="flex-1 text-[15px] font-bold">오늘 결과가 반영됐어요</p>
+        <button
+          onClick={() => router.push("/review?edit=1")}
+          className="-mr-2 flex min-h-11 items-center rounded-full px-2 text-[13px] font-semibold text-muted-foreground"
+        >
+          수정
+        </button>
+      </div>
+      {tomorrow && (
+        <div className="mt-3 rounded-2xl bg-muted p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+            <Sunrise className="h-3.5 w-3.5" strokeWidth={2} />
+            내일 {tomorrow.slotLabel} <span className="num">{tomorrow.hour}</span> ·{" "}
+            <span className="num">{tomorrow.temp}°</span>
+          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {tomorrow.preps.map((p, i) => (
+              <span
+                key={p}
+                className={`rounded-full px-3 py-1.5 text-[13px] ${
+                  i === 0 && tomorrow.adjusted?.name === p
+                    ? "bg-primary-tint font-bold text-foreground"
+                    : "bg-card font-medium text-foreground"
+                }`}
+              >
+                {p}
+              </span>
+            ))}
+          </div>
+          {tomorrow.adjusted && (
+            <p className="mt-2 text-[12.5px] leading-[1.6] text-muted-foreground break-keep">
+              {tomorrow.adjusted.reason}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  ) : (
+    /* 미입력 상태도 L2 — 이 화면의 key 기능이므로 두 상태의 표면 위계를 같게 둔다
+       (화면의 유일한 L2. 컨디션 예보·돌봄 카드는 L1) */
+    <button
+      onClick={() => router.push("/review")}
+      className={`${reviewMt} flex w-full items-center gap-3 rounded-3xl bg-card p-5 text-left shadow-card transition-smooth active:scale-[0.99]`}
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold tracking-[-0.01em] break-keep">
+          오늘 {name}에게 어땠는지 한 번만 알려주세요
+        </span>
+        <span className="mt-0.5 block text-[13px] leading-[1.5] text-muted-foreground break-keep">
+          30초면 끝나고, 내일 아침 준비에 바로 반영해요
+        </span>
+      </span>
+      <ArrowRight className="h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
+    </button>
+  );
+
+  // 회수 묶음 — 저녁에 부모가 하는 두 가지 회수를 나란히 둔다: **내 판단의 결과**(리뷰)와
+  // **기관에서 온 소식**(알림장 → 대화 거리). 한 번의 저녁 방문에서 둘 다 끝나게 하려면
+  // 두 카드가 붙어 있어야 하고, 그래서 위치 전환(저녁 최상단/낮 중간)도 함께 움직인다.
+  // 알림장은 오후에 오므로 이 묶음이 아침에 최상단으로 올라오면 둘 다 빈 카드가 된다.
+  const reviewStack = (
+    <>
+      {reviewBlock}
+      <NoteboardCard child={child} />
+    </>
+  );
 
   return (
     <div className="page-shell">
@@ -322,190 +418,19 @@ const DayPage = () => {
             </div>
           )}
 
-          {/* ── 오늘의 실행 (이 화면의 유일한 L2) ───────────────────────── */}
-          {shownPlan ? (
-            <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                오늘의 실행
-              </p>
-              <h1 className="mt-2 text-[26px] font-extrabold leading-[1.34] tracking-[-0.028em] text-foreground break-keep">
-                {shownPlan.action}
-              </h1>
+          {/* ── 저녁엔 회수가 주인공 — 리뷰 블록이 첫 화면 ─────────────── */}
+          {isEvening && reviewStack}
 
-              {/* 근거 — 원인 슬롯 → 결과 슬롯. 판단에 쓴 값을 그대로 보여준다 */}
-              <div className="mt-4 rounded-2xl bg-muted p-4">
-                {shownPlan.evidence.map((e, i) => (
-                  <div key={e.slot} className={i === 0 ? "" : "mt-3 border-t border-border pt-3"}>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[13px] font-bold text-foreground">{e.slot}</span>
-                      <span className="num text-[13px] font-bold text-foreground">{e.value}</span>
-                    </div>
-                    <p className="mt-1 text-[13px] leading-[1.55] text-muted-foreground break-keep">
-                      {e.why}
-                    </p>
-                  </div>
-                ))}
-              </div>
+          {/* ── 이번 주 컨디션 예보 — 주간 예보 × 체질 × 저녁 기록의 앞보기 훅 ── */}
+          <WeekRadar
+            child={child}
+            entries={entries}
+            location={location}
+            className={isEvening ? "mt-8" : "mt-5"}
+          />
 
-              {adjusted && (
-                <p className="mt-3 text-[13px] leading-[1.6] text-accent break-keep">
-                  {adjusted.note}
-                </p>
-              )}
-
-              {/* ① 내가 챙길 것 */}
-              {prepKey && (
-                <button
-                  onClick={togglePrep}
-                  aria-pressed={prepDone}
-                  className="mt-5 flex min-h-14 w-full items-center gap-3 rounded-2xl bg-muted px-4 text-left transition-smooth active:scale-[0.99]"
-                >
-                  <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-[1.5px] ${
-                      prepDone
-                        ? "border-status-good bg-status-good text-white"
-                        : "border-border-control bg-card"
-                    }`}
-                    aria-hidden="true"
-                  >
-                    {prepDone && <Check className="h-4 w-4" strokeWidth={3} />}
-                  </span>
-                  <span
-                    className={`flex-1 text-[16px] font-semibold ${
-                      prepDone ? "text-muted-foreground line-through" : "text-foreground"
-                    }`}
-                  >
-                    {prepKey} 가방에 넣기
-                  </span>
-                </button>
-              )}
-
-              {/* ② 남에게 넘길 일 — 이 화면의 유일한 primary CTA */}
-              <button
-                onClick={share}
-                className={`mt-2 flex h-13 min-h-12 w-full items-center justify-center gap-2 rounded-[14px] text-[17px] font-bold transition-smooth active:scale-[0.99] ${
-                  shared
-                    ? "bg-status-good-bg text-status-good"
-                    : "bg-primary text-primary-foreground hover:bg-primary-hover"
-                }`}
-              >
-                {shared ? (
-                  <>
-                    <Check className="h-5 w-5" strokeWidth={2.5} />
-                    전달했어요
-                  </>
-                ) : (
-                  <>
-                    <Share2 className="h-5 w-5" strokeWidth={1.75} />
-                    {handoffTarget}
-                  </>
-                )}
-              </button>
-              <p className="mt-2 rounded-2xl bg-secondary p-3.5 text-[13px] leading-[1.6] text-foreground break-keep">
-                “{shownPlan.handoff}”
-              </p>
-            </section>
-          ) : (
-            <section className="mt-4 rounded-3xl bg-card p-5 shadow-card">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                오늘의 실행
-              </p>
-              <h1 className="mt-2 text-[22px] font-extrabold leading-[1.4] tracking-[-0.02em] break-keep">
-                오늘은 따로 챙길 것이 없어요
-              </h1>
-              <p className="mt-2 text-[14px] leading-[1.65] text-muted-foreground break-keep">
-                {snap
-                  ? `시간대별 기온 변화와 ${name}의 일과를 확인했는데, 오늘은 미리 맞춰둘 케어가 보이지 않아요.`
-                  : "홈에서 오늘 환경을 먼저 불러오면 오늘의 실행을 보여드릴게요."}
-              </p>
-            </section>
-          )}
-
-          {/* ── 저녁 회수 한 줄 / 결과 반영 후 보상 ─────────────────────── */}
-          {today ? (
-            <>
-              {/* 예측 ↔ 실제 대조 — 홈이 구조적으로 못 하는 일(아침엔 결과가 없다).
-                  출처·시각을 함께 적어 "언제 누가 확인한 것인지"를 숨기지 않는다. */}
-              <section className="mt-6 rounded-2xl bg-card p-5 shadow-soft">
-                {shownPlan && (
-                  <div className="mb-4 rounded-2xl bg-muted p-4">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                      아침 예측
-                    </p>
-                    <p className="mt-1 text-[14px] leading-[1.55] text-muted-foreground break-keep">
-                      {shownPlan.action}
-                    </p>
-                    <div className="mt-3 border-t border-border pt-3">
-                      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                        실제
-                      </p>
-                      <p className="mt-1 text-[15px] font-bold leading-[1.5] text-foreground break-keep">
-                        {[fitLabel(today), thermalLabel(today)].filter(Boolean).join(" · ")}
-                      </p>
-                      {lastReportedAt && (
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          마지막 확인 {lastReportedAt} · 보호자 기록
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Check className="h-[18px] w-[18px] shrink-0 text-status-good" strokeWidth={2.5} />
-                  <p className="flex-1 text-[15px] font-bold">오늘 결과가 반영됐어요</p>
-                  <button
-                    onClick={() => router.push("/review?edit=1")}
-                    className="-mr-2 flex min-h-11 items-center rounded-full px-2 text-[13px] font-semibold text-muted-foreground"
-                  >
-                    수정
-                  </button>
-                </div>
-                {tomorrow && (
-                  <div className="mt-3 rounded-2xl bg-muted p-4">
-                    <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                      <Sunrise className="h-3.5 w-3.5" strokeWidth={2} />
-                      내일 {tomorrow.slotLabel} <span className="num">{tomorrow.hour}</span> ·{" "}
-                      <span className="num">{tomorrow.temp}°</span>
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {tomorrow.preps.map((p, i) => (
-                        <span
-                          key={p}
-                          className={`rounded-full px-3 py-1.5 text-[13px] ${
-                            i === 0 && tomorrow.adjusted?.name === p
-                              ? "bg-primary-tint font-bold text-foreground"
-                              : "bg-card font-medium text-foreground"
-                          }`}
-                        >
-                          {p}
-                        </span>
-                      ))}
-                    </div>
-                    {tomorrow.adjusted && (
-                      <p className="mt-2 text-[12.5px] leading-[1.6] text-muted-foreground break-keep">
-                        {tomorrow.adjusted.reason}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </section>
-            </>
-          ) : (
-            <button
-              onClick={() => router.push("/review")}
-              className="mt-6 flex w-full items-center gap-3 rounded-2xl bg-card p-5 text-left shadow-soft transition-smooth active:scale-[0.99]"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-bold tracking-[-0.01em] break-keep">
-                  오늘 {name}에게 어땠는지 한 번만 알려주세요
-                </span>
-                <span className="mt-0.5 block text-[13px] leading-[1.5] text-muted-foreground break-keep">
-                  30초면 끝나고, 내일 아침 준비에 바로 반영해요
-                </span>
-              </span>
-              <ArrowRight className="h-4 w-4 shrink-0 text-accent" strokeWidth={2} />
-            </button>
-          )}
+          {/* ── 저녁 회수 한 줄 / 결과 반영 후 보상 — 낮에만 이 위치(저녁엔 최상단) ── */}
+          {!isEvening && reviewStack}
 
           {/* ── 돌봄 카드 — 아이를 맡길 때 반복하던 설명을 한 장으로 넘긴다 ── */}
           {careCard && !isCareCardEmpty(careCard) && (
@@ -515,6 +440,39 @@ const DayPage = () => {
                 조부모·시터·어린이집에 건네면, 같은 설명을 다시 하지 않아도 돼요.
               </p>
               <div className="mt-3 rounded-2xl bg-card p-5 shadow-soft">
+                {/* 오늘 부탁 — 폐기한 '오늘의 실행' 카드에서 유일하게 살린 것.
+                    이미지 카드에도 들어가지만, 카톡에 한 줄 붙여넣는 쓰임새가 달라
+                    텍스트 전달 액션을 따로 둔다. */}
+                {careCard.todayRequest && (
+                  <div className="mb-4 rounded-2xl bg-secondary p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                      오늘 부탁
+                    </p>
+                    <p className="mt-1.5 text-[14px] leading-[1.6] text-foreground break-keep">
+                      {careCard.todayRequest}
+                    </p>
+                    <button
+                      onClick={shareHandoff}
+                      className={`mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-[14px] text-[15px] font-bold transition-smooth active:scale-[0.99] ${
+                        shared
+                          ? "bg-status-good-bg text-status-good"
+                          : "bg-primary text-primary-foreground hover:bg-primary-hover"
+                      }`}
+                    >
+                      {shared ? (
+                        <>
+                          <Check className="h-[18px] w-[18px]" strokeWidth={2.5} />
+                          보냈어요
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                          {handoffTarget}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
                 <div className="flex items-start gap-3">
                   <span
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-tint text-accent"
@@ -523,9 +481,9 @@ const DayPage = () => {
                     <IdCard className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </span>
                   <div className="min-w-0 flex-1">
+                    {/* 오늘 부탁은 이 섹션 위에 이미 펼쳐져 있으므로 카운터에서 다시 세지 않는다 */}
                     <p className="text-[14px] font-semibold text-foreground">
                       {careCard.profileLines.length + careCard.observedLines.length}가지 안내
-                      {careCard.todayRequest ? " + 오늘 부탁" : ""}
                     </p>
                     <ul className="mt-2 space-y-1">
                       {[...careCard.profileLines, ...careCard.observedLines].slice(0, 3).map((l) => (

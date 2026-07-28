@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { applyPastOutcome, buildCarePlan, type CarePlanInput } from "./care-plan";
+import { buildCarePlan, type CarePlanInput } from "./care-plan";
 import type { HomeTimeSlot } from "./timeline";
 
 const slot = (over: Partial<HomeTimeSlot> & { time: string; hour: string }): HomeTimeSlot => ({
@@ -178,25 +178,5 @@ describe("buildCarePlan — 없는 위험은 지어내지 않는다", () => {
   it("실행문에 순위 주장 어휘가 없다", () => {
     const plan = buildCarePlan(goldenCase())!;
     expect(plan.action).not.toMatch(/가장|1순위|한 가지|놓치/);
-  });
-});
-
-describe("applyPastOutcome — 순서·표현만 바꾼다", () => {
-  it("과거 결과가 없으면 null (엔진에 안 들어간 개인화 설명 금지)", () => {
-    expect(applyPastOutcome(buildCarePlan(goldenCase())!, null)).toBeNull();
-  });
-
-  it("더워했던 이력은 여벌 상의를 앞으로 + 근거 문장", () => {
-    const base = buildCarePlan(goldenCase())!;
-    const res = applyPastOutcome(base, "too_warm")!;
-    expect(res.plan.prep[0]).toBe("여벌 상의");
-    expect(res.note).toContain("지난번");
-    expect(res.note).not.toMatch(/학습|체질/);
-  });
-
-  it("준비물을 빼지 않는다", () => {
-    const base = buildCarePlan(goldenCase())!;
-    const res = applyPastOutcome(base, "too_cold")!;
-    base.prep.forEach((p) => expect(res.plan.prep).toContain(p));
   });
 });

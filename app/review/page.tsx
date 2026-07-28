@@ -22,6 +22,8 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Minus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadProfiles, type ChildProfile } from "@/lib/profile";
+import { useLocation } from "@/lib/useLocation";
+import { loadTodayEnvSnapshot } from "@/lib/env-cache";
 import { hasAllergy, hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
 import { buildAiChecklist, splitHook } from "@/lib/hero-brief";
 import { loadTodayReport } from "@/lib/report-cache";
@@ -36,6 +38,7 @@ import {
   OVERALL_FIT_OPTIONS,
   TAG_NONE,
   THERMAL_OPTIONS,
+  buildEnvDigest,
   buildNextJudgementLine,
   buildRecapLine,
   buildTraitMap,
@@ -91,6 +94,7 @@ const OptionList = <T extends string>({
 
 const DayReviewPage = () => {
   const router = useRouter();
+  const { location } = useLocation();
   // useSearchParams는 Suspense 경계를 요구해 이 정적 페이지를 dynamic으로 만든다 —
   // 쿼리는 마운트 effect에서 window.location으로 직접 읽는다(어차피 클라 전용 판정).
   const [isEdit, setIsEdit] = useState(false);
@@ -249,6 +253,14 @@ const DayReviewPage = () => {
 
   const submit = () => {
     if (!child || !overallFit || !dayComfort) return;
+    // 그날 환경 요약 — 컨디션 예보(week-radar)의 개인 근거 매칭 재료. 오늘자 홈 스냅샷이
+    // 없으면 저장하지 않는다(추정 금지 — 매칭에서 빠질 뿐 흐름을 막지 않는다).
+    const snap = loadTodayEnvSnapshot({
+      station: location.station,
+      lat: location.lat,
+      lon: location.lon,
+    });
+    const digest = snap ? buildEnvDigest(snap.env) : null;
     const entry: DayReviewEntry = {
       childId: child.id,
       date: localDateStr(),
@@ -262,6 +274,7 @@ const DayReviewPage = () => {
       prepSummary: snapshot?.preps,
       actionOutcomes: actions.length ? actions : undefined,
       airwayOutcome: axis === "airway" ? (airway ?? undefined) : undefined,
+      envDigest: digest ?? undefined,
     };
     saveEntry(entry);
     showResult(entry, child);

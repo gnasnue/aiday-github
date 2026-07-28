@@ -81,6 +81,31 @@ export function saveEnvSnapshot(
   }
 }
 
+/**
+ * 같은 위치의 **오늘자** 스냅샷이면 반환 — 즉시 페인트용 90분 상한과 달리, "그날의
+ * 예보였다"는 사실만 필요할 때 쓴다(저녁 리뷰의 envDigest 파생 등). 아침에 저장된
+ * 스냅샷의 시간대별 예보는 저녁에도 그날의 예보라는 사실이 변하지 않는다.
+ * 어제 것은 다른 날의 예보이므로 걸러진다.
+ */
+export function loadTodayEnvSnapshot(
+  loc: SnapshotLocation,
+  now: number = Date.now()
+): EnvSnapshot | null {
+  const midnight = new Date(now);
+  midnight.setHours(0, 0, 0, 0);
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(snapKey(loc.station));
+    if (!raw) return null;
+    const snap = JSON.parse(raw) as EnvSnapshot;
+    if (!isEnvSnapshotFresh(snap, loc, now, now - midnight.getTime())) return null;
+    if (!snap.env || !snap.env.weather) return null;
+    return snap;
+  } catch {
+    return null;
+  }
+}
+
 // 같은 위치의 신선한 스냅샷이면 반환, 아니면 null(→ 호출부는 스켈레톤 유지).
 export function loadEnvSnapshot(
   loc: SnapshotLocation,
