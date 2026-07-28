@@ -15,6 +15,8 @@ import HeroDecisionBrief, {
   type HeroNowWeather,
 } from "@/components/HeroDecisionBrief";
 import PrepChecklistCard from "@/components/PrepChecklistCard";
+import MorningMessageAction from "@/components/MorningMessageAction";
+import { buildCarePlan } from "@/lib/care-plan";
 import {
   toBrief,
   splitHook,
@@ -1293,6 +1295,23 @@ const Home = () => {
      프롬프트·캐시 스키마 변경이 없다. */
   const brief = toBrief(aiHook || "");
 
+  // 기관에 보낼 아침 메시지의 부탁 문단 — 하루 탭의 '오늘 부탁'과 **같은 엔진**을 쓴다
+  // (lib/care-plan). 두 화면이 각자 문구를 만들면 부모가 기관에 보낸 말과 앱이 보여주는
+  // 말이 갈린다. 케어 플랜이 발동하지 않는 날은 null이고, 그때는 조건·준비물만으로 조립된다.
+  const morningHandoff = useMemo(
+    () =>
+      timeline && cur
+        ? (buildCarePlan({
+            slots: timeline,
+            childName: cur.name,
+            conditions: cur.conditions,
+            hot: cur.hot,
+            sweat: cur.sweat,
+          })?.handoff ?? null)
+        : null,
+    [timeline, cur]
+  );
+
   // 폴백(규칙 기반)에는 hook이 없다 — 본문 첫 문장을 결론 자리에 넣고 타입을 title(20)로
   // 낮춘다(HeroDecisionBrief fallback variant). display 28/800은 AI 판단 전용이다.
   const plainLines = message
@@ -1867,7 +1886,24 @@ const Home = () => {
                   checkedKeys={checked}
                   onToggle={toggle}
                   primaryKey={primaryPrepKey}
-                  footer={<ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />}
+                  footer={
+                    <>
+                      {/* 전달 — 판단·실행 다음의 세 번째 행. 여기 있어야 "아침에 할 일"이
+                          한 카드에서 끝난다(2026-07-29 Approach C). */}
+                      <MorningMessageAction
+                        childName={cur.name}
+                        hook={aiHook || ""}
+                        preps={prepItems.map((it) => it.title)}
+                        handoff={morningHandoff}
+                        atDaycare={displaySlots.some(
+                          (s) => s.time.includes("등원") || s.time.includes("하원")
+                        )}
+                      />
+                      <div className="mt-4 border-t border-border pt-4">
+                        <ReportFeedback childId={cur.id} ageBand={ageBand(cur.age)} />
+                      </div>
+                    </>
+                  }
                 />
               )}
             </HeroDecisionBrief>

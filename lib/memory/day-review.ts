@@ -58,6 +58,43 @@ export type DayReviewEntry = {
   actionOutcomes?: { name: string; execution: ActionExecution }[];
   /** 동적 질문이 호흡기 축이었던 날의 응답 */
   airwayOutcome?: AirwayOutcome;
+
+  /* --- v7: 그날 환경 요약 — 컨디션 예보(lib/week-radar.ts)의 개인 근거 매칭용 --- */
+  /**
+   * 저장 시점의 홈 환경 스냅샷에서 파생한 그날의 기온 범위·강수 여부.
+   * 스냅샷이 없으면 저장하지 않는다(추정 금지) — 매칭에서 그냥 빠질 뿐이다.
+   */
+  envDigest?: EnvDigest;
+};
+
+/** 그날 환경 요약 — 시간대별 예보(06~21시)의 최저/최고 기온과 강수 여부 */
+export type EnvDigest = {
+  tMin: number | null;
+  tMax: number | null;
+  /** 강수형태(PTY>0) 예보가 있었거나 강수확률이 확정 경계(60%) 이상이었는지 */
+  rainy: boolean;
+};
+
+/**
+ * 홈 환경 스냅샷의 시간대별 예보에서 그날의 요약을 만든다. 예보가 없으면 null —
+ * 없는 값으로 digest를 지어내지 않는다. 구조 타입으로 받아 lib/timeline.ts(EnvRaw)와
+ * lib/env-data.ts(EnvHourlyForecast) 어느 쪽 시간 배열이든 수용한다.
+ */
+export const buildEnvDigest = (
+  env: {
+    weather: {
+      hourlyForecast?: { temp: number | null; pty: number | null; pop: number | null }[];
+    } | null;
+  } | null
+): EnvDigest | null => {
+  const hours = env?.weather?.hourlyForecast ?? [];
+  const temps = hours.map((h) => h.temp).filter((t): t is number => t != null);
+  if (!temps.length) return null;
+  return {
+    tMin: Math.min(...temps),
+    tMax: Math.max(...temps),
+    rainy: hours.some((h) => (h.pty != null && h.pty > 0) || (h.pop != null && h.pop >= 60)),
+  };
 };
 
 /* ---------- 선택지 사전 (화면·저장이 같은 소스를 쓴다) ---------- */

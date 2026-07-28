@@ -19,7 +19,16 @@ export type AnalyticsEvent =
   | "report_viewed" // props: { age_band, cached, latency_ms }
   | "report_refreshed"
   | "report_error" // props: { stage } — 베타 기간 신뢰성 감시
-  | "checklist_toggled"; // props: { item, checked } — 체크리스트 인터랙션율
+  | "checklist_toggled" // props: { item, checked } — 체크리스트 인터랙션율
+  /* --- 알림장 루프 (2026-07-29) — 이 5개가 "부모가 정말 복붙하는가"의 측정 도구다.
+         설계안 kathe-feat-pass-monthly-me-design-20260729: 동의 베타 중 주 3회+ 복붙
+         ≥30%가 풀 루프(B) 착수 게이트. shown이 분모, submitted/generated가 분자다. --- */
+  | "noteboard_shown" // props: { has_result } — 저녁 카드 노출(사용률 분모)
+  | "noteboard_submitted" // props: { length } — 붙여넣고 생성 누름
+  | "noteboard_generated" // props: { talks, findings } — 생성 성공
+  | "noteboard_error" // props: { status }
+  | "noteboard_shared" // 대화 거리 공유·복사
+  | "morning_message_copied"; // props: { has_handoff, preps } — 아침 메시지 복사(C 사용률)
 
 // dev 센티널 — 005/006 뷰의 `app_version is distinct from 'dev'` 필터와
 // docs/beta-metrics.md 규칙 1의 근거. 이 문자열을 바꾸면 지표 뷰가 dev 트래픽으로 오염된다.

@@ -17,6 +17,11 @@ import { kstNow } from "./kma-time";
 export const GUEST_DAILY_LIMIT = 10;
 /** 로그인 사용자(user_id 버킷) 하루 한도. 아이 여러 명 + 재생성 여유. */
 export const USER_DAILY_LIMIT = 20;
+/**
+ * 알림장 대화 거리(/api/noteboard) 하루 한도. 알림장은 기관에서 하루 1건 오므로
+ * 아이 여러 명 + 재시도 여유로 5회면 충분하다(설계안 2026-07-29).
+ */
+export const NOTEBOARD_DAILY_LIMIT = 5;
 
 /**
  * 신뢰할 수 있는 클라이언트 IP. Vercel은 `x-forwarded-for` 맨 앞에 실제 클라이언트를 넣는다.
@@ -106,19 +111,52 @@ export async function checkReportRateLimit(
   const identity = bucketKey(userId, clientIp(headers), process.env.RATE_LIMIT_SALT || serviceKey);
   if (!identity) return ALLOW("no_identity");
 
+  return bump(url, serviceKey, identity.bucket, identity.limit);
+}
+
+/**
+ * 알림장 대화 거리 한도. **버킷 키에 `nb:` 프리픽스를 붙여 리포트 카운터와 분리**한다 —
+ * `report_usage.bucket`은 자유 텍스트 PK라 새 테이블·새 마이그레이션이 필요 없고,
+ * 리포트 한도를 알림장 호출이 잡아먹는 일도 없다.
+ *
+ * 게스트 경로가 없다(라우트가 로그인 필수). userId가 없으면 호출 자체가 오지 않지만,
+ * 방어적으로 통과시킨다 — 여기서 막아도 라우트의 401이 이미 막았다.
+ */
+export async function checkNoteboardRateLimit(userId: string | null): Promise<RateLimitResult> {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey) {
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "[rate-limit] SUPABASE_SERVICE_ROLE_KEY 미설정 — /api/noteboard 레이트리밋이 비활성 상태입니다."
+      );
+    }
+    return ALLOW("no_config");
+  }
+  if (!userId) return ALLOW("no_identity");
+  return bump(url, serviceKey, `nb:u:${userId}`, NOTEBOARD_DAILY_LIMIT);
+}
+
+/** 카운터 증가 + 판정 (report·noteboard 공용). 저장소 오류는 통과시킨다 — 위 주석의 이유. */
+async function bump(
+  url: string,
+  serviceKey: string,
+  bucket: string,
+  limit: number
+): Promise<RateLimitResult> {
   try {
     const admin = getAdminClient(url, serviceKey);
     const { data, error } = await admin.rpc("bump_report_usage", {
-      p_bucket: identity.bucket,
+      p_bucket: bucket,
       p_day: kstDay(),
-      p_limit: identity.limit,
+      p_limit: limit,
     });
     if (error) throw error;
     const row = Array.isArray(data) ? data[0] : data;
     if (!row) return ALLOW("store_error");
     return {
       allowed: Boolean(row.allowed),
-      limit: identity.limit,
+      limit,
       used: Number(row.usage_count),
     };
   } catch (err) {

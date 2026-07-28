@@ -15,6 +15,9 @@ export default defineConfig({
       ".claude/worktrees/**",
       // 빌드 산출물(dev/prod distDir 분리 — CLAUDE.md 참조)
       ".next*/**",
+      // 폐기 보관함 — 파일을 지우지 않고 여기로 옮기는 규칙이라, 옮겨진 테스트가
+      // 원래 위치의 상대 import를 잃고 스위트를 깨뜨린다(2026-07-29 실제 발생).
+      "Trash Can/**",
       // Playwright E2E 스펙(tests/e2e/*.spec.ts) — vitest 기본 include 패턴(**/*.spec.ts)과
       // 겹쳐 vitest가 잘못 주워 실행하면 test.describe() 문법 오류로 깨진다. 별도 러너(npm run test:e2e).
       "tests/e2e/**",
