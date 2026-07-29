@@ -11,11 +11,13 @@ import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import { toast } from "sonner";
 import {
-  PROFILES_KEY,
   fetchProfilesFromDb,
   realLocalProfiles,
+  saveProfiles,
   uploadLocalProfilesToDb,
 } from "@/lib/profile";
+import { getActiveProfileId, setActiveProfileId } from "@/lib/storage-keys";
+import { perfEnabled } from "@/lib/perf";
 import { syncLocalConsentsToDb } from "@/lib/consent";
 
 const AuthLanding = () => {
@@ -70,19 +72,14 @@ const AuthLanding = () => {
 
       if (res.list.length) {
         // DB 기준으로 로컬 복원 (다른 기기·재로그인 대응)
-        try {
-          localStorage.setItem(PROFILES_KEY, JSON.stringify(res.list));
-          const activeKey = "aiweather:activeProfileId";
-          const active = localStorage.getItem(activeKey);
-          if (!res.list.some((p) => p.id === active)) {
-            localStorage.setItem(activeKey, res.list[0].id);
-          }
-        } catch {}
-        // 계측이 활성(aiday:perf)이면 ?perf=1을 전달해 재로그인 시에도 계측이 유지되게 한다.
-        let dest = "/home";
-        try {
-          if (localStorage.getItem("aiday:perf") === "1") dest = "/home?perf=1";
-        } catch {}
+        saveProfiles(res.list);
+        const active = getActiveProfileId();
+        if (!res.list.some((p) => p.id === active)) {
+          setActiveProfileId(res.list[0].id);
+        }
+        // 계측이 활성이면 ?perf=1을 전달해 재로그인 시에도 계측이 유지되게 한다.
+        // 플래그 판정은 lib/perf.ts가 단일 출처다(키를 여기서 다시 적지 않는다).
+        const dest = perfEnabled() ? "/home?perf=1" : "/home";
         router.replace(dest);
       } else {
         router.replace("/onboarding");

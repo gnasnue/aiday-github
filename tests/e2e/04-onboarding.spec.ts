@@ -3,7 +3,7 @@ import { mockEnvApisSuccess, mockReportSuccess } from "./fixtures";
 
 /**
  * P0-3 + TC-ONB-* — 온보딩 5단계(app/onboarding/page.tsx, TOTAL=5) 아이 프로필 등록과
- * 새로고침 후 유지(localStorage `aiweather:profiles`) 확인.
+ * 새로고침 후 유지(localStorage `aiday:profiles`) 확인.
  *
  * 완료 후 /home 진입 시 실제 /api/report가 호출되므로(실 Claude 비용), 이 스펙의 목적은
  * "프로필 등록·영속화"이지 리포트 생성 자체가 아니다 — env·report API를 모킹해 비용을
@@ -143,8 +143,8 @@ test.describe("온보딩", () => {
     await expect(page.getByText(/첫 번째.*리포트가 준비됐어요/)).toBeVisible({ timeout: 10_000 });
 
     // localStorage에 실제 저장되었는지(완료 버튼 클릭 즉시, 홈 이동 전에도 확인 가능)
-    const savedRaw = await page.evaluate(() => localStorage.getItem("aiweather:profiles"));
-    expect(savedRaw, "완료 시점에 aiweather:profiles가 저장되어야 함").toBeTruthy();
+    const savedRaw = await page.evaluate(() => localStorage.getItem("aiday:profiles"));
+    expect(savedRaw, "완료 시점에 aiday:profiles가 저장되어야 함").toBeTruthy();
     expect(savedRaw).toContain(CHILD_NAME);
 
     await page.getByRole("button", { name: "오늘 리포트 보러가기" }).click();
@@ -154,7 +154,7 @@ test.describe("온보딩", () => {
     // 핵심 검증: 새로고침 후에도 프로필이 유지되는가
     await page.reload();
     await expect(page.getByRole("button", { name: CHILD_NAME })).toBeVisible({ timeout: 15_000 });
-    const afterReload = await page.evaluate(() => localStorage.getItem("aiweather:profiles"));
+    const afterReload = await page.evaluate(() => localStorage.getItem("aiday:profiles"));
     expect(afterReload).toContain(CHILD_NAME);
   });
 

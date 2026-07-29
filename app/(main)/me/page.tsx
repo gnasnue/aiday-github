@@ -29,6 +29,7 @@ import {
   removeProfileFromDb,
   syncProfilesFromDb,
 } from "@/lib/profile";
+import { clearProfileStorage, getActiveProfileId, setActiveProfileId } from "@/lib/storage-keys";
 import { useLocation } from "@/lib/useLocation";
 import { supabase } from "@/lib/supabase";
 import { normalizeSensitivity } from "@/lib/profile-options";
@@ -149,7 +150,7 @@ const My = () => {
     const list = loadProfiles();
     setProfiles(list);
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       setActive(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id ?? "");
     } catch {
       setActive(list[0]?.id ?? "");
@@ -167,7 +168,7 @@ const My = () => {
 
   const select = (id: string) => {
     setActive(id);
-    try { localStorage.setItem("aiweather:activeProfileId", id); } catch {}
+    setActiveProfileId(id);
     toast.success("프로필이 선택되었어요");
   };
 
@@ -184,10 +185,7 @@ const My = () => {
     if (!confirm("로그아웃할까요?")) return;
     await supabase.auth.signOut();
     // 이 기기에 아이 건강정보를 남기지 않도록 로컬 프로필도 정리
-    try {
-      localStorage.removeItem("aiweather:profiles");
-      localStorage.removeItem("aiweather:activeProfileId");
-    } catch {}
+    clearProfileStorage();
     toast.success("로그아웃했어요");
     router.push("/");
   };

@@ -12,9 +12,9 @@ description: QA 실행 후 발견된 문제를 수정까지 한다. 사이트 �
 1. `npm run dev`로 서버를 띄운다 (환경 변수가 없으면 mock/에러 화면 동작을 점검 대상에 포함).
 2. **전 화면 순회** — 각 화면에서 렌더링 오류, 콘솔 에러, 깨진 레이아웃, 로딩/에러 상태를 확인한다:
    - `/` (랜딩) → `/login`, `/signup`, `/reset-password`
-   - `/onboarding` (7단계 전부 진행)
-   - `/home` (AI 리포트 로딩·skeleton·완료 상태), `/env`, `/outfit`, `/tips`, `/me`
-3. **API 직접 점검**: `/api/weather`, `/api/air`, `/api/pollen`, `/api/uv`, `/api/report` — 정상 응답과 비정상 파라미터(없는 지역 등) fallback 동작.
+   - `/onboarding` (5단계 전부 진행)
+   - `/home` (AI 리포트 로딩·skeleton·완료 상태), `/env`, `/outfit`, `/day`, `/me` — 탭 5종. 추가로 `/review`(오늘의 마무리 2스텝)·`/tips`(홈 팁 시트에서 진입)·`/pass`(마이에서 진입)
+3. **API 직접 점검**: `/api/weather`, `/api/air`, `/api/pollen`, `/api/uv`, `/api/weather/weekly`, `/api/report`, `/api/noteboard`(로그인 필수) — 정상 응답과 비정상 파라미터(없는 지역 등) fallback 동작.
 4. **DESIGN.md 정합성**: 순회 중 DESIGN.md 기준(터치 타겟 44px, primary `#F5A623`, Pretendard, Lucide 아이콘, 390px 프레임)에 어긋나는 코드를 발견하면 반드시 flag한다 (CLAUDE.md 규정).
 5. `npm run lint` 와 `npm run build` 통과 확인.
 

@@ -35,14 +35,15 @@ import { withSubjectSuffix } from "@/lib/korean";
 import { hasRespiratory, hasAllergy, hasSkin } from "@/lib/domain/child-conditions";
 import {
   ChildProfile,
-  PROFILES_KEY,
   allowBrowseHome,
   defaultProfiles,
   fetchProfilesFromDb,
   isDemoProfile,
   loadProfiles,
   realLocalProfiles,
+  saveProfiles,
 } from "@/lib/profile";
+import { getActiveProfileId, setActiveProfileId } from "@/lib/storage-keys";
 import { buildRecommendation, type Recommendation } from "@/lib/recommendation-engine";
 import { useLocation } from "@/lib/useLocation";
 import type { WeatherData } from "@/lib/weather-api";
@@ -297,7 +298,7 @@ const Home = () => {
     const list = loadProfiles();
     setProfiles(list);
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       setActive(saved && list.some((p) => p.id === saved) ? saved : list[0].id);
     } catch {
       setActive(list[0].id);
@@ -390,7 +391,7 @@ const Home = () => {
     fetchProfilesFromDb().then((res) => {
       if (res.status !== "ok") return; // 게스트·조회 실패 → 로컬 상태 유지
       if (res.list.length) {
-        try { localStorage.setItem(PROFILES_KEY, JSON.stringify(res.list)); } catch {}
+        saveProfiles(res.list);
         setProfiles(res.list);
         setActive((prev) => (res.list.find((p) => p.id === prev) ? prev : res.list[0].id));
       } else if (!realLocalProfiles().length && !allowBrowseHome()) {
@@ -401,7 +402,7 @@ const Home = () => {
 
   // Persist active profile
   useEffect(() => {
-    try { localStorage.setItem("aiweather:activeProfileId", active); } catch {}
+    setActiveProfileId(active);
   }, [active]);
 
   // 실제 날씨 + 대기질 데이터 로드

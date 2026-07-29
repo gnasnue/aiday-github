@@ -28,6 +28,7 @@ import PageHeader, { headerBtn } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
+import { getActiveProfileId } from "@/lib/storage-keys";
 import { useLocation } from "@/lib/useLocation";
 import { withSubjectSuffix } from "@/lib/korean";
 import {
@@ -60,6 +61,10 @@ import {
 // 여기서 따로 하드코딩하면 지방 확장 시 데이터는 옮겨가고 장소만 서울에 남는다.
 
 // verdict → 배지 표시 (v3: 순백 카드 위 상태색 텍스트, 브랜드 오렌지는 데이터에 안 씀)
+// 인앱 수요 프로브 dedup 키 — 화면 안에서만 쓰지만 호출 자리에 리터럴을 두지 않는다
+// (eslint no-restricted-syntax: 키는 상수로).
+const OUTING_PROBE_KEY = "aiday:probe:weekend-outing";
+
 const VERDICT_META: Record<WeekendVerdict, { label: string; tone: string; Icon: typeof Home }> = {
   indoor: { label: "실내 추천", tone: "text-status-info", Icon: Home },
   outdoor: { label: "실외 좋아요", tone: "text-status-good", Icon: Trees },
@@ -159,7 +164,7 @@ const Environment = () => {
     const list = loadProfiles();
     setProfiles(list);
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       setActiveId(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id);
     } catch {
       setActiveId(list[0]?.id);
@@ -180,7 +185,7 @@ const Environment = () => {
   const [outingProbed, setOutingProbed] = useState(false);
   useEffect(() => {
     try {
-      setOutingProbed(localStorage.getItem("aiday:probe:weekend-outing") === "1");
+      setOutingProbed(localStorage.getItem(OUTING_PROBE_KEY) === "1");
     } catch {}
   }, []);
 
@@ -380,7 +385,7 @@ const Environment = () => {
     if (outingProbed) return;
     setOutingProbed(true);
     try {
-      localStorage.setItem("aiday:probe:weekend-outing", "1");
+      localStorage.setItem(OUTING_PROBE_KEY, "1");
     } catch {}
     try {
       await fetch("/api/feedback", {

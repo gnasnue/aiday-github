@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, Minus, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { loadProfiles, type ChildProfile } from "@/lib/profile";
+import { getActiveProfileId } from "@/lib/storage-keys";
 import { useLocation } from "@/lib/useLocation";
 import { loadTodayEnvSnapshot } from "@/lib/env-cache";
 import { hasAllergy, hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
@@ -135,7 +136,7 @@ const DayReviewPage = () => {
     const profiles = loadProfiles();
     let active: ChildProfile = profiles[0];
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       active = profiles.find((p) => p.id === saved) ?? profiles[0];
     } catch {}
     setChild(active);
