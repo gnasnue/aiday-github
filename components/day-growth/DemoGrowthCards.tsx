@@ -1,20 +1,24 @@
 /**
- * 30일 성장 탭 상단 카드 — **데모 전용 예시 3안**.
+ * 30일 성장 탭 — 알림장이 쌓이기 전에 보여주는 **'받게 될 화면' 예시 3안**.
  *
- * 왜 필요한가: 실제 상단 카드는 알림장이 쌓여야 나온다. 데모에서는 그 상태를 만들 수 없어
- * "N개만 더 모이면"만 보인다. 그래서 완성된 모습을 예시로 보여준다.
+ * 왜 필요한가: 실제 상단 카드는 알림장 3건이 쌓여야 나온다. 그 전에는 안내 한 줄뿐이라
+ * 이 탭이 무엇을 주는지 알 수 없다. 그래서 완성된 모습을 미리 보여준다.
  *
- * 실사용자에게 새지 않게 하는 세 겹:
- *   1. `?demo=` 쿼리가 없으면 렌더하지 않는다(호출부 게이트).
- *   2. 아이 이름을 **주입하지 않는다** — 고정 예시 이름("지우")만 쓴다. 실사용자 아이 이름에
+ * 실사용자에게 오해를 남기지 않는 장치:
+ *   1. **데이터가 쌓이면 자동으로 사라진다** — `MonthGrowthView`가 집계 결과가 생기는 순간
+ *      진짜 화면으로 교체한다. 예시가 계속 남는 경로가 없다.
+ *   2. 아이 이름을 **주입하지 않는다** — 고정 예시 이름만 쓴다. 실사용자 아이 이름에
  *      지어낸 문장을 붙이는 것이 이 화면에서 가능한 최악의 실수다.
- *   3. 카드마다 '예시' 배지를 단다.
+ *   3. 예시임을 알리는 문장은 **바로 위 안내 카드**가 진다("쌓이면 아래 같은 화면을
+ *      받게 돼요"). 카드마다 배지를 달지 않는 이유 — 그 문장과 중복이고, 발표 화면에
+ *      내부용 안번호가 노출된다.
  *
- * `NODE_ENV === "development"` 게이트(`?seed=memory` 방식)를 쓰지 않은 이유: 데모를 배포된
- * 앱에서 할 수 있어야 한다. 위 세 겹으로 프로덕션 노출 위험을 대신 막는다.
+ * `NODE_ENV === "development"` 게이트(`?seed=memory` 방식)를 쓰지 않은 이유: 발표를 배포된
+ * 앱에서, 남의 PC에서 해야 한다. 쿼리·세션 게이트도 같은 이유로 걷어냈다(탭 이동 한 번에
+ * 사라졌다). 위 3장치가 대신 막는다.
  *
  * 세 안 모두 `shadow-card`를 쓴다 — 하나를 골라 히어로가 될 후보라서 실제 모습대로
- * 비교해야 한다("히어로 1곳" 규칙은 이 데모 표면 밖에서 지킨다).
+ * 비교해야 한다("히어로 1곳" 규칙은 이 표면 밖에서 지킨다).
  */
 
 import { ArrowRight, Leaf, Share2, Sparkles, TrendingUp } from "lucide-react";
@@ -22,15 +26,6 @@ import { ArrowRight, Leaf, Share2, Sparkles, TrendingUp } from "lucide-react";
 export type DemoVariant = "a" | "b" | "c";
 
 const EXAMPLE_NAME = "지우";
-
-const Badge = ({ label }: { label?: string }) => (
-  <div className="mb-2 flex items-center gap-2">
-    <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
-      예시
-    </span>
-    {label && <span className="text-[12px] text-muted-foreground">{label}</span>}
-  </div>
-);
 
 const Action = ({ children }: { children: React.ReactNode }) => (
   <div className="mt-5 flex items-start gap-2 border-t border-border pt-4">
@@ -176,33 +171,28 @@ const VariantC = () => (
   </section>
 );
 
-const VARIANTS: Record<DemoVariant, { node: React.ReactNode; label: string }> = {
-  a: { node: <VariantA />, label: "A안 · 변화" },
-  b: { node: <VariantB />, label: "B안 · 관심사" },
-  c: { node: <VariantC />, label: "C안 · 성취" },
+const VARIANTS: Record<DemoVariant, React.ReactNode> = {
+  a: <VariantA />,
+  b: <VariantB />,
+  c: <VariantC />,
 };
 
 /**
- * `variant`가 있으면 그 한 안만 깔끔하게(라벨 없이, '예시' 배지만) 보여준다 — 실제 데모용.
- * 없으면 3안을 라벨과 함께 쌓아 비교용으로 보여준다.
+ * `variant`가 있으면 그 한 안만, 없으면 3안을 쌓아 보여준다.
+ *
+ * 카드 위 라벨('예시 · A안 · 변화')은 두지 않는다 — 바로 위 안내 카드가 "쌓이면
+ * **아래 같은 화면**을 받게 돼요"로 이미 예시임을 말하고 있어 중복이고, 발표 화면에
+ * 내부용 안번호가 노출된다. 예시임을 알리는 책임은 그 안내 문장이 진다.
  */
 export default function DemoGrowthCards({ variant }: { variant?: DemoVariant }) {
   if (variant) {
-    return (
-      <div className="mb-12">
-        <Badge />
-        {VARIANTS[variant].node}
-      </div>
-    );
+    return <div className="mb-12">{VARIANTS[variant]}</div>;
   }
 
   return (
     <div className="mb-12 space-y-10">
       {(Object.keys(VARIANTS) as DemoVariant[]).map((key) => (
-        <div key={key}>
-          <Badge label={VARIANTS[key].label} />
-          {VARIANTS[key].node}
-        </div>
+        <div key={key}>{VARIANTS[key]}</div>
       ))}
     </div>
   );
