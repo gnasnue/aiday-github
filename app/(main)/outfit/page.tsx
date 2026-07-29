@@ -11,14 +11,13 @@ import {
 import PageHeader from "@/components/PageHeader";
 import WeatherNowCard from "@/components/WeatherNowCard";
 import LineIcon, { type LineIconName } from "@/components/LineIcon";
-const ootdLook = "/ootd-look.jpg";
+const ootdLook = "/ootd-look-v4.jpg";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
 import { useLocation } from "@/lib/useLocation";
 import { withTopicParticle } from "@/lib/korean";
 import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
-import { buildItemRecommendations } from "@/lib/item-recommend";
 
 
 type Category = "아우터" | "이너" | "하의" | "악세사리";
@@ -363,20 +362,6 @@ const Outfit = () => {
     return map;
   }, [plan.items]);
 
-  // 구매 아이템 목록 — 오늘 코디(plan.items)의 파생. 코디와 어긋나는 상품이 나오지 않게
-  // 동일 규칙 엔진을 코디 아이템 문구로 매칭한다. (홈에서 이 페이지 하단으로 이동, 2026-07-16)
-  // 괄호 없이 합쳐 넘긴다 — 괄호가 있으면 코디 아이템의 노트(예: "긴팔 티 (자외선·냉방 대비)")가
-  // 매칭된 상품의 근거로 쓰여 어색해진다. 괄호가 없으면 근거는 상품 고유 목적(note)이 된다.
-  const products = useMemo(
-    () =>
-      buildItemRecommendations({
-        checklist: plan.items.map((it) => `${it.name} ${it.note ?? ""}`),
-        prepBySlot: {},
-        conditions: cur?.conditions ?? [],
-      }),
-    [plan.items, cur?.conditions]
-  );
-
   return (
     <div className="page-shell">
       <div className="page-frame pb-24 animate-fade-in">
@@ -476,7 +461,25 @@ const Outfit = () => {
                 loading="lazy"
                 className="block w-full object-cover"
               />
+              {/* 시안 이미지에 그려져 있던 "추천 아이템 모두 보기" 버튼을 잘라내고(v4)
+                  그 자리를 실제 DOM 행으로 대체한다. 베타 기간 커머스 미연동이라
+                  누를 수 없다는 사실을 "준비중"으로 밝힌다 — bg-primary CTA·chevron 등
+                  이동·실행을 약속하는 어포던스는 쓰지 않는다(가짜 affordance 금지). */}
+              <div className="flex items-center justify-center gap-2 border-t border-border px-5 py-3.5">
+                <span className="text-[14px] font-semibold text-muted-foreground">
+                  추천 아이템 모두 보기
+                </span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[13px] font-medium text-muted-foreground">
+                  준비중
+                </span>
+              </div>
             </div>
+            {/* 이미지 안에 상품명·가격이 함께 그려져 있다. 커머스 미연동이라
+                가격이 실거래가로 읽히지 않도록 고지를 카드 바로 아래 둔다.
+                "구매 연동은 준비 중"은 위 행의 준비중 배지와 겹쳐 빼놓았다. */}
+            <p className="mt-2 px-0.5 text-[13px] text-muted-foreground">
+              가격은 참고용이에요
+            </p>
           </section>
 
           {/* Avoid */}
@@ -505,27 +508,6 @@ const Outfit = () => {
             </ul>
           </section>
 
-          {/* 오늘 필요한 아이템 — 텍스트+가격 심플 리스트 (일러스트 없음).
-              커머스 미연동이라 탭 동작·chevron 없음(가짜 affordance 금지). */}
-          <section className="mt-7">
-            <h2 className="text-[17px] font-bold tracking-tight">오늘 필요한 아이템</h2>
-            <div className="mt-3 rounded-2xl bg-card px-4 shadow-soft">
-              <ul className="divide-y divide-border">
-                {products.map((p) => (
-                  <li key={p.name} className="flex items-baseline justify-between gap-3 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[14px] font-semibold text-foreground break-keep">{p.name}</p>
-                      <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{p.reason}</p>
-                    </div>
-                    <span className="num shrink-0 text-[14px] text-foreground">{p.price}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <p className="mt-2 px-0.5 text-[12px] text-muted-foreground/80">
-              가격은 참고용이에요 · 구매 연동은 준비 중
-            </p>
-          </section>
         </main>
       </div>
     </div>
