@@ -30,6 +30,7 @@ import WeekRadar from "@/components/WeekRadar";
 import GrowthViewSegment, { type GrowthView } from "@/components/day-growth/GrowthViewSegment";
 import TodayGrowthView from "@/components/day-growth/TodayGrowthView";
 import MonthGrowthView from "@/components/day-growth/MonthGrowthView";
+import DemoGrowthCards, { type DemoVariant } from "@/components/day-growth/DemoGrowthCards";
 import { localDateStr } from "@/lib/date";
 import {
   OVERALL_FIT_OPTIONS,
@@ -57,6 +58,8 @@ const DayPage = () => {
   const [entries, setEntries] = useState<DayReviewEntry[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [view, setView] = useState<GrowthView>("today");
+  // 데모 예시 카드 게이트. null = 안 보임(실사용자 기본), undefined = 3안 비교.
+  const [demoVariant, setDemoVariant] = useState<DemoVariant | undefined | null>(null);
 
   useEffect(() => {
     const list = loadProfiles();
@@ -67,6 +70,15 @@ const DayPage = () => {
       if (saved && list.some((p) => p.id === saved)) id = saved;
     } catch {}
     setActive(id);
+
+    // `?demo=1` → 3안 비교, `?demo=a|b|c` → 한 안만. 그 외에는 렌더하지 않는다.
+    // 서버 렌더와 어긋나지 않게 마운트 후에만 읽는다.
+    try {
+      const demo = new URLSearchParams(window.location.search).get("demo");
+      if (demo === "a" || demo === "b" || demo === "c") setDemoVariant(demo);
+      else if (demo) setDemoVariant(undefined);
+    } catch {}
+
     setMounted(true);
   }, []);
 
@@ -130,16 +142,20 @@ const DayPage = () => {
           {/* 두 뷰를 모두 마운트해 두고 hidden으로 감춘다 — 탭을 옮겨도 오늘의 분석
               결과·선택한 질문이 유지된다(시안에서 확인한 동작). */}
           <div className="mt-6">
-            <div hidden={view !== "today"}>{child && <TodayGrowthView child={child} />}</div>
-            <div hidden={view !== "month"}>
-              {child && <MonthGrowthView child={child} />}
+            <div hidden={view !== "today"}>
+              {child && <TodayGrowthView child={child} />}
 
               {/* ── 이번 주 컨디션 예보 — 주간 예보 × 체질 × 저녁 기록의 앞보기 훅 ──
-                  세그먼트 밖에 두었을 때는 두 탭에서 모두 보여, 탭 내용의 마지막 카드처럼
-                  읽혔다(탭과의 경계 48px이 각 뷰 내부 간격과 같아 구분할 근거가 없었다).
-                  오늘 탭은 알림장 한 가지 일로 정돈하고, 예보는 누적 쪽에 둔다 — 알림장이
-                  3건 미만일 때 거의 비어 있던 이 탭이 그 동안 보여줄 것도 생긴다. */}
+                  세그먼트 **안**에 둬야 한다. 밖에 두면 두 탭에서 모두 보이는데, 탭 내용과의
+                  경계(48px)가 각 뷰 내부의 히어로↔다음 섹션 간격과 같아 탭의 마지막 카드처럼
+                  읽혔다. 기본 탭에 두어 앞보기 훅의 노출을 지킨다. */}
               <WeekRadar child={child} entries={entries} location={location} className="mt-12" />
+            </div>
+            <div hidden={view !== "month"}>
+              {/* 데모 전용 예시 카드 — `?demo=1`(3안 비교) 또는 `?demo=a|b|c`(한 안).
+                  쿼리가 없으면 렌더하지 않으므로 실사용자 경로에는 나타나지 않는다. */}
+              {demoVariant !== null && <DemoGrowthCards variant={demoVariant} />}
+              {child && <MonthGrowthView child={child} />}
             </div>
           </div>
         </main>
