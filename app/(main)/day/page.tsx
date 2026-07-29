@@ -46,6 +46,9 @@ const shortDate = (iso: string) => {
   return `${m}.${d} ${dow}`;
 };
 
+/** 데모 게이트 보관 키. sessionStorage — 탭을 닫으면 사라진다. */
+const DEMO_KEY = "aiday:demo:growth";
+
 const fitLabel = (e: DayReviewEntry) =>
   OVERALL_FIT_OPTIONS.find((o) => o.value === e.overallFit)?.label ?? "";
 
@@ -71,12 +74,23 @@ const DayPage = () => {
     } catch {}
     setActive(id);
 
-    // `?demo=1` → 3안 비교, `?demo=a|b|c` → 한 안만. 그 외에는 렌더하지 않는다.
+    // 데모 예시 카드 게이트.
+    //   `?demo=1` → 3안 비교 / `?demo=a|b|c` → 한 안 / `?demo=0` → 끄기
+    //
+    // 한 번 켜면 **세션 동안 유지**한다. 하단 탭으로 이동하면 쿼리가 사라져
+    // 데모 도중 카드가 없어지기 때문이다(실제로 발생). 보관은 sessionStorage라
+    // 탭을 닫으면 사라진다 — 실사용자 기기에 남지 않는다.
     // 서버 렌더와 어긋나지 않게 마운트 후에만 읽는다.
     try {
-      const demo = new URLSearchParams(window.location.search).get("demo");
-      if (demo === "a" || demo === "b" || demo === "c") setDemoVariant(demo);
-      else if (demo) setDemoVariant(undefined);
+      const q = new URLSearchParams(window.location.search).get("demo");
+      const OFF = q === "0" || q === "off";
+      if (OFF) sessionStorage.removeItem(DEMO_KEY);
+      const raw = OFF ? null : (q ?? sessionStorage.getItem(DEMO_KEY));
+      if (raw) {
+        const v = raw === "a" || raw === "b" || raw === "c" ? raw : undefined;
+        setDemoVariant(v);
+        sessionStorage.setItem(DEMO_KEY, v ?? "1");
+      }
     } catch {}
 
     setMounted(true);
