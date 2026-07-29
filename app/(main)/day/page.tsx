@@ -131,11 +131,17 @@ const DayPage = () => {
               결과·선택한 질문이 유지된다(시안에서 확인한 동작). */}
           <div className="mt-6">
             <div hidden={view !== "today"}>{child && <TodayGrowthView child={child} />}</div>
-            <div hidden={view !== "month"}>{child && <MonthGrowthView child={child} />}</div>
-          </div>
+            <div hidden={view !== "month"}>
+              {child && <MonthGrowthView child={child} />}
 
-          {/* ── 이번 주 컨디션 예보 — 주간 예보 × 체질 × 저녁 기록의 앞보기 훅 ── */}
-          <WeekRadar child={child} entries={entries} location={location} className="mt-12" />
+              {/* ── 이번 주 컨디션 예보 — 주간 예보 × 체질 × 저녁 기록의 앞보기 훅 ──
+                  세그먼트 밖에 두었을 때는 두 탭에서 모두 보여, 탭 내용의 마지막 카드처럼
+                  읽혔다(탭과의 경계 48px이 각 뷰 내부 간격과 같아 구분할 근거가 없었다).
+                  오늘 탭은 알림장 한 가지 일로 정돈하고, 예보는 누적 쪽에 둔다 — 알림장이
+                  3건 미만일 때 거의 비어 있던 이 탭이 그 동안 보여줄 것도 생긴다. */}
+              <WeekRadar child={child} entries={entries} location={location} className="mt-12" />
+            </div>
+          </div>
         </main>
       </div>
 
