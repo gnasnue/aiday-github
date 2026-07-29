@@ -26,7 +26,7 @@ export default defineConfig({
   use: {
     // 버그 수정 검증 시엔 로컬 dev 서버(E2E_BASE_URL=http://localhost:3000)로 재실행한다 —
     // 라이브 데모는 배포 전까지 수정 사항을 반영하지 않는다.
-    baseURL: process.env.E2E_BASE_URL || "https://aiday-demo.vercel.app",
+    baseURL: process.env.E2E_BASE_URL || "https://myaiday.co",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
     trace: "retain-on-failure",

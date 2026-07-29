@@ -2,7 +2,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 대상 | 라이브 데모 https://aiday-demo.vercel.app (실 프로덕션 Supabase DB, 실 Claude Sonnet API) |
+| 대상 | 라이브 서비스 https://myaiday.co (실 프로덕션 Supabase DB, 실 Claude Sonnet API) — 2026-07-29 도메인 변경, 구 `aiday-demo.vercel.app`. 이 문서 아래 본문과 2026-07-24 리포트에 남은 구 도메인 표기는 당시 기록이다 |
 | 도구 | Playwright (`@playwright/test`), 헤드리스 실행 |
 | 작성일 | 2026-07-24 |
 | 작성자 | QA Agent (독립 세션, 소스코드 수정 금지) |
@@ -27,7 +27,7 @@
 
 ## 3. 환경 구성
 
-- `playwright.config.ts`: `baseURL: "https://aiday-demo.vercel.app"`, `screenshot: "only-on-failure"`, `video: "retain-on-failure"`, `trace: "retain-on-failure"`, 산출물은 `test-results/`에 쌓은 뒤 `screenshots/`·`traces/`로 후처리 복사(스크립트 `scripts/collect-artifacts.mjs` 또는 실행 후 수동 복사).
+- `playwright.config.ts`: `baseURL: "https://myaiday.co"`(2026-07-29 변경), `screenshot: "only-on-failure"`, `video: "retain-on-failure"`, `trace: "retain-on-failure"`, 산출물은 `test-results/`에 쌓은 뒤 `screenshots/`·`traces/`로 후처리 복사(스크립트 `scripts/collect-artifacts.mjs` 또는 실행 후 수동 복사).
 - 프로젝트(뷰포트):
   - `mobile` — 390×844 (DESIGN.md 모바일 고정 프레임 기준). 실 리포트 생성·레이트리밋 등 **비용이 발생하는 테스트는 이 프로젝트에서만 실행**(desktop과 중복 실행 시 Claude 호출이 2배가 되므로).
   - `desktop` — 1280×800. 레이아웃 스모크, 모킹 기반 에러 케이스 등 **비용 없는 테스트만** 실행.
