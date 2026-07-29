@@ -14,7 +14,7 @@ test.describe("반응형 · 데이터 많음", () => {
   test("TC-RESP-03: 홈 하단 탭바 5개 전부 노출·클릭 가능", async ({ page }, testInfo) => {
     await page.goto("/home");
     await expect(checklistHeading(page)).toBeVisible({ timeout: 15_000 });
-    for (const label of ["홈", "환경정보", "옷차림", "건강팁", "마이"]) {
+    for (const label of ["홈", "환경정보", "옷차림", "하루", "마이"]) {
       await expect(page.getByRole("link", { name: label, exact: true })).toBeVisible();
     }
     const hasHorizontalOverflow = await page.evaluate(
@@ -40,7 +40,7 @@ test.describe("반응형 · 데이터 많음", () => {
 
     // localStorage에 프로필을 직접 추가(데모 2개 + QA 추가 3개 = 5개)해 "데이터 많음" 상태 재현
     await page.evaluate(() => {
-      const raw = localStorage.getItem("aiweather:profiles");
+      const raw = localStorage.getItem("aiday:profiles");
       const list = raw ? JSON.parse(raw) : [];
       for (let i = 1; i <= 3; i++) {
         list.push({
@@ -58,7 +58,7 @@ test.describe("반응형 · 데이터 많음", () => {
           createdAt: Date.now() + i,
         });
       }
-      localStorage.setItem("aiweather:profiles", JSON.stringify(list));
+      localStorage.setItem("aiday:profiles", JSON.stringify(list));
     });
     await page.reload();
     await expect(checklistHeading(page)).toBeVisible({ timeout: 15_000 });

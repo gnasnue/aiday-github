@@ -49,6 +49,7 @@ import {
   saveProfile,
   saveProfileToDb,
 } from "@/lib/profile";
+import { ONBOARDING_KEY, readKey, removeKey, setActiveProfileId, writeKey } from "@/lib/storage-keys";
 import { conditions, sensitivity, sweatLevels, halfHour } from "@/lib/profile-options";
 import { track } from "@/lib/analytics";
 import {
@@ -60,7 +61,8 @@ import {
 } from "@/lib/consent";
 
 const TOTAL = 5;
-const STORAGE_KEY = "aiweather:onboarding:v2"; // 기본정보 병합(7→5단계)으로 step 의미 변경 — 구형 진행상태 무효화
+// 온보딩 진행 상태 키. 접미사 `:v2`는 기본정보 병합(7→5단계)으로 step 의미가 바뀌면서
+// 구형 진행상태를 무효화하려고 붙인 것 — lib/storage-keys.ts가 단일 출처다.
 
 type State = {
   name: string;
@@ -136,7 +138,7 @@ const Onboarding = () => {
   useEffect(() => {
     if (!consentChecked) return;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = readKey(ONBOARDING_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed.s) setS({ ...defaultState, ...parsed.s });
@@ -148,7 +150,7 @@ const Onboarding = () => {
   useEffect(() => {
     if (!consentChecked) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ s, step }));
+      writeKey(ONBOARDING_KEY, JSON.stringify({ s, step }));
     } catch {}
   }, [consentChecked, s, step]);
 
@@ -195,7 +197,7 @@ const Onboarding = () => {
     saveProfileToDb(profile).then((res) => {
       if (res.status === "ok") {
         // DB 저장 후 반환된 UUID로 activeProfileId 갱신
-        try { localStorage.setItem("aiweather:activeProfileId", res.id); } catch {}
+        setActiveProfileId(res.id);
       } else if (res.status === "error") {
         // 로그인 상태인데 저장 실패 — 조용히 넘기면 다른 기기·재로그인 시
         // 로컬 데이터가 없어 데모 프로필이 보인다. 사용자에게 알리고 재시도 유도.
@@ -207,7 +209,7 @@ const Onboarding = () => {
       // no-auth(게스트)는 로컬 저장만으로 정상 — 알림 없음
     });
     try {
-      localStorage.setItem("aiweather:activeProfileId", profile.id);
+      setActiveProfileId(profile.id);
     } catch {}
   };
 
@@ -235,7 +237,7 @@ const Onboarding = () => {
     else {
       finish();
       track("onboarding_completed");
-      try { localStorage.removeItem(STORAGE_KEY); } catch {}
+      removeKey(ONBOARDING_KEY);
       setDone(true);
     }
   };

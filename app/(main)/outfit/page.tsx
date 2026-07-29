@@ -15,6 +15,7 @@ const ootdLook = "/ootd-look.jpg";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
+import { getActiveProfileId } from "@/lib/storage-keys";
 import { useLocation } from "@/lib/useLocation";
 import { withTopicParticle } from "@/lib/korean";
 import { hasRespiratory, hasSkin } from "@/lib/domain/child-conditions";
@@ -328,7 +329,7 @@ const Outfit = () => {
     const list = loadProfiles();
     setProfiles(list);
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       setActiveId(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id);
     } catch {
       setActiveId(list[0]?.id);

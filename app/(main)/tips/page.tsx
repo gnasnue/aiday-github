@@ -20,6 +20,7 @@ import LineIcon from "@/components/LineIcon";
 import PageHeader from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChildProfile, defaultProfiles, loadProfiles } from "@/lib/profile";
+import { getActiveProfileId } from "@/lib/storage-keys";
 import { withSubjectSuffix, withTopicParticle } from "@/lib/korean";
 import { useLocation } from "@/lib/useLocation";
 import { fetchEnvData, type EnvData } from "@/lib/env-data";
@@ -72,7 +73,7 @@ const Tips = () => {
     const list = loadProfiles();
     setProfiles(list);
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       setActiveId(saved && list.some((p) => p.id === saved) ? saved : list[0]?.id);
     } catch {
       setActiveId(list[0]?.id);

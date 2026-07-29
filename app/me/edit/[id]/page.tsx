@@ -24,6 +24,7 @@ import {
   saveProfiles,
   saveProfileToDb,
 } from "@/lib/profile";
+import { getActiveProfileId, setActiveProfileId } from "@/lib/storage-keys";
 import {
   conditions,
   sensitivity,
@@ -192,8 +193,8 @@ const EditProfile = () => {
         loadProfiles().map((p) => (p.id === updated.id ? { ...updated, id: res.id } : p))
       );
       try {
-        if (localStorage.getItem("aiweather:activeProfileId") === updated.id) {
-          localStorage.setItem("aiweather:activeProfileId", res.id);
+        if (getActiveProfileId() === updated.id) {
+          setActiveProfileId(res.id);
         }
       } catch {}
     }

@@ -1,6 +1,6 @@
 # aiday — Claude Code Instructions
 
-아이데이(AiDay): 날씨·대기질 등 환경 데이터를 아이 체질 기준으로 해석해, 부모가 매일 반복하는 육아 의사결정의 첫 판단(옷차림·준비물·오늘의 케어 방식)을 지원하는 AI 육아 앱. Next.js 15 (App Router) + TypeScript + Supabase + Claude Sonnet. 모바일 우선(390px 고정 프레임), 문서·UI·커밋 메시지는 한국어.
+아이데이(AiDay): 날씨·대기질 등 환경 데이터를 아이 체질 기준으로 해석해, 부모가 매일 반복하는 육아 의사결정의 첫 판단(옷차림·준비물·오늘의 케어 방식)을 지원하는 AI 육아 앱. 그 판단은 하루 안에서 닫힌다 — **아침 판단 → 기관·돌봄자에게 전달 → 저녁 30초 회수 → 다음 비슷한 날 예고**(아침이 중심, 나머지는 그 정확도·전달을 위해 존재. MANIFESTO §1·§5). Next.js 15 (App Router) + TypeScript + Supabase + Claude Sonnet. 모바일 우선(390px 고정 프레임), 문서·UI·커밋 메시지는 한국어.
 
 ## Commands
 
@@ -11,6 +11,8 @@ npm run lint    # ESLint — ship 전 필수 통과
 npm test        # vitest — lib 유닛 테스트
 node scripts/verify-env-accuracy.mjs   # 홈 환경 지표 정합성 검증 (기본 프로덕션, --base http://localhost:3000 로컬)
 # ↑ 매일 07시 Claude 스케줄 태스크 `aiday-daily-env-accuracy`(~/.claude/scheduled-tasks, repo 외부)가 자동 실행
+node scripts/eval-report.mjs       # 리포트 프롬프트 eval — 프롬프트 변경 시 before/after 대조 필수
+node scripts/eval-noteboard.mjs    # 알림장 프롬프트 eval (3케이스)
 ```
 
 lib 도메인 로직은 vitest 유닛 테스트(`npm test`)로, 화면 동작은 실제 구동(dev 서버 + 화면 확인)으로 검증한다. 환경 변수는 `.env.example` 참조 (`.env.local`에 설정).
@@ -19,9 +21,10 @@ lib 도메인 로직은 vitest 유닛 테스트(`npm test`)로, 화면 동작은
 
 | 경로 | 역할 |
 |------|------|
-| `app/(main)/*` | 로그인 후 화면: home(AI 리포트)·env·outfit·tips·me |
-| `app/api/*` | 외부 API 프록시: weather(기상청)·air(에어코리아)·pollen(꽃가루)·uv(자외선)·report(Claude) |
-| `lib/` | 도메인 로직. AI 프롬프트는 `lib/prompts/report.ts` |
+| `app/(main)/*` | 탭 5종: home(AI 리포트)·env·outfit·day(하루 루프)·me. 탭 밖: tips(전체 가이드)·pass(케어 패스) |
+| `app/review/*` | 오늘의 마무리 — 저녁 결과 회수 2스텝 풀스크린 ((main) 프레임 밖) |
+| `app/api/*` | weather(기상청)·weather/weekly(주간)·air(에어코리아)·pollen(꽃가루)·uv(자외선)·report(Claude)·noteboard(알림장→저녁 대화 거리, 로그인 필수) |
+| `lib/` | 도메인 로직. AI 프롬프트는 `lib/prompts/`(report·noteboard), 하루 루프 판정은 `lib/memory/`·`lib/week-radar.ts`·`lib/care-plan.ts`(handoff 생성기)·`lib/morning-message.ts` |
 | `components/ui/` | shadcn/ui 생성물 — 직접 수정 지양, 커스텀은 `components/`에 |
 | `supabase/migrations/` | DB 스키마 (RLS 적용) |
 | `docs/reviews/` | 리뷰 스킬들의 리포트 산출물 |

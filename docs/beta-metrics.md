@@ -1,18 +1,27 @@
 # 베타 지표 — 무엇이 쌓이고, 어떻게 보는가
 
 베타 테스트(2026-07-20~)의 행동 계측과 지표 조회 방법. 계측 코드는 `lib/analytics.ts`,
-스키마는 `supabase/migrations/004_analytics.sql`, 지표 뷰는 `005_analytics_views.sql`.
+스키마는 `supabase/migrations/004_analytics.sql`, 지표 뷰는 `005_analytics_views.sql`,
+이벤트 화이트리스트는 `006_analytics_hardening.sql`(+ 알림장 6종 확장 `20260729040000_noteboard_analytics_events.sql`).
 
 ## 무엇이 쌓이나
 
 | 테이블 | 내용 | 쓰는 쪽 |
 |--------|------|---------|
-| `events` | 행동 이벤트 9종 (아래) | `lib/analytics.ts`의 `track()` — 클라이언트가 직접 INSERT |
-| `feedback` | 리포트 👍/👎·이유(`kind='report'`), 자유 의견(`kind='general'`) | `ReportFeedback`(홈 리포트 하단)·`FeedbackDialog`(마이페이지) |
+| `events` | 행동 이벤트 15종 (아래) | `lib/analytics.ts`의 `track()` — 클라이언트가 직접 INSERT |
+| `feedback` | 리포트 👍/👎·이유(`kind='report'`), 자유 의견(`kind='general'`), **케어 패스 사전예약**(`props->>'product'`) | `ReportFeedback`(홈 리포트 하단)·`FeedbackDialog`(마이페이지)·`/pass` |
 
-이벤트: `session_start`(탭 세션당 1회) · `page_view` · `signup_completed` ·
+기본 9종: `session_start`(탭 세션당 1회) · `page_view` · `signup_completed` ·
 `onboarding_step` · `onboarding_completed` · `report_viewed`(연령군·캐시·지연) ·
 `report_refreshed` · `report_error` · `checklist_toggled`
+
+알림장 루프 6종 (2026-07-29 추가 — 기능 존치 게이트의 측정 도구, [PRODUCT-DECISIONS §3-8](./PRODUCT-DECISIONS.md)):
+`noteboard_shown`(props: has_result — **사용률 분모**) · `noteboard_submitted`(props: length — 핵심 행동) ·
+`noteboard_generated`(props: talks·findings) · `noteboard_error`(props: status) · `noteboard_shared` ·
+`morning_message_copied`(props: has_handoff·preps — 아침 전달 문구 복사)
+
+> 게이트 판정: 동의 베타 중 **주 3회 이상 `noteboard_submitted` 사용자 ≥ 30%**. 전용 `beta_*` 뷰는 아직 없어 ad-hoc 쿼리로 본다(`app_version <> 'dev'` 필수).
+> **저녁 회수(`/review`) 계측은 아직 없다** — 리뷰 정본이 localStorage이고 events 화이트리스트 확장이 필요해 P1로 남겼다. 즉 하루 탭 사용률 중 회수 부분은 지금 숫자로 볼 수 없다.
 
 공통 컬럼: `user_id`(게스트는 null), `session_id`, `path`, `app_version`, `created_at`.
 **아이 이름·건강정보는 절대 저장하지 않는다** — 연령군(`age_band`: 1-2/3-6/7-8)만 허용.

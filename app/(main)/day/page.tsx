@@ -40,6 +40,7 @@ import {
   isDemoProfile,
   loadProfiles,
 } from "@/lib/profile";
+import { getActiveProfileId, setActiveProfileId } from "@/lib/storage-keys";
 import { useLocation } from "@/lib/useLocation";
 import { loadEnvSnapshot } from "@/lib/env-cache";
 import { buildTimeline, buildTomorrowTimeline } from "@/lib/timeline";
@@ -86,7 +87,7 @@ const DayPage = () => {
     setProfiles(list);
     let id = list[0].id;
     try {
-      const saved = localStorage.getItem("aiweather:activeProfileId");
+      const saved = getActiveProfileId();
       if (saved && list.some((p) => p.id === saved)) id = saved;
     } catch {}
     setActive(id);
@@ -98,7 +99,7 @@ const DayPage = () => {
     setEntries(loadEntries(active));
     setShared(false);
     try {
-      localStorage.setItem("aiweather:activeProfileId", active);
+      setActiveProfileId(active);
     } catch {}
   }, [active, mounted]);
 

@@ -1,5 +1,7 @@
 // Shared profile storage helpers for AI-Weather
 import { supabase } from "@/lib/supabase";
+// localStorage 키·접근은 lib/storage-keys.ts 단일 출처를 통한다 (PRODUCT-DECISIONS §3-4).
+import { PROFILES_KEY, readKey, writeKey } from "@/lib/storage-keys";
 export type Gender = "male" | "female" | "unknown";
 
 export type AlertSettings = {
@@ -40,8 +42,6 @@ export type ChildProfile = {
   };
   createdAt: number;
 };
-
-export const PROFILES_KEY = "aiweather:profiles";
 
 // SSR 안전 기본 프로필. loadProfiles()가 서버(localStorage 없음)에서 반환하는 값과 동일해,
 // useState 초기값으로 쓰면 서버·클라 첫 렌더가 일치한다(하이드레이션 불일치 방지).
@@ -147,7 +147,7 @@ export const allowBrowseHome = (): boolean => {
 
 export const loadProfiles = (): ChildProfile[] => {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    const raw = readKey(PROFILES_KEY);
     if (!raw) return defaultProfiles;
     const parsed = JSON.parse(raw) as ChildProfile[];
     if (!Array.isArray(parsed) || parsed.length === 0) return defaultProfiles;
@@ -160,22 +160,18 @@ export const loadProfiles = (): ChildProfile[] => {
 // 목록 전체를 교체 저장. 아직 localStorage에 실체화되지 않은 목록(데모 기본값)을
 // 다룰 때는 saveProfile(원본 병합)이 다른 프로필을 유실시키므로 이걸 쓴다.
 export const saveProfiles = (list: ChildProfile[]) => {
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
-  } catch {
-    // ignore
-  }
+  writeKey(PROFILES_KEY, JSON.stringify(list));
 };
 
 export const saveProfile = (p: ChildProfile) => {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    const raw = readKey(PROFILES_KEY);
     const list: ChildProfile[] = raw ? JSON.parse(raw) : [];
     const filtered = Array.isArray(list)
       ? list.filter((x) => x.id !== p.id)
       : [];
     const next = [...filtered, p];
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(next));
+    writeKey(PROFILES_KEY, JSON.stringify(next));
   } catch {
     // ignore
   }
@@ -183,14 +179,11 @@ export const saveProfile = (p: ChildProfile) => {
 
 export const removeProfile = (id: string) => {
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    const raw = readKey(PROFILES_KEY);
     if (!raw) return;
     const list = JSON.parse(raw) as ChildProfile[];
     if (!Array.isArray(list)) return;
-    localStorage.setItem(
-      PROFILES_KEY,
-      JSON.stringify(list.filter((x) => x.id !== id))
-    );
+    writeKey(PROFILES_KEY, JSON.stringify(list.filter((x) => x.id !== id)));
   } catch {
     // ignore
   }
@@ -302,9 +295,7 @@ export async function saveProfileToDb(p: ChildProfile): Promise<SaveProfileResul
 export async function syncProfilesFromDb(): Promise<ChildProfile[] | null> {
   const list = await loadProfilesFromDb();
   if (!list.length) return null;
-  try {
-    localStorage.setItem(PROFILES_KEY, JSON.stringify(list));
-  } catch {}
+  saveProfiles(list);
   return list;
 }
 
