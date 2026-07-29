@@ -26,6 +26,7 @@ import {
   Star,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { ChildProfile } from "@/lib/profile";
 import { conditionsForPrompt } from "@/lib/domain/child-conditions";
 import { localDateStr } from "@/lib/date";
@@ -42,6 +43,23 @@ import {
   type NoteboardResult,
 } from "@/lib/noteboard";
 
+/**
+ * 로딩 중 단계 문구. `/api/noteboard`는 스트리밍하지 않으므로(라우트 주석 참조) 생성이
+ * 끝나기 전에는 화면에서 바뀌는 것이 **하나도 없다** — 실측 4~7초 동안 스피너만 돈다.
+ * 홈 리포트는 hook 이벤트가 3초쯤에 도착해 진행감이 있는데 이쪽은 그 신호가 없어서,
+ * 같은 대기 시간이 훨씬 길게 느껴졌다(라이브 시연 대비 점검, 2026-07-29).
+ * 실제 시간을 줄이는 변경이 아니라 **체감만** 줄이는 변경이다. 문구는 실제 처리 순서
+ * (입력 읽기 → 변화 찾기 → 질문 고르기)를 따라가므로 거짓 진행률이 아니다.
+ */
+const LOADING_STAGES = [
+  "알림장을 읽고 있어요",
+  "오늘의 변화를 찾고 있어요",
+  "대화 거리를 고르고 있어요",
+] as const;
+// 단계 전환 시점(ms). 마지막 문구는 응답이 올 때까지 유지된다 — 남은 단계가 없는데
+// 문구를 계속 돌리면 "거의 다 됐어요"류의 거짓말이 된다.
+const STAGE_AT_MS = [2000, 4000];
+
 export default function TodayGrowthView({ child }: { child: ChildProfile }) {
   const [notes, setNotes] = useState<NoteboardEntry[]>([]);
   const [text, setText] = useState("");
@@ -50,6 +68,7 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
   const [sourceOpen, setSourceOpen] = useState(false);
   const [selectedTalk, setSelectedTalk] = useState(0);
   const [mounted, setMounted] = useState(false);
+  const [stage, setStage] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const heroRef = useRef<HTMLElement | null>(null);
   const hasRendered = useRef(false);
@@ -76,6 +95,16 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
     if (!mounted) return;
     track("noteboard_shown", { has_result: !!today });
   }, [mounted, today, child.id]);
+
+  // 단계 문구 진행. 로딩이 끝나면(성공·실패 모두) 0으로 되돌려 다음 시도가 처음부터 시작한다.
+  useEffect(() => {
+    if (!loading) {
+      setStage(0);
+      return;
+    }
+    const timers = STAGE_AT_MS.map((at, i) => window.setTimeout(() => setStage(i + 1), at));
+    return () => timers.forEach(window.clearTimeout);
+  }, [loading]);
 
   // 결과가 생기거나 사라진 뒤 히어로를 화면에 올린다(첫 렌더에는 스크롤하지 않는다).
   useEffect(() => {
@@ -187,7 +216,7 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
   };
 
   const liveMessage = loading
-    ? "오늘의 변화를 찾고 있어요"
+    ? LOADING_STAGES[stage]
     : today
       ? "분석이 끝났어요. 오늘 처음 보인 변화를 확인해 주세요."
       : "";
@@ -198,6 +227,56 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
   if (!today) {
     const over = text.length > NOTE_MAX_LEN;
     const canSubmit = text.trim().length > 0 && !over && !loading;
+
+    // 결과가 들어올 자리의 **형태**를 미리 보여준다 — 아래 결과 화면의 히어로(눈썹 줄 →
+    // 2줄 헤드라인 → 인용 블록)와 대화 거리 카드(아이콘+제목 → 질문 3개 → why → 공유 버튼)와
+    // 같은 골격·같은 여백을 쓴다(DESIGN.md 스켈레톤 규칙: 자리표시자는 실물 배치에 맞춰
+    // 로딩→실물 전환 시프트를 최소화한다). 390px 실측으로 히어로 264 vs 실물 266px,
+    // 대화 카드 376 vs 367px까지 맞췄다 — 헤드라인·요약 길이가 가변이라 0은 될 수 없다.
+    // 로딩 중에는 "분석하면 바로" 안내를 대신한다 — 이미 누른 사람에게 효용 설명은 필요 없다.
+    const resultSkeleton = (
+      <div aria-hidden="true">
+        <div className="mt-8 rounded-2xl bg-card p-5 shadow-card">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <Skeleton className="h-4 w-36 rounded-full" />
+          </div>
+          <div className="mt-3 space-y-2">
+            <Skeleton className="h-8 w-full rounded-full" />
+            <Skeleton className="h-8 w-3/5 rounded-full" />
+          </div>
+          <div className="mt-5 rounded-xl bg-muted p-4">
+            <Skeleton className="h-5 w-5 rounded-full" />
+            <div className="mt-2 space-y-2">
+              <Skeleton className="h-4 w-full rounded-full" />
+              <Skeleton className="h-4 w-4/5 rounded-full" />
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-12 rounded-2xl bg-card p-5 shadow-soft">
+          <div className="flex items-start gap-3">
+            <Skeleton className="h-9 w-9 shrink-0 rounded-xl" />
+            <div className="space-y-1.5 pt-0.5">
+              <Skeleton className="h-3 w-28 rounded-full" />
+              <Skeleton className="h-4 w-40 rounded-full" />
+            </div>
+          </div>
+          <div className="mt-5 space-y-2">
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+          </div>
+          {/* 선택된 질문의 `why` 문단 자리 */}
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-4 w-full rounded-full" />
+            <Skeleton className="h-4 w-2/3 rounded-full" />
+          </div>
+          {/* "배우자에게 공유" 버튼 자리 */}
+          <Skeleton className="mt-4 h-12 w-full rounded-[14px]" />
+        </div>
+      </div>
+    );
 
     return (
       <div>
@@ -274,7 +353,7 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
             {loading ? (
               <>
                 <LoaderCircle className="h-5 w-5 animate-spin" strokeWidth={1.75} aria-hidden="true" />
-                오늘의 변화를 찾고 있어요
+                {LOADING_STAGES[stage]}
               </>
             ) : (
               "오늘의 변화 찾기"
@@ -291,7 +370,13 @@ export default function TodayGrowthView({ child }: { child: ChildProfile }) {
           )}
         </section>
 
-        <section className="mt-8 rounded-2xl bg-card p-5 shadow-soft" aria-labelledby="analysis-benefit-title">
+        {loading && resultSkeleton}
+
+        <section
+          hidden={loading}
+          className="mt-8 rounded-2xl bg-card p-5 shadow-soft"
+          aria-labelledby="analysis-benefit-title"
+        >
           <p className="eyebrow">분석하면 바로</p>
           <h2 id="analysis-benefit-title" className="mt-1 text-[17px] font-bold">
             오늘 밤 필요한 것을 받아요
