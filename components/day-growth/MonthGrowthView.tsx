@@ -22,13 +22,24 @@ import {
   MIN_ENTRIES_FOR_GROWTH,
   type GrowthNoteSummary,
 } from "@/lib/noteboard-growth";
+import DemoGrowthCards, { type DemoVariant } from "./DemoGrowthCards";
 
 const monthDay = (date: string): string => {
   const [, m, d] = date.split("-");
   return `${Number(m)}.${d}`;
 };
 
-export default function MonthGrowthView({ child }: { child: ChildProfile }) {
+export default function MonthGrowthView({
+  child,
+  showExamples = true,
+  demoVariant,
+}: {
+  child: ChildProfile;
+  /** 데이터가 아직 없을 때 예시 카드를 보여줄지. `?demo=0`으로 끌 수 있다. */
+  showExamples?: boolean;
+  /** 지정하면 그 한 안만 — 발표에서 한 화면만 띄울 때. 없으면 3안 모두. */
+  demoVariant?: DemoVariant;
+}) {
   const [summary, setSummary] = useState<GrowthNoteSummary | null>(null);
   const [noteCount, setNoteCount] = useState(0);
   const [mounted, setMounted] = useState(false);
@@ -54,22 +65,32 @@ export default function MonthGrowthView({ child }: { child: ChildProfile }) {
   if (!summary) {
     const left = MIN_ENTRIES_FOR_GROWTH - noteCount;
     return (
-      <section className="rounded-2xl bg-card p-5 shadow-card" aria-labelledby="month-empty-title">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-          <CalendarRange className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
-          30일 성장
-        </div>
-        <h2
-          id="month-empty-title"
-          className="mt-3 text-[26px] font-extrabold leading-[1.32] tracking-[-0.02em] break-keep"
-        >
-          알림장 <span className="num">{left}</span>개만 더 모이면 변화를 보여드려요
-        </h2>
-        <p className="mt-3 text-base leading-relaxed text-muted-foreground break-keep">
-          지금까지 <span className="num">{noteCount}</span>개예요. 하루만 보면 지나치는 것들이라, 며칠은
-          쌓여야 말할 수 있어요.
-        </p>
-      </section>
+      <div>
+        <section className="rounded-2xl bg-card p-5 shadow-soft" aria-labelledby="month-empty-title">
+          <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <CalendarRange className="h-5 w-5" strokeWidth={1.75} aria-hidden="true" />
+            30일 성장
+          </div>
+          <h2
+            id="month-empty-title"
+            className="mt-3 text-[17px] font-bold leading-snug break-keep"
+          >
+            알림장 <span className="num">{left}</span>개만 더 모이면 변화를 보여드려요
+          </h2>
+          <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground break-keep">
+            지금까지 <span className="num">{noteCount}</span>개예요. 쌓이면 아래 같은 화면을 받게 돼요.
+          </p>
+        </section>
+
+        {/* 아직 쌓이지 않았을 때는 **받게 될 화면을 예시로** 보여준다. 빈 안내 한 장만 두면
+            이 탭이 무엇을 주는지 알 수 없다. 예시임은 카드마다 배지로 명시하고, 아이 이름은
+            주입하지 않고 고정 예시 이름을 쓴다(실사용자 아이 이름에 지어낸 문장 금지). */}
+        {showExamples && (
+          <div className="mt-8">
+            <DemoGrowthCards variant={demoVariant} />
+          </div>
+        )}
+      </div>
     );
   }
 
