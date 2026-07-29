@@ -117,6 +117,25 @@ const loadAll = (): NoteboardEntry[] => {
   }
 };
 
+/**
+ * 알림장이 **추가·삭제됐을 때만** 알린다. 같은 화면의 누적 카드가 따라오게 하는 용도로,
+ * `storage` 이벤트는 다른 탭에서만 발생해 쓸 수 없다.
+ *
+ * `persist()`에 걸지 않는 이유: `loadNotes()`가 읽을 때마다 보존 정책을 되돌려 쓰면서
+ * `persist()`를 호출한다. 거기서 이벤트를 쏘면 `읽기 → 이벤트 → 리스너가 다시 읽기`가
+ * 무한히 돈다(실제로 스택 오버플로가 났다). 이벤트의 의미는 "저장소가 쓰였다"가 아니라
+ * **"사용자 데이터가 바뀌었다"** 여야 한다.
+ */
+export const NOTEBOARD_CHANGED_EVENT = "aiday:noteboard-changed";
+
+const notifyChanged = (): void => {
+  try {
+    window.dispatchEvent(new Event(NOTEBOARD_CHANGED_EVENT));
+  } catch {
+    // 서버 렌더·테스트 환경엔 window가 없다 — 알림은 부가 기능이라 조용히 넘어간다.
+  }
+};
+
 const persist = (entries: NoteboardEntry[]): void => {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(entries));
@@ -164,13 +183,18 @@ export const saveNote = (entry: NoteboardEntry): void => {
     .sort((a, b) => (a.date < b.date ? 1 : -1))
     .slice(0, MAX_ENTRIES_PER_CHILD - 1);
   persist([...rest.filter((e) => e.childId !== entry.childId), ...mine, entry]);
+  notifyChanged();
 };
 
-export const deleteNote = (childId: string, date: string): void =>
+export const deleteNote = (childId: string, date: string): void => {
   persist(loadAll().filter((e) => !(e.childId === childId && e.date === date)));
+  notifyChanged();
+};
 
-export const clearNotes = (childId: string): void =>
+export const clearNotes = (childId: string): void => {
   persist(loadAll().filter((e) => e.childId !== childId));
+  notifyChanged();
+};
 
 /* ---------- 파생 ---------- */
 
